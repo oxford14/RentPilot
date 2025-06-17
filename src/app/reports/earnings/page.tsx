@@ -6,11 +6,12 @@ import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
 import { useAppContext } from '@/contexts/AppContext';
-import { AreaChart as LucideAreaChart, BarChartHorizontalBig, Info, TrendingUp, TrendingDown, DollarSign, ListChecks } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart as LucideAreaChart, BarChartHorizontalBig, Info, TrendingUp, TrendingDown, DollarSign, ListChecks, PieChart as LucidePieChart } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
+import type { ExpenseCategory } from '@/lib/types';
 
 interface MonthlyData {
   name: string; // e.g., "Jan '24"
@@ -18,12 +19,18 @@ interface MonthlyData {
   expenses: number;
 }
 
+interface ExpenseCategoryData {
+  category: ExpenseCategory;
+  total: number;
+  fill: string;
+}
+
 const getMonthYear = (dateStr: string): string => {
   const date = new Date(dateStr);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const chartConfig = {
+const incomeExpenseChartConfig = {
   income: {
     label: "Income",
     color: "hsl(var(--chart-1))",
@@ -34,11 +41,31 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const expenseCategoryColors: { [key in ExpenseCategory]: string } = {
+  'Maintenance': "hsl(var(--chart-1))",
+  'Utilities': "hsl(var(--chart-2))",
+  'Administrative': "hsl(var(--chart-3))",
+  'Marketing': "hsl(var(--chart-4))",
+  'Supplies': "hsl(var(--chart-5))",
+  'Repairs': "hsl(var(--chart-1))", // Repeating colors for example, ideally more distinct
+  'Taxes & Fees': "hsl(var(--chart-2))",
+  'Other': "hsl(var(--chart-3))",
+};
+
+const expenseCategoryChartConfig = Object.keys(expenseCategoryColors).reduce((acc, category) => {
+  acc[category as ExpenseCategory] = {
+    label: category,
+    color: expenseCategoryColors[category as ExpenseCategory],
+  };
+  return acc;
+}, {} as ChartConfig);
+
 
 export default function EarningsReportPage() {
-  const { payments, expenses: allExpenses } = useAppContext();
+  const { payments, expenses: allExpenses, expenseCategories } = useAppContext();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [chartData, setChartData] = useState<MonthlyData[]>([]);
+  const [monthlyChartData, setMonthlyChartData] = useState<MonthlyData[]>([]);
+  const [expenseCategoryChartData, setExpenseCategoryChartData] = useState<ExpenseCategoryData[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [totalIncomeForPeriod, setTotalIncomeForPeriod] = useState(0);
   const [totalExpensesForPeriod, setTotalExpensesForPeriod] = useState(0);
@@ -55,7 +82,8 @@ export default function EarningsReportPage() {
 
   useEffect(() => {
     if (!isClient || !dateRange?.from || !dateRange?.to) {
-      setChartData([]);
+      setMonthlyChartData([]);
+      setExpenseCategoryChartData([]);
       setTotalIncomeForPeriod(0);
       setTotalExpensesForPeriod(0);
       setNetProfitForPeriod(0);
@@ -80,6 +108,7 @@ export default function EarningsReportPage() {
     setTotalExpensesForPeriod(currentTotalExpenses);
     setNetProfitForPeriod(currentTotalIncome - currentTotalExpenses);
 
+    // Monthly aggregation for Bar Chart
     const monthlyAggregates: Record<string, { name: string; income: number; expenses: number }> = {};
     let currentMonthIter = new Date(startDate);
     while (currentMonthIter <= endDate) {
@@ -106,22 +135,37 @@ export default function EarningsReportPage() {
         }
     });
     
-    const sortedChartData = Object.keys(monthlyAggregates)
+    const sortedMonthlyChartData = Object.keys(monthlyAggregates)
       .sort()
       .map(key => monthlyAggregates[key]);
+    setMonthlyChartData(sortedMonthlyChartData);
 
-    setChartData(sortedChartData);
+    // Expense Category aggregation for Pie Chart
+    const categoryTotals: { [key in ExpenseCategory]?: number } = {};
+    periodExpenses.forEach(expense => {
+      categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
+    });
 
-  }, [payments, allExpenses, dateRange, isClient]);
+    const categoryChartData: ExpenseCategoryData[] = Object.entries(categoryTotals)
+      .map(([category, total]) => ({
+        category: category as ExpenseCategory,
+        total: total || 0,
+        fill: expenseCategoryColors[category as ExpenseCategory] || "hsl(var(--chart-5))", // Fallback color
+      }))
+      .filter(item => item.total > 0) // Only show categories with expenses
+      .sort((a, b) => b.total - a.total); // Sort by total descending
+    setExpenseCategoryChartData(categoryChartData);
+
+  }, [payments, allExpenses, dateRange, isClient, expenseCategories]);
 
   return (
     <div className="container mx-auto py-2 space-y-8">
       <div>
         <h1 className="text-3xl font-bold font-headline mb-2 flex items-center">
           <LucideAreaChart className="mr-3 h-8 w-8 text-primary" />
-          Earnings Report (Income vs. Expenses)
+          Earnings Report
         </h1>
-        <p className="text-muted-foreground">Visualize monthly income and expenses over a selected period.</p>
+        <p className="text-muted-foreground">Visualize monthly income, expenses, and spending distribution.</p>
       </div>
 
       <Card className="shadow-xl">
@@ -138,7 +182,7 @@ export default function EarningsReportPage() {
         <CardHeader>
           <CardTitle className="font-headline flex items-center">
              <BarChartHorizontalBig className="mr-2 h-5 w-5 text-primary"/>
-            Monthly Breakdown
+            Monthly Income vs. Expenses
           </CardTitle>
           <CardDescription>
             {dateRange?.from && dateRange.to 
@@ -147,9 +191,9 @@ export default function EarningsReportPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isClient && chartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
-              <BarChart accessibilityLayer data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+          {isClient && monthlyChartData.length > 0 ? (
+            <ChartContainer config={incomeExpenseChartConfig} className="min-h-[300px] w-full">
+              <BarChart accessibilityLayer data={monthlyChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="name"
@@ -183,10 +227,78 @@ export default function EarningsReportPage() {
             <div className="min-h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground py-8">
               <Info className="mx-auto h-12 w-12 mb-4 text-gray-400" />
               <p className="text-lg">
-                {isClient ? "No data available for the selected period." : "Loading chart data..."}
+                {isClient ? "No income/expense data for the selected period." : "Loading chart data..."}
               </p>
               <p className="text-sm">
                 {isClient ? "Try adjusting the date range or ensure there are payments and expenses recorded." : "Please wait."}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center">
+            <LucidePieChart className="mr-2 h-5 w-5 text-primary" />
+            Expense Breakdown by Category
+          </CardTitle>
+          <CardDescription>
+            Distribution of total expenses across categories for the selected period.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isClient && expenseCategoryChartData.length > 0 ? (
+            <ChartContainer config={expenseCategoryChartConfig} className="min-h-[300px] w-full aspect-square sm:aspect-video">
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <ChartTooltipContent 
+                    nameKey="category" 
+                    formatter={(value, name) => (
+                        <div className="flex flex-col">
+                            <span className="capitalize">{name}</span>
+                            <span>₱{Number(value).toLocaleString()}</span>
+                        </div>
+                    )}
+                  />
+                  <Pie
+                    data={expenseCategoryChartData}
+                    dataKey="total"
+                    nameKey="category"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="80%"
+                    labelLine={false}
+                    label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, category }) => {
+                      const RADIAN = Math.PI / 180;
+                      const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                      const percentage = (percent * 100).toFixed(0);
+                      if (parseInt(percentage) < 5) return null; // Hide label if too small
+                      return (
+                        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs">
+                          {`${category} (${percentage}%)`}
+                        </text>
+                      );
+                    }}
+                  >
+                    {expenseCategoryChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Legend content={<ChartLegendContent nameKey="category" />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          ) : (
+            <div className="min-h-[300px] flex flex-col items-center justify-center text-center text-muted-foreground py-8">
+              <Info className="mx-auto h-12 w-12 mb-4 text-gray-400" />
+              <p className="text-lg">
+                {isClient ? "No expense data to categorize for the selected period." : "Loading category data..."}
+              </p>
+              <p className="text-sm">
+                {isClient ? "Ensure expenses are recorded with categories." : "Please wait."}
               </p>
             </div>
           )}

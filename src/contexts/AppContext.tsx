@@ -6,6 +6,8 @@ import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, Cl
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
+import { expenseCategories as definedExpenseCategories } from '@/lib/types';
+
 
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
@@ -49,6 +51,8 @@ const initialExpensesRaw: Expense[] = [
     { id: uuidv4(), description: 'Internet Bill', amount: 60.00, date: new Date(2024, 0, 15).toISOString(), category: 'Utilities', clientId: initialClients[0].id },
     { id: uuidv4(), description: 'Unit 5A Plumbing Repair', amount: 250.00, date: new Date(2024, 1, 2).toISOString(), category: 'Repairs', clientId: initialClients[1].id },
     { id: uuidv4(), description: 'Software Subscription (Global)', amount: 99.00, date: new Date(2024, 1, 5).toISOString(), category: 'Administrative' },
+    { id: uuidv4(), description: 'Landscaping Services (Oak View)', amount: 120.00, date: new Date(2024, 0, 20).toISOString(), category: 'Maintenance', clientId: initialClients[1].id },
+    { id: uuidv4(), description: 'Marketing Flyers (Global)', amount: 50.00, date: new Date(2024, 0, 25).toISOString(), category: 'Marketing' },
 ];
 
 
@@ -398,6 +402,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
     expenses, 
+    expenseCategories: definedExpenseCategories, // Make sure this is passed
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
 

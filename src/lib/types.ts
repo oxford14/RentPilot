@@ -154,6 +154,7 @@ export interface AppContextType {
   managedUsers: ManagedUser[];
   rawSuperAdminUsers: SuperAdminUser[];
   expenses: Expense[]; 
+  expenseCategories: ExpenseCategory[];
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 
