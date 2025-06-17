@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -20,9 +20,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
+  showInactiveTenants: boolean;
 }
 
-export function TenantsTable({ onEditTenant }: TenantsTableProps) {
+export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
   const { tenants, updateTenant } = useAppContext();
   const { toast } = useToast();
 
@@ -37,8 +38,18 @@ export function TenantsTable({ onEditTenant }: TenantsTableProps) {
     toast({ variant: "destructive", title: "Not Implemented", description: `Delete functionality for ${tenant.name} is not yet implemented.` });
   };
   
-  if (!tenants || tenants.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No tenants found. Add a new tenant to get started.</p>;
+  const displayedTenants = useMemo(() => {
+    if (showInactiveTenants) {
+      return tenants;
+    }
+    return tenants.filter(tenant => tenant.status === 'active');
+  }, [tenants, showInactiveTenants]);
+
+  if (!displayedTenants || displayedTenants.length === 0) {
+    const message = showInactiveTenants 
+      ? "No tenants found. Add a new tenant to get started."
+      : "No active tenants found. Toggle the switch to show inactive tenants or add a new active tenant.";
+    return <p className="text-center text-muted-foreground py-8">{message}</p>;
   }
 
   return (
@@ -56,7 +67,7 @@ export function TenantsTable({ onEditTenant }: TenantsTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tenants.map((tenant) => (
+          {displayedTenants.map((tenant) => (
             <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
               <TableCell className="font-medium">{tenant.name}</TableCell>
               <TableCell>{tenant.email}</TableCell>
