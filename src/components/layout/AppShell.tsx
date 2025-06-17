@@ -3,7 +3,7 @@
 
 import React, { type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -17,7 +17,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building } from 'lucide-react'; // Removed Shield import as it's no longer used by a nav item
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,11 +34,11 @@ const navItems: NavItem[] = [
   { href: '/tenants', label: 'Tenants', icon: Users },
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
-  // { href: '/admin/clients', label: 'Admin', icon: Shield, adminOnly: true }, // Admin link REMOVED
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
 
   const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'TT';
@@ -51,9 +51,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   });
   
   const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
-  const activePage = availableNavItems.find(item => 
+  let activePage = availableNavItems.find(item => 
     item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')
   )?.label || 'TenantTracker';
+
+  if (pathname.startsWith('/admin')) {
+    activePage = 'Admin Dashboard';
+  }
 
 
   return (
@@ -121,6 +125,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{user?.username || 'My Account'}{user?.isSuperAdmin && " (Super Admin)"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {user?.isSuperAdmin && (
+                  <DropdownMenuItem onClick={() => router.push('/admin')}>
+                    <ShieldAlert className="mr-2 h-4 w-4" />
+                    Go to Admin
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => alert("Settings clicked!")}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
