@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -27,6 +28,11 @@ const initialPaymentsRaw: Payment[] = [
   { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash' }, // No client ID
 ];
 
+const initialManagedUsers: ManagedUser[] = [
+    { id: uuidv4(), username: 'clientAdminMain', email: 'main.admin@msp.com', clientId: initialClients[0].id },
+    { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id },
+    { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id },
+];
 
 const LOCAL_STORAGE_KEY = 'tenantTrackerData';
 
@@ -34,6 +40,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawTenants, setRawTenants] = useState<Tenant[]>([]);
   const [rawPayments, setRawPayments] = useState<Payment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [rawManagedUsers, setRawManagedUsers] = useState<ManagedUser[]>([]); // Added
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -45,18 +52,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenants(parsedData.rawTenants || initialTenantsRaw);
         setRawPayments(parsedData.rawPayments || initialPaymentsRaw);
         setClients(parsedData.clients || initialClients);
+        setRawManagedUsers(parsedData.rawManagedUsers || initialManagedUsers); // Added
         setViewingAsClientId(parsedData.viewingAsClientId || null);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenants(initialTenantsRaw);
         setRawPayments(initialPaymentsRaw);
         setClients(initialClients);
+        setRawManagedUsers(initialManagedUsers); // Added
         setViewingAsClientId(null);
       }
     } else {
       setRawTenants(initialTenantsRaw);
       setRawPayments(initialPaymentsRaw);
       setClients(initialClients);
+      setRawManagedUsers(initialManagedUsers); // Added
       setViewingAsClientId(null);
     }
     setIsLoaded(true);
@@ -64,9 +74,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ rawTenants, rawPayments, clients, viewingAsClientId }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ rawTenants, rawPayments, clients, rawManagedUsers, viewingAsClientId }));
     }
-  }, [rawTenants, rawPayments, clients, viewingAsClientId, isLoaded]);
+  }, [rawTenants, rawPayments, clients, rawManagedUsers, viewingAsClientId, isLoaded]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -74,26 +84,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const tenants = useMemo(() => {
     if (!isLoaded) return [];
-    if (viewingAsClientId) {
-      return rawTenants.filter(t => t.clientId === viewingAsClientId);
+    // For super admin global view (viewingAsClientId is null), show all tenants without explicit client ID or those explicitly unassigned
+    if (viewingAsClientId === null) {
+        return rawTenants; 
     }
-    return rawTenants; // Super admin global view sees all tenants
+    // For client-specific view, filter by clientId
+    return rawTenants.filter(t => t.clientId === viewingAsClientId);
   }, [rawTenants, viewingAsClientId, isLoaded]);
 
   const payments = useMemo(() => {
     if (!isLoaded) return [];
-    if (viewingAsClientId) {
-      return rawPayments.filter(p => p.clientId === viewingAsClientId);
+     if (viewingAsClientId === null) {
+        return rawPayments;
     }
-    return rawPayments; // Super admin global view sees all payments
+    return rawPayments.filter(p => p.clientId === viewingAsClientId);
   }, [rawPayments, viewingAsClientId, isLoaded]);
+
+  const managedUsers = useMemo(() => { // For now, admin user management page will handle its own filtering if needed. This provides all.
+    if(!isLoaded) return [];
+    return rawManagedUsers;
+  }, [rawManagedUsers, isLoaded]);
 
 
   const addTenant = (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
     const newTenant: Tenant = { 
       ...tenantData, 
       id: uuidv4(),
-      ...(viewingAsClientId && { clientId: viewingAsClientId })
+      // Assign clientId if admin is viewing as a specific client, otherwise it's unassigned (global)
+      ...(viewingAsClientId && { clientId: viewingAsClientId }) 
     };
     setRawTenants(prev => [...prev, newTenant]);
   };
@@ -122,6 +140,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteClient = (clientId: string) => {
     setClients(prev => prev.filter(c => c.id !== clientId));
+    // Optionally, also remove associated tenants, payments, and users, or reassign them.
+    // For now, leaving them as potentially "orphaned" or to be handled by more specific logic later.
+  };
+
+  const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
+    const newUser = { ...userData, id: uuidv4() };
+    setRawManagedUsers(prev => [...prev, newUser]);
+  };
+
+  const updateManagedUser = (updatedUser: ManagedUser) => {
+    setRawManagedUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
+
+  const deleteManagedUser = (userId: string) => {
+    setRawManagedUsers(prev => prev.filter(u => u.id !== userId));
   };
 
   return (
@@ -129,6 +162,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       tenants, 
       payments, 
       clients, 
+      managedUsers, // Added
       viewingAsClientId,
       setViewMode,
       addTenant, 
@@ -136,7 +170,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addPayment, 
       addClient, 
       updateClient, 
-      deleteClient 
+      deleteClient,
+      addManagedUser, // Added
+      updateManagedUser, // Added
+      deleteManagedUser // Added
     }}>
       {children}
     </AppContext.Provider>
@@ -150,3 +187,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+
