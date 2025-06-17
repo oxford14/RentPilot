@@ -11,8 +11,8 @@
       {
         "source": "**",
         "apphosting": {
-          "backendId": "YOUR_APP_HOSTING_BACKEND_ID",
-          "region": "YOUR_APP_HOSTING_REGION"
+          "backendId": "rentpilotweb",
+          "region": "asia-east1"
         }
       }
     ]
