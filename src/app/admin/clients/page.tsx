@@ -19,7 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // Removed as it's no longer used
 } from "@/components/ui/alert-dialog";
 
 export default function AdminClientsPage() {
@@ -51,7 +51,7 @@ export default function AdminClientsPage() {
     if (clientToDelete) {
       deleteClient(clientToDelete.id);
       toast({ title: "Client Deleted", description: `${clientToDelete.name} has been deleted.`});
-      setClientToDelete(null); // This will also close the dialog via the 'open' prop
+      setClientToDelete(null); 
     }
   };
 
@@ -91,11 +91,9 @@ export default function AdminClientsPage() {
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)} title="Edit Client">
                            <Edit className="h-4 w-4" />
                         </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" onClick={() => confirmDeleteClient(client)} title="Delete Client">
-                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
+                        <Button variant="destructive" size="sm" onClick={() => confirmDeleteClient(client)} title="Delete Client">
+                           <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -121,7 +119,6 @@ export default function AdminClientsPage() {
           setClientToDelete(null);
         }
       }}>
-        {/* AlertDialogContent and its children are only rendered if clientToDelete is not null */}
         {clientToDelete && (
           <AlertDialogContent>
             <AlertDialogHeader>
