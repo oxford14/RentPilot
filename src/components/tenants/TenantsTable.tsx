@@ -17,7 +17,7 @@ import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, CalendarClock } from 'l
 import type { Tenant, Payment } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 
 interface TenantsTableProps {
@@ -31,7 +31,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   useEffect(() => {
-    setClientToday(new Date());
+    setClientToday(startOfDay(new Date()));
   }, []);
 
   const toggleStatus = (tenant: Tenant) => {

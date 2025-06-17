@@ -16,6 +16,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
+import { startOfDay } from 'date-fns';
 
 const PaymentMethodIcon = ({ method }: { method: string }) => {
   switch (method) {
@@ -35,7 +36,7 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   useEffect(() => {
-    setClientToday(new Date());
+    setClientToday(startOfDay(new Date()));
   }, []);
 
   const getTenantName = (id: string): string => {

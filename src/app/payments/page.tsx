@@ -12,8 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
-import { format, startOfDay, getDate, getMonth, getYear, lastDayOfMonth, setDate, isBefore, isSameDay } from 'date-fns';
-import { isTenantCurrentlyDueForRent } from '@/lib/utils';
+import { calculateTenantBalance, isTenantCurrentlyDueForRent } from '@/lib/utils';
+import { startOfDay } from 'date-fns';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -25,7 +25,7 @@ export default function PaymentsPage() {
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   useEffect(() => {
-    setClientToday(new Date());
+    setClientToday(startOfDay(new Date()));
   }, []);
 
   const handleOpenForm = () => setIsFormOpen(true);
@@ -37,27 +37,7 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     if (selectedTenant && clientToday) {
-      const tenantPayments = payments.filter(p => p.tenantId === selectedTenant.id);
-      const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
-
-      let totalExpectedBilled = 0;
-      const tenantJoinDate = new Date(selectedTenant.joinDate);
-      const todayForCalc = new Date(clientToday); 
-      todayForCalc.setHours(0,0,0,0); 
-
-      if (tenantJoinDate <= todayForCalc) {
-          totalExpectedBilled += selectedTenant.monthlyRentalRate;
-          
-          let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
-          nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1); 
-
-          while (nextBillingAnniversary <= todayForCalc) {
-              totalExpectedBilled += selectedTenant.monthlyRentalRate;
-              nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1);
-          }
-      }
-      
-      const currentBalance = totalExpectedBilled - totalPaid;
+      const currentBalance = calculateTenantBalance(selectedTenant, payments, clientToday);
       setAmountDue(currentBalance);
 
       if (isTenantCurrentlyDueForRent(selectedTenant, payments, clientToday)) {
@@ -70,7 +50,7 @@ export default function PaymentsPage() {
       setAmountDue(null); 
       setRentStatusMessage(null);
     }
-  }, [selectedTenant, payments, clientToday]); // tenants removed as it's stable from context unless it changes structurally
+  }, [selectedTenant, payments, clientToday, tenants]); // Added tenants to dependency array for safety, though balance calc is primary concern
 
   return (
     <div className="container mx-auto py-2 space-y-6">

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,8 @@ import { useAppContext } from '@/contexts/AppContext';
 import type { Tenant, Payment } from '@/lib/types';
 import { predictDelinquency, type DelinquencyPredictionOutput, type DelinquencyPredictionInput } from '@/ai/flows/delinquency-prediction';
 import { useToast } from '@/hooks/use-toast';
+import { calculateTenantBalance } from '@/lib/utils';
+import { startOfDay } from 'date-fns';
 
 interface DelinquencyPredictionResult extends DelinquencyPredictionOutput {
   predictedAt: Date;
@@ -23,6 +25,11 @@ export function DelinquencyCard() {
   const [isLoading, setIsLoading] = useState(false);
   const [prediction, setPrediction] = useState<DelinquencyPredictionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setClientToday(startOfDay(new Date()));
+  }, []);
 
   const activeTenants = useMemo(() => tenants.filter(t => t.status === 'active'), [tenants]);
 
@@ -33,8 +40,8 @@ export function DelinquencyCard() {
     }
 
     const tenant = tenants.find(t => t.id === selectedTenantId);
-    if (!tenant) {
-      toast({ variant: "destructive", title: "Error", description: "Selected tenant not found." });
+    if (!tenant || !clientToday) {
+      toast({ variant: "destructive", title: "Error", description: "Selected tenant not found or date not initialized." });
       return;
     }
 
@@ -53,36 +60,14 @@ export function DelinquencyCard() {
       if (tenantPayments.length === 0) {
         paymentHistoryString = "No payment history found.";
       }
-
-      const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
       
-      let totalExpectedBilled = 0;
-      const tenantJoinDate = new Date(tenant.joinDate);
-      const today = new Date();
-      today.setHours(0,0,0,0); // Normalize today to start of day for consistent comparison
-
-      if (tenantJoinDate <= today) {
-          // Start with the first billing cycle on joinDate
-          totalExpectedBilled += tenant.monthlyRentalRate;
-          
-          // Create a mutable date starting from the join date for iteration
-          let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
-          nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1); // Move to the next month's anniversary
-
-          // Loop through subsequent months
-          while (nextBillingAnniversary <= today) {
-              totalExpectedBilled += tenant.monthlyRentalRate;
-              nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1);
-          }
-      }
-      
-      const currentBalance = Math.max(0, totalExpectedBilled - totalPaid);
+      const currentBalance = calculateTenantBalance(tenant, payments, clientToday);
 
       const input: DelinquencyPredictionInput = {
         tenantName: tenant.name,
         paymentHistory: paymentHistoryString,
         rentalRate: tenant.monthlyRentalRate,
-        currentBalance: currentBalance,
+        currentBalance: currentBalance > 0 ? currentBalance : 0, // AI likely expects non-negative "balance owed"
       };
       
       const result = await predictDelinquency(input);
