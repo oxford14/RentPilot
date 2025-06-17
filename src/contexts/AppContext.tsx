@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult } from '@/lib/types';
@@ -39,11 +38,11 @@ const initialTenantsRaw: Tenant[] = [
 ];
 
 const initialPaymentsRaw: Payment[] = [
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash' },
+  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', discountApplied: 0, clientId: initialTenantsRaw[0].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1100, paymentMethod: 'Bank Transfer', discountApplied: 100, clientId: initialTenantsRaw[0].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', discountApplied: 0, clientId: initialTenantsRaw[1].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', discountApplied: 0, clientId: initialTenantsRaw[1].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash', discountApplied: 0 },
 ];
 
 const initialExpensesRaw: Expense[] = [
@@ -77,7 +76,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const parsedData: AppState = JSON.parse(storedData);
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
-        setRawPaymentsState(parsedData.rawPayments || initialPaymentsRaw);
+        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0 })));
         setClientsState(parsedData.clients || initialClients);
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
@@ -92,7 +91,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
-        setRawPaymentsState(initialPaymentsRaw);
+        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0 })));
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
         setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -102,7 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
-      setRawPaymentsState(initialPaymentsRaw);
+      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0 })));
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
       setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -225,7 +224,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const tenantToDelete = rawTenantsState[tenantIndex];
 
-    // Check permissions
     const isGlobalTenant = !tenantToDelete.clientId;
     const canManageThisTenant = 
       (authUser?.isSuperAdmin && (viewingAsClientId === tenantToDelete.clientId || (viewingAsClientId === null && isGlobalTenant))) ||
@@ -238,19 +236,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const hasPaymentHistory = rawPaymentsState.some(p => p.tenantId === tenantId);
 
     if (hasPaymentHistory) {
-      // Mark as inactive
       const updatedTenant = { ...tenantToDelete, status: 'inactive' as 'inactive' };
       setRawTenantsState(prev => prev.map(t => t.id === tenantId ? updatedTenant : t));
       return { success: true, message: `Tenant "${tenantToDelete.name}" marked as inactive due to payment history.`, action: 'inactivated' };
     } else {
-      // Perform hard delete
       setRawTenantsState(prev => prev.filter(t => t.id !== tenantId));
       return { success: true, message: `Tenant "${tenantToDelete.name}" permanently deleted.`, action: 'deleted' };
     }
   };
 
 
-  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'>) => {
+  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number }) => {
      let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -261,6 +257,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newPayment: Payment = {
       ...paymentData,
       id: uuidv4(),
+      discountApplied: paymentData.discountApplied || 0,
       ...(determinedClientId && { clientId: determinedClientId })
      };
     setRawPaymentsState(prev => [...prev, newPayment]);
@@ -402,7 +399,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
     expenses, 
-    expenseCategories: definedExpenseCategories, // Make sure this is passed
+    expenseCategories: definedExpenseCategories, 
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
 
@@ -452,4 +449,3 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
-

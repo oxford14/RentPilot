@@ -1,5 +1,4 @@
 
-
 export type ClientUserRole = 'admin' | 'user';
 
 export interface User { // For AuthContext user
@@ -44,6 +43,7 @@ export interface Payment {
   date: string;
   amount: number;
   paymentMethod: PaymentMethod;
+  discountApplied?: number; // New field for discount
   clientId?: string;
 }
 
@@ -166,9 +166,7 @@ export interface AppContextType {
   attemptDeleteTenant: (tenantId: string) => AttemptDeleteTenantResult;
 
 
-  addPayment: (payment: Omit<Payment, 'id' | 'clientId'>) => void;
-
-  addClient: (clientData: Omit<Client, 'id'>) => void;
+  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number }) => void;
   updateClient: (client: Client) => void;
   deleteClient: (clientId: string) => void;
 
@@ -187,4 +185,3 @@ export interface AppContextType {
   rawManagedUsers: ManagedUser[];
   rawExpenses: Expense[]; 
 }
-

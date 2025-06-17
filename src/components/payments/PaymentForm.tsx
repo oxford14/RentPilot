@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { PaymentMethod, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2 } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { calculateTenantBalance } from '@/lib/utils';
@@ -24,11 +24,12 @@ const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash',
 
 const paymentFormSchema = z.object({
   tenantId: z.string().min(1, { message: "Please select a tenant." }),
-  amount: z.coerce.number().positive({ message: "Amount must be positive." }),
+  amount: z.coerce.number().nonnegative({ message: "Amount paid must be non-negative." }),
   date: z.date({ required_error: "Payment date is required." }),
   paymentMethod: z.enum(paymentMethods as [PaymentMethod, ...PaymentMethod[]], {
     required_error: "Payment method is required.",
   }),
+  discountApplied: z.coerce.number().nonnegative({ message: "Discount must be non-negative." }).optional(),
 });
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -58,10 +59,14 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
       amount: 0,
       date: new Date(),
       paymentMethod: undefined,
+      discountApplied: undefined,
     },
   });
 
   const selectedTenantId = form.watch('tenantId');
+  const currentAmountPaid = form.watch('amount') || 0;
+  const currentDiscountApplied = form.watch('discountApplied') || 0;
+
 
   useEffect(() => {
     if (selectedTenantId && clientToday) {
@@ -84,8 +89,8 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         amount: 0,
         date: new Date(),
         paymentMethod: undefined,
+        discountApplied: undefined,
       });
-      // Recalculate balance if defaultTenantId is present on open
       if (defaultTenantId && clientToday) {
         const tenant = tenants.find(t => t.id === defaultTenantId);
         if (tenant) {
@@ -100,24 +105,40 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
 
   const onSubmit = (data: PaymentFormValues) => {
+    const discount = data.discountApplied || 0;
+
+    if (discount > 0) {
+      if (amountDueForSelectedTenant === null || amountDueForSelectedTenant <= 0) {
+        form.setError("discountApplied", { type: "manual", message: "Cannot apply discount when no amount is due or tenant has a credit." });
+        toast({ variant: "destructive", title: "Invalid Discount", description: "Discount cannot be applied if there is no outstanding balance." });
+        return;
+      }
+      if (discount > amountDueForSelectedTenant) {
+        form.setError("discountApplied", { type: "manual", message: `Discount (₱${discount.toFixed(2)}) cannot exceed the amount due (₱${amountDueForSelectedTenant.toFixed(2)}).` });
+        toast({ variant: "destructive", title: "Invalid Discount", description: `Discount cannot exceed the amount due.` });
+        return;
+      }
+    }
+
     try {
-      addPayment({...data, date: data.date.toISOString()});
+      addPayment({...data, date: data.date.toISOString(), discountApplied: discount });
       const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
-      toast({ title: "Payment Recorded", description: `Payment of ₱${data.amount} for ${tenantName} recorded successfully.` });
+      toast({ title: "Payment Recorded", description: `Payment for ${tenantName} recorded successfully.` });
       form.reset({ 
         tenantId: defaultTenantId || '', 
         amount: 0, 
         date: new Date(), 
-        paymentMethod: undefined 
+        paymentMethod: undefined,
+        discountApplied: undefined,
       });
-      setAmountDueForSelectedTenant(null); // Reset balance display on successful submission
+      setAmountDueForSelectedTenant(null); 
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to record payment." });
     }
   };
 
-  const getBalanceDisplayInfo = () => {
+  const balanceInfo = useMemo(() => {
     if (amountDueForSelectedTenant === null) return null;
     
     let text = "";
@@ -125,37 +146,57 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     let amountColor = "text-foreground";
 
     if (amountDueForSelectedTenant > 0) {
-        text = "Current Amount Due:";
+        text = "Amount Due Before This Transaction:";
         icon = <DollarSign className="h-4 w-4 text-destructive" />;
         amountColor = "text-destructive";
     } else if (amountDueForSelectedTenant < 0) {
-        text = "Current Credit/Deposit:";
+        text = "Credit Before This Transaction:";
         icon = <CheckCircle2 className="h-4 w-4 text-green-500" />;
         amountColor = "text-green-600";
     } else {
-        text = "Current Balance:";
+        text = "Balance Before This Transaction:";
         icon = <DollarSign className="h-4 w-4 text-muted-foreground" />;
     }
     return { text, icon, amount: Math.abs(amountDueForSelectedTenant), amountColor };
-  };
+  }, [amountDueForSelectedTenant]);
 
-  const balanceInfo = getBalanceDisplayInfo();
+  const transactionSummary = useMemo(() => {
+    if (amountDueForSelectedTenant === null) return null;
+    const totalCredited = currentAmountPaid + currentDiscountApplied;
+    const remainingBalance = amountDueForSelectedTenant - totalCredited;
+    
+    let remainingBalanceText = "Remaining Balance:";
+    let remainingBalanceColor = "text-foreground";
+    if (remainingBalance < 0) {
+      remainingBalanceText = "Credit After Transaction:";
+      remainingBalanceColor = "text-green-600";
+    } else if (remainingBalance > 0) {
+      remainingBalanceColor = "text-destructive";
+    }
+
+    return {
+      totalCredited,
+      remainingBalance: Math.abs(remainingBalance),
+      remainingBalanceText,
+      remainingBalanceColor,
+    };
+  }, [amountDueForSelectedTenant, currentAmountPaid, currentDiscountApplied]);
 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
             onClose();
-            setAmountDueForSelectedTenant(null); // Clear balance when dialog closes
+            setAmountDueForSelectedTenant(null); 
         }
     }}>
-      <DialogContent className="sm:max-w-[480px] bg-card shadow-xl rounded-lg">
+      <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Record New Payment</DialogTitle>
-          <DialogDescription>Enter the details for the new payment record.</DialogDescription>
+          <DialogDescription>Enter the details for the new payment record. Discounts can be applied against the current amount due.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
             <FormField
               control={form.control}
               name="tenantId"
@@ -164,7 +205,6 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                   <FormLabel>Tenant</FormLabel>
                   <Select onValueChange={(value) => {
                     field.onChange(value);
-                    // Trigger balance recalculation when tenant changes
                     if (value && clientToday) {
                         const tenant = tenants.find(t => t.id === value);
                         if (tenant) {
@@ -199,7 +239,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
             />
 
             {balanceInfo && (
-                <div className="mt-2 p-3 border rounded-md bg-muted/50 text-sm">
+                <div className="mt-2 p-3 border rounded-md bg-muted/50 text-sm space-y-2">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                             {balanceInfo.icon}
@@ -211,23 +251,40 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     </div>
                 </div>
             )}
-
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount Paid (₱)</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                      <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-8" />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount Paid (₱)</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
+                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-8" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="discountApplied"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Discount Applied (₱)</FormLabel>
+                    <FormControl>
+                       <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
+                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} className="pl-8"/>
+                       </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <FormField
               control={form.control}
@@ -295,6 +352,31 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                 </FormItem>
               )}
             />
+
+            {transactionSummary && selectedTenantId && (amountDueForSelectedTenant !== null) && (
+                <div className="mt-2 p-3 border-t text-sm space-y-1">
+                     <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            <BadgeDollarSign className="h-4 w-4 text-blue-500" />
+                            <span className="font-medium">Total Credited This Transaction:</span>
+                        </div>
+                        <span className="font-semibold text-blue-600">
+                            ₱{transactionSummary.totalCredited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                             {transactionSummary.remainingBalance === 0 && !transactionSummary.remainingBalanceColor.includes('destructive') && !transactionSummary.remainingBalanceColor.includes('green') && <CheckCircle2 className="h-4 w-4 text-muted-foreground"/> }
+                             {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('destructive') && <TrendingDown className="h-4 w-4 text-destructive"/> }
+                             {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('green') && <TrendingUp className="h-4 w-4 text-green-500"/> }
+                            <span className="font-medium">{transactionSummary.remainingBalanceText}</span>
+                        </div>
+                        <span className={cn("font-semibold", transactionSummary.remainingBalanceColor)}>
+                            ₱{transactionSummary.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </div>
+            )}
             
             <DialogFooter className="pt-4">
               <DialogClose asChild>
@@ -311,4 +393,3 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     </Dialog>
   );
 }
-

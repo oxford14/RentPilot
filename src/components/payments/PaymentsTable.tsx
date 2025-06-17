@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
@@ -89,7 +89,8 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
-            <TableHead className="text-right">Amount (₱)</TableHead>
+            <TableHead className="text-right">Amount Paid (₱)</TableHead>
+            <TableHead className="text-right">Discount (₱)</TableHead>
             <TableHead className="text-center">Method</TableHead>
           </TableRow>
         </TableHeader>
@@ -103,7 +104,15 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
               )}
             >
               <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-              <TableCell className="text-right">{payment.amount.toLocaleString()}</TableCell>
+              <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+              <TableCell className="text-right">
+                {(payment.discountApplied && payment.discountApplied > 0) ? (
+                    <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 bg-orange-500/10">
+                        <PercentCircle className="h-3 w-3 mr-1" />
+                        {payment.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Badge>
+                ) : '₱0.00'}
+              </TableCell>
               <TableCell className="text-center">
                 <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
                   <PaymentMethodIcon method={payment.paymentMethod} />
