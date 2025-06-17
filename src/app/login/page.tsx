@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // Added import for Link
 import { Building, LogIn } from 'lucide-react';
 
 const loginFormSchema = z.object({
@@ -93,10 +94,13 @@ export default function LoginPage() {
                 )}
               />
             </CardContent>
-            <CardFooter className="flex flex-col">
+            <CardFooter className="flex flex-col items-center gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 <LogIn className="mr-2 h-4 w-4" /> Sign In
               </Button>
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Forgot Password?
+              </Link>
             </CardFooter>
           </form>
         </Form>
