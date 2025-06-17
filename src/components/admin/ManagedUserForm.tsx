@@ -29,7 +29,7 @@ interface ManagedUserFormProps {
 }
 
 export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFormProps) {
-  const { addManagedUser, updateManagedUser } = useAppContext(); 
+  const { addManagedUser, updateManagedUser, managedUsers } = useAppContext(); 
   const { toast } = useToast();
 
   const form = useForm<ManagedUserFormValues>({
@@ -45,8 +45,17 @@ export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFo
 
   const onSubmit = (data: ManagedUserFormValues) => {
     try {
-      // Explicitly type to ensure all necessary fields for ManagedUser are considered.
-      // ID is handled by context or comes from existing user.
+      // Check for duplicate username within the same client
+      const existingUserWithSameUsername = managedUsers.find(
+        (mu) => mu.clientId === client.id && mu.username.toLowerCase() === data.username.toLowerCase() && mu.id !== user?.id
+      );
+
+      if (existingUserWithSameUsername) {
+        form.setError("username", { type: "manual", message: "Username already exists for this client." });
+        toast({ variant: "destructive", title: "Validation Error", description: "Username already exists for this client." });
+        return;
+      }
+
       const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
         username: data.username,
         email: data.email,
@@ -62,7 +71,6 @@ export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFo
           }
           userDataPayload.password = data.password;
         }
-        // If data.password is empty, the password field on userDataPayload remains undefined, so it won't overwrite existing.
         updateManagedUser({ ...user, ...userDataPayload });
         toast({ title: "User Updated", description: `${data.username} for ${client.name} has been updated.` });
       } else { // Adding new user
@@ -72,7 +80,7 @@ export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFo
           return;
         }
         userDataPayload.password = data.password;
-        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>); // Cast: ID will be added by context
+        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>);
         toast({ title: "User Added", description: `${data.username} has been added to ${client.name}.` });
       }
       form.reset({ username: '', email: '', password: '' });
