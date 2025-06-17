@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,7 +62,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [clientsState, setClientsState] = useState<Client[]>([]);
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
-  const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]); // Added
+  const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string | null>(DEFAULT_TIMEZONE);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -82,7 +82,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }));
         setRawManagedUsersState(usersWithRoles);
         setRawSuperAdminUsersState(parsedData.rawSuperAdminUsers || initialSuperAdminUsers);
-        setRawExpensesState(parsedData.rawExpenses || initialExpensesRaw); // Added
+        setRawExpensesState(parsedData.rawExpenses || initialExpensesRaw);
         setViewingAsClientId(parsedData.viewingAsClientId || null);
         setSystemTimezoneState(parsedData.systemTimezone || DEFAULT_TIMEZONE);
       } catch (error) {
@@ -92,7 +92,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
         setRawSuperAdminUsersState(initialSuperAdminUsers);
-        setRawExpensesState(initialExpensesRaw); // Added
+        setRawExpensesState(initialExpensesRaw);
         setViewingAsClientId(null);
         setSystemTimezoneState(DEFAULT_TIMEZONE);
       }
@@ -102,7 +102,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
       setRawSuperAdminUsersState(initialSuperAdminUsers);
-      setRawExpensesState(initialExpensesRaw); // Added
+      setRawExpensesState(initialExpensesRaw);
       setViewingAsClientId(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
     }
@@ -117,7 +117,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         clients: clientsState,
         rawManagedUsers: rawManagedUsersState,
         rawSuperAdminUsers: rawSuperAdminUsersState,
-        rawExpenses: rawExpensesState, // Added
+        rawExpenses: rawExpensesState,
         viewingAsClientId,
         systemTimezone: systemTimezoneState,
       }));
@@ -135,8 +135,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const tenants = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { // Global view for super admin
-        return rawTenantsState.filter(t => !t.clientId); // Show only global tenants
+      if (viewingAsClientId === null) { 
+        return rawTenantsState.filter(t => !t.clientId); 
       }
       return rawTenantsState.filter(t => t.clientId === viewingAsClientId);
     } else if (authUser?.clientId) {
@@ -148,8 +148,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const payments = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { // Global view
-         return rawPaymentsState.filter(p => !p.clientId); // Show only global payments
+      if (viewingAsClientId === null) { 
+         return rawPaymentsState.filter(p => !p.clientId); 
       }
       return rawPaymentsState.filter(p => p.clientId === viewingAsClientId);
     } else if (authUser?.clientId) {
@@ -158,11 +158,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   }, [rawPaymentsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
 
-  const expenses = useMemo(() => { // Added
+  const expenses = useMemo(() => { 
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { // Global view
-        return rawExpensesState.filter(e => !e.clientId); // Show only global expenses
+      if (viewingAsClientId === null) { 
+        return rawExpensesState.filter(e => !e.clientId); 
       }
       return rawExpensesState.filter(e => e.clientId === viewingAsClientId);
     } else if (authUser?.clientId) {
@@ -176,9 +176,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
-            // In global super admin view, don't show any client-specific managed users by default.
-            // Super admins manage client users through /admin/users.
-            // Or, decide if you want to show ALL managed users here. For now, keeping it empty.
             return []; 
         }
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
@@ -217,6 +214,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawTenantsState(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
   };
 
+  const attemptDeleteTenant = (tenantId: string): AttemptDeleteTenantResult => {
+    const tenantIndex = rawTenantsState.findIndex(t => t.id === tenantId);
+    if (tenantIndex === -1) {
+      return { success: false, message: 'Tenant not found.', action: 'not_found' };
+    }
+    const tenantToDelete = rawTenantsState[tenantIndex];
+
+    // Check permissions
+    const isGlobalTenant = !tenantToDelete.clientId;
+    const canManageThisTenant = 
+      (authUser?.isSuperAdmin && (viewingAsClientId === tenantToDelete.clientId || (viewingAsClientId === null && isGlobalTenant))) ||
+      (!authUser?.isSuperAdmin && authUser?.clientId === tenantToDelete.clientId);
+
+    if (!canManageThisTenant) {
+      return { success: false, message: 'Permission denied to modify this tenant.', action: 'error' };
+    }
+
+    const hasPaymentHistory = rawPaymentsState.some(p => p.tenantId === tenantId);
+
+    if (hasPaymentHistory) {
+      // Mark as inactive
+      const updatedTenant = { ...tenantToDelete, status: 'inactive' as 'inactive' };
+      setRawTenantsState(prev => prev.map(t => t.id === tenantId ? updatedTenant : t));
+      return { success: true, message: `Tenant "${tenantToDelete.name}" marked as inactive due to payment history.`, action: 'inactivated' };
+    } else {
+      // Perform hard delete
+      setRawTenantsState(prev => prev.filter(t => t.id !== tenantId));
+      return { success: true, message: `Tenant "${tenantToDelete.name}" permanently deleted.`, action: 'deleted' };
+    }
+  };
+
+
   const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'>) => {
      let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
@@ -233,7 +262,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawPaymentsState(prev => [...prev, newPayment]);
   };
 
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'clientId'>) => { // Added
+  const addExpense = (expenseData: Omit<Expense, 'id' | 'clientId'>) => { 
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -248,7 +277,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawExpensesState(prev => [...prev, newExpense]);
   };
 
-  const updateExpense = (updatedExpense: Expense) => { // Added
+  const updateExpense = (updatedExpense: Expense) => { 
     if (!authUser?.isSuperAdmin && authUser?.clientId && updatedExpense.clientId !== authUser.clientId && updatedExpense.clientId !== undefined) {
       console.error("Permission denied: Client user cannot update expenses of other clients.");
       return;
@@ -260,7 +289,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawExpensesState(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
   };
 
-  const deleteExpense = (expenseId: string) => { // Added
+  const deleteExpense = (expenseId: string) => { 
     const expenseToDelete = rawExpensesState.find(e => e.id === expenseId);
     if (!expenseToDelete) return;
 
@@ -297,7 +326,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawTenantsState(prev => prev.filter(t => t.clientId !== clientId));
     setRawPaymentsState(prev => prev.filter(p => p.clientId !== clientId));
     setRawManagedUsersState(prev => prev.filter(u => u.clientId !== clientId));
-    setRawExpensesState(prev => prev.filter(e => e.clientId !== clientId)); // Also delete associated expenses
+    setRawExpensesState(prev => prev.filter(e => e.clientId !== clientId)); 
   };
 
   const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
@@ -322,12 +351,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Permission denied: Client user cannot update users of other clients.");
       return;
     }
-     if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       // Client admin can only update their own profile, or if they are an admin, other users in their client.
-       // This logic seems to allow client admin to update others within their client.
-       // The check for `updatedUser.id !== authUser.username` was for self-update prevention, might need review.
-       // For now, assuming client admin can update any user in their client.
-    }
     setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser, role: updatedUser.role || u.role || 'user' } : u));
   };
 
@@ -340,7 +363,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId && userToDelete.username === authUser.username) {
-       // Prevent client admin from deleting their own account through this.
        console.error("Client admins cannot delete their own account this way.");
        return;
     }
@@ -375,7 +397,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     clients: clientsState,
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
-    expenses, // Added
+    expenses, 
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
 
@@ -384,6 +406,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     addTenant,
     updateTenant,
+    attemptDeleteTenant,
     addPayment,
     addClient,
     updateClient,
@@ -394,12 +417,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addSuperAdminUser,
     updateSuperAdminUser,
     deleteSuperAdminUser,
-    addExpense, // Added
-    updateExpense, // Added
-    deleteExpense, // Added
+    addExpense, 
+    updateExpense, 
+    deleteExpense, 
 
     rawManagedUsers: rawManagedUsersState,
-    rawExpenses: rawExpensesState, // Added
+    rawExpenses: rawExpensesState, 
   };
 
   if (!isLoaded) {
@@ -424,3 +447,4 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
+

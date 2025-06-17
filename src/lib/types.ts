@@ -141,6 +141,11 @@ export interface AuthContextType {
   logout: () => void;
 }
 
+export type AttemptDeleteTenantResult = {
+  success: boolean;
+  message: string;
+  action: 'deleted' | 'inactivated' | 'not_found' | 'error';
+};
 
 export interface AppContextType {
   tenants: Tenant[];
@@ -157,6 +162,8 @@ export interface AppContextType {
 
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => void;
   updateTenant: (tenant: Tenant) => void;
+  attemptDeleteTenant: (tenantId: string) => AttemptDeleteTenantResult;
+
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'>) => void;
 
@@ -179,3 +186,4 @@ export interface AppContextType {
   rawManagedUsers: ManagedUser[];
   rawExpenses: Expense[]; 
 }
+
