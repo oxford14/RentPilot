@@ -6,18 +6,26 @@ import { Button } from '@/components/ui/button';
 import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
-import type { Tenant } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2 } from 'lucide-react';
+import type { Tenant, Payment } from '@/lib/types';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
+import { format, startOfDay, getDate, getMonth, getYear, lastDayOfMonth, setDate, isBefore, isSameDay } from 'date-fns';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [amountDue, setAmountDue] = useState<number | null>(null); 
+  const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
   const { payments, tenants } = useAppContext(); 
+  const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setClientToday(new Date());
+  }, []);
 
   const handleOpenForm = () => setIsFormOpen(true);
   const handleCloseForm = () => setIsFormOpen(false);
@@ -27,33 +35,59 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    if (selectedTenant) {
+    if (selectedTenant && clientToday) {
       const tenantPayments = payments.filter(p => p.tenantId === selectedTenant.id);
       const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
 
       let totalExpectedBilled = 0;
       const tenantJoinDate = new Date(selectedTenant.joinDate);
-      const today = new Date();
-      today.setHours(0,0,0,0); 
+      const todayForCalc = new Date(clientToday); // Use the clientToday state
+      todayForCalc.setHours(0,0,0,0); 
 
-      if (tenantJoinDate <= today) {
+      if (tenantJoinDate <= todayForCalc) {
           totalExpectedBilled += selectedTenant.monthlyRentalRate;
           
           let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
           nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1); 
 
-          while (nextBillingAnniversary <= today) {
+          while (nextBillingAnniversary <= todayForCalc) {
               totalExpectedBilled += selectedTenant.monthlyRentalRate;
               nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1);
           }
       }
       
-      const currentBalance = totalExpectedBilled - totalPaid; // Can be negative if overpaid
+      const currentBalance = totalExpectedBilled - totalPaid;
       setAmountDue(currentBalance);
+
+      // Calculate Rent Status
+      if (selectedTenant.status === 'active') {
+        const normalizedToday = startOfDay(clientToday);
+        const joinD = startOfDay(new Date(selectedTenant.joinDate));
+        const dueDayFromJoin = getDate(joinD);
+        const daysInCurrentMonth = getDate(lastDayOfMonth(normalizedToday));
+        const effectiveDueDayInCurrentMonth = Math.min(dueDayFromJoin, daysInCurrentMonth);
+
+        let isDueTodayRent = false;
+        if (getDate(normalizedToday) === effectiveDueDayInCurrentMonth) {
+          const currentCycleStartDate = setDate(startOfDay(new Date(normalizedToday)), effectiveDueDayInCurrentMonth);
+          const hasPaidForCurrentCycle = tenantPayments.some(p => {
+            const paymentDate = startOfDay(new Date(p.date));
+            return !isBefore(paymentDate, currentCycleStartDate) && p.amount >= selectedTenant.monthlyRentalRate;
+          });
+          if (!hasPaidForCurrentCycle) {
+            isDueTodayRent = true;
+          }
+        }
+        setRentStatusMessage(isDueTodayRent ? "Rent is due today" : null);
+      } else {
+        setRentStatusMessage(null);
+      }
+
     } else {
       setAmountDue(null); 
+      setRentStatusMessage(null);
     }
-  }, [selectedTenant, payments, tenants]); 
+  }, [selectedTenant, payments, tenants, clientToday]); 
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -110,8 +144,8 @@ export default function PaymentsPage() {
             <CardDescription className="text-xs">
               {selectedTenant ? `Showing all payments for ${selectedTenant.name}.` : "Select a tenant from the list to view their payments."}
             </CardDescription>
-            {selectedTenant && amountDue !== null && (
-              <div className="mt-3 p-3 border rounded-md bg-muted/50">
+            {selectedTenant && amountDue !== null && clientToday && (
+              <div className="mt-3 p-3 border rounded-md bg-muted/50 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {amountDue > 0 && <DollarSign className="h-5 w-5 text-destructive" />}
@@ -127,6 +161,14 @@ export default function PaymentsPage() {
                     ${Math.abs(amountDue).toLocaleString()}
                   </span>
                 </div>
+                {rentStatusMessage && (
+                   <div className="flex items-center justify-start">
+                     <Badge variant="outline" className="bg-orange-500/20 text-orange-700 border-orange-500">
+                        <CalendarClock className="h-3 w-3 mr-1" />
+                        {rentStatusMessage}
+                    </Badge>
+                   </div>
+                )}
               </div>
             )}
           </CardHeader>
