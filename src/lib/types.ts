@@ -43,7 +43,8 @@ export interface Payment {
   date: string;
   amount: number;
   paymentMethod: PaymentMethod;
-  discountApplied?: number; // New field for discount
+  discountApplied?: number;
+  discountDescription?: string; // New field for discount description
   clientId?: string;
 }
 
@@ -166,7 +167,7 @@ export interface AppContextType {
   attemptDeleteTenant: (tenantId: string) => AttemptDeleteTenantResult;
 
 
-  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number }) => void;
+  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string }) => void;
   updateClient: (client: Client) => void;
   deleteClient: (clientId: string) => void;
 
@@ -185,3 +186,4 @@ export interface AppContextType {
   rawManagedUsers: ManagedUser[];
   rawExpenses: Expense[]; 
 }
+

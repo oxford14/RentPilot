@@ -38,11 +38,11 @@ const initialTenantsRaw: Tenant[] = [
 ];
 
 const initialPaymentsRaw: Payment[] = [
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', discountApplied: 0, clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1100, paymentMethod: 'Bank Transfer', discountApplied: 100, clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', discountApplied: 0, clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', discountApplied: 0, clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash', discountApplied: 0 },
+  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[0].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1100, paymentMethod: 'Bank Transfer', discountApplied: 100, discountDescription: 'Early payment bonus', clientId: initialTenantsRaw[0].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[1].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[1].clientId },
+  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash', discountApplied: 0, discountDescription: '' },
 ];
 
 const initialExpensesRaw: Expense[] = [
@@ -76,7 +76,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const parsedData: AppState = JSON.parse(storedData);
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
-        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0 })));
+        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
         setClientsState(parsedData.clients || initialClients);
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
@@ -91,7 +91,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
-        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0 })));
+        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
         setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -101,7 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
-      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0 })));
+      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
       setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -246,7 +246,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
 
-  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number }) => {
+  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string }) => {
      let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -258,6 +258,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...paymentData,
       id: uuidv4(),
       discountApplied: paymentData.discountApplied || 0,
+      discountDescription: paymentData.discountDescription || '',
       ...(determinedClientId && { clientId: determinedClientId })
      };
     setRawPaymentsState(prev => [...prev, newPayment]);
@@ -449,3 +450,4 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
+

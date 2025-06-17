@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -30,6 +31,7 @@ const paymentFormSchema = z.object({
     required_error: "Payment method is required.",
   }),
   discountApplied: z.coerce.number().nonnegative({ message: "Discount must be non-negative." }).optional(),
+  discountDescription: z.string().max(100, { message: "Description should be 100 characters or less."}).optional(),
 });
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -60,12 +62,14 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
       date: new Date(),
       paymentMethod: undefined,
       discountApplied: undefined,
+      discountDescription: '',
     },
   });
 
   const selectedTenantId = form.watch('tenantId');
   const currentAmountPaid = form.watch('amount') || 0;
   const currentDiscountApplied = form.watch('discountApplied') || 0;
+  const showDiscountDescription = currentDiscountApplied > 0;
 
 
   useEffect(() => {
@@ -90,6 +94,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         date: new Date(),
         paymentMethod: undefined,
         discountApplied: undefined,
+        discountDescription: '',
       });
       if (defaultTenantId && clientToday) {
         const tenant = tenants.find(t => t.id === defaultTenantId);
@@ -101,11 +106,13 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         setAmountDueForSelectedTenant(null);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, defaultTenantId, form, clientToday, tenants, allPayments]);
 
 
   const onSubmit = (data: PaymentFormValues) => {
     const discount = data.discountApplied || 0;
+    const discountDesc = data.discountDescription || '';
 
     if (discount > 0) {
       if (amountDueForSelectedTenant === null || amountDueForSelectedTenant <= 0) {
@@ -119,9 +126,15 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         return;
       }
     }
+    if (discount === 0 && discountDesc.trim() !== '') {
+        form.setError("discountDescription", {type: "manual", message: "Description cannot be provided if no discount is applied."});
+        toast({variant: "destructive", title: "Invalid Description", description: "Cannot add description if no discount is applied."});
+        return;
+    }
+
 
     try {
-      addPayment({...data, date: data.date.toISOString(), discountApplied: discount });
+      addPayment({...data, date: data.date.toISOString(), discountApplied: discount, discountDescription: discountDesc });
       const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
       toast({ title: "Payment Recorded", description: `Payment for ${tenantName} recorded successfully.` });
       form.reset({ 
@@ -130,6 +143,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         date: new Date(), 
         paymentMethod: undefined,
         discountApplied: undefined,
+        discountDescription: '',
       });
       setAmountDueForSelectedTenant(null); 
       onClose();
@@ -187,7 +201,15 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
             onClose();
-            setAmountDueForSelectedTenant(null); 
+            setAmountDueForSelectedTenant(null);
+            form.reset({ // Also reset form on explicit close to clear states
+                tenantId: defaultTenantId || '', 
+                amount: 0, 
+                date: new Date(), 
+                paymentMethod: undefined,
+                discountApplied: undefined,
+                discountDescription: '',
+              });
         }
     }}>
       <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
@@ -285,6 +307,22 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                 )}
               />
             </div>
+
+            {showDiscountDescription && (
+                 <FormField
+                    control={form.control}
+                    name="discountDescription"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Discount Description</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="e.g., Early payment incentive, Loyalty bonus" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                 />
+            )}
             
             <FormField
               control={form.control}
@@ -383,6 +421,14 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                 <Button type="button" variant="outline" onClick={() => {
                     onClose();
                     setAmountDueForSelectedTenant(null);
+                     form.reset({
+                        tenantId: defaultTenantId || '', 
+                        amount: 0, 
+                        date: new Date(), 
+                        paymentMethod: undefined,
+                        discountApplied: undefined,
+                        discountDescription: '',
+                      });
                 }}>Cancel</Button>
               </DialogClose>
               <Button type="submit" variant="default">Record Payment</Button>
@@ -393,3 +439,4 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     </Dialog>
   );
 }
+
