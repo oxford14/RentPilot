@@ -51,7 +51,7 @@ export default function AdminClientsPage() {
     if (clientToDelete) {
       deleteClient(clientToDelete.id);
       toast({ title: "Client Deleted", description: `${clientToDelete.name} has been deleted.`});
-      setClientToDelete(null);
+      setClientToDelete(null); // This will also close the dialog via the 'open' prop
     }
   };
 
@@ -116,8 +116,13 @@ export default function AdminClientsPage() {
         />
       )}
 
-      {clientToDelete && (
-        <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
+      <AlertDialog open={!!clientToDelete} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setClientToDelete(null);
+        }
+      }}>
+        {/* AlertDialogContent and its children are only rendered if clientToDelete is not null */}
+        {clientToDelete && (
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -126,12 +131,12 @@ export default function AdminClientsPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setClientToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteClient}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
-      )}
+        )}
+      </AlertDialog>
     </div>
   );
 }
