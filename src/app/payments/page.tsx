@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
 import { format, startOfDay, getDate, getMonth, getYear, lastDayOfMonth, setDate, isBefore, isSameDay } from 'date-fns';
+import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -41,7 +42,7 @@ export default function PaymentsPage() {
 
       let totalExpectedBilled = 0;
       const tenantJoinDate = new Date(selectedTenant.joinDate);
-      const todayForCalc = new Date(clientToday); // Use the clientToday state
+      const todayForCalc = new Date(clientToday); 
       todayForCalc.setHours(0,0,0,0); 
 
       if (tenantJoinDate <= todayForCalc) {
@@ -59,26 +60,8 @@ export default function PaymentsPage() {
       const currentBalance = totalExpectedBilled - totalPaid;
       setAmountDue(currentBalance);
 
-      // Calculate Rent Status
-      if (selectedTenant.status === 'active') {
-        const normalizedToday = startOfDay(clientToday);
-        const joinD = startOfDay(new Date(selectedTenant.joinDate));
-        const dueDayFromJoin = getDate(joinD);
-        const daysInCurrentMonth = getDate(lastDayOfMonth(normalizedToday));
-        const effectiveDueDayInCurrentMonth = Math.min(dueDayFromJoin, daysInCurrentMonth);
-
-        let isDueTodayRent = false;
-        if (getDate(normalizedToday) === effectiveDueDayInCurrentMonth) {
-          const currentCycleStartDate = setDate(startOfDay(new Date(normalizedToday)), effectiveDueDayInCurrentMonth);
-          const hasPaidForCurrentCycle = tenantPayments.some(p => {
-            const paymentDate = startOfDay(new Date(p.date));
-            return !isBefore(paymentDate, currentCycleStartDate) && p.amount >= selectedTenant.monthlyRentalRate;
-          });
-          if (!hasPaidForCurrentCycle) {
-            isDueTodayRent = true;
-          }
-        }
-        setRentStatusMessage(isDueTodayRent ? "Rent is due today" : null);
+      if (isTenantCurrentlyDueForRent(selectedTenant, payments, clientToday)) {
+        setRentStatusMessage("Rent is due today");
       } else {
         setRentStatusMessage(null);
       }
@@ -87,7 +70,7 @@ export default function PaymentsPage() {
       setAmountDue(null); 
       setRentStatusMessage(null);
     }
-  }, [selectedTenant, payments, tenants, clientToday]); 
+  }, [selectedTenant, payments, clientToday]); // tenants removed as it's stable from context unless it changes structurally
 
   return (
     <div className="container mx-auto py-2 space-y-6">

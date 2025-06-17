@@ -17,45 +17,13 @@ import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, CalendarClock } from 'l
 import type { Tenant, Payment } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfDay, getDate, getMonth, getYear, lastDayOfMonth, setDate, isBefore, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
+import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
   showInactiveTenants: boolean;
 }
-
-// Helper function to determine if rent is due today and unpaid
-const isRentDueTodayAndUnpaid = (tenant: Tenant, allPayments: Payment[], todayDate: Date): boolean => {
-  if (!todayDate) return false;
-
-  const normalizedToday = startOfDay(todayDate);
-  const joinD = startOfDay(new Date(tenant.joinDate));
-  
-  const dueDayFromJoin = getDate(joinD); // Day of the month tenant joined (e.g., 15)
-  
-  // Determine the actual due day in the current month, handling months with fewer days
-  const daysInCurrentMonth = getDate(lastDayOfMonth(normalizedToday));
-  const effectiveDueDayInCurrentMonth = Math.min(dueDayFromJoin, daysInCurrentMonth);
-
-  // If today is not the effective due day for this tenant in the current month, then rent is not due today
-  if (getDate(normalizedToday) !== effectiveDueDayInCurrentMonth) {
-    return false;
-  }
-
-  // Today IS the effective due day. Now, check if payment for the current cycle has been made.
-  // The current cycle starts on the effectiveDueDayInCurrentMonth of the current month.
-  const currentCycleStartDate = setDate(startOfDay(new Date(normalizedToday)), effectiveDueDayInCurrentMonth);
-
-  const hasPaidForCurrentCycle = allPayments.some(p => {
-    if (p.tenantId !== tenant.id) return false;
-    const paymentDate = startOfDay(new Date(p.date));
-    // Payment must be on or after the cycle start date and cover the rent amount
-    return !isBefore(paymentDate, currentCycleStartDate) && p.amount >= tenant.monthlyRentalRate;
-  });
-
-  return !hasPaidForCurrentCycle; // True if due today and NO sufficient payment found for this cycle
-};
-
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
   const { tenants, payments, updateTenant } = useAppContext();
@@ -63,7 +31,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   useEffect(() => {
-    // Set the current date on the client side after hydration
     setClientToday(new Date());
   }, []);
 
@@ -82,7 +49,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     if (!showInactiveTenants) {
       filtered = tenants.filter(tenant => tenant.status === 'active');
     }
-    // Sort by name for consistent order
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [tenants, showInactiveTenants]);
 
@@ -110,7 +76,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         </TableHeader>
         <TableBody>
           {displayedTenants.map((tenant) => {
-            const rentIsDueToday = clientToday ? isRentDueTodayAndUnpaid(tenant, payments, clientToday) : false;
+            const rentIsDueToday = clientToday ? isTenantCurrentlyDueForRent(tenant, payments, clientToday) : false;
             return (
               <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                 <TableCell className="font-medium">{tenant.name}</TableCell>
