@@ -64,8 +64,8 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
           (mu) => mu.password === data.password && mu.id !== user?.id
         );
         if (existingUserWithSamePassword) {
-          form.setError("password", { type: "manual", message: "This password is already in use globally. Please choose a different one." });
-          toast({ variant: "destructive", title: "Validation Error", description: "This password is already in use globally. Please choose a different one." });
+          form.setError("password", { type: "manual", message: "Try a different password." });
+          toast({ variant: "destructive", title: "Validation Error", description: "Try a different password." });
           return;
         }
       }
