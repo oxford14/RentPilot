@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,7 +76,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       try {
         const parsedData: AppState = JSON.parse(storedData);
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
-        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
+        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
         setClientsState(parsedData.clients || initialClients);
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
@@ -91,7 +91,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
-        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
+        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
         setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -101,7 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
-      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '' })));
+      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
       setRawSuperAdminUsersState(initialSuperAdminUsers);
@@ -246,7 +246,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
 
-  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string }) => {
+  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
      let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -255,8 +255,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const newPayment: Payment = {
-      ...paymentData,
       id: uuidv4(),
+      tenantId: paymentData.tenantId,
+      date: paymentData.date,
+      amount: paymentData.amount,
+      paymentMethod: paymentData.paymentMethod,
       discountApplied: paymentData.discountApplied || 0,
       discountDescription: paymentData.discountDescription || '',
       ...(determinedClientId && { clientId: determinedClientId })

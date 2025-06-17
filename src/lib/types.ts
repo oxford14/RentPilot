@@ -42,9 +42,9 @@ export interface Payment {
   tenantId: string;
   date: string;
   amount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod; // Made optional
   discountApplied?: number;
-  discountDescription?: string; // New field for discount description
+  discountDescription?: string; 
   clientId?: string;
 }
 
@@ -167,7 +167,7 @@ export interface AppContextType {
   attemptDeleteTenant: (tenantId: string) => AttemptDeleteTenantResult;
 
 
-  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string }) => void;
+  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => void;
   updateClient: (client: Client) => void;
   deleteClient: (clientId: string) => void;
 

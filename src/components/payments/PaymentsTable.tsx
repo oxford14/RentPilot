@@ -11,15 +11,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import type { Payment, Tenant } from '@/lib/types';
+import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const PaymentMethodIcon = ({ method }: { method: string }) => {
+const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
+  if (!method) return <MinusCircle className="h-4 w-4 text-muted-foreground" />;
   switch (method) {
     case 'Credit Card': return <CreditCard className="h-4 w-4 text-primary" />;
     case 'Bank Transfer': return <Landmark className="h-4 w-4 text-green-500" />;
@@ -127,7 +128,7 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
                 <TableCell className="text-center">
                   <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
                     <PaymentMethodIcon method={payment.paymentMethod} />
-                    {payment.paymentMethod}
+                    {payment.paymentMethod || 'N/A'}
                   </Badge>
                 </TableCell>
               </TableRow>

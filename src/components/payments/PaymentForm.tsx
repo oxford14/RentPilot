@@ -27,11 +27,24 @@ const paymentFormSchema = z.object({
   tenantId: z.string().min(1, { message: "Please select a tenant." }),
   amount: z.coerce.number().nonnegative({ message: "Amount paid must be non-negative." }),
   date: z.date({ required_error: "Payment date is required." }),
-  paymentMethod: z.enum(paymentMethods as [PaymentMethod, ...PaymentMethod[]], {
-    required_error: "Payment method is required.",
-  }),
+  paymentMethod: z.enum(paymentMethods as [PaymentMethod, ...PaymentMethod[]]).optional(),
   discountApplied: z.coerce.number().nonnegative({ message: "Discount must be non-negative." }).optional(),
   discountDescription: z.string().max(100, { message: "Description should be 100 characters or less."}).optional(),
+}).superRefine((data, ctx) => {
+  if (data.amount > 0 && !data.paymentMethod) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Payment method is required when an amount is paid.",
+      path: ["paymentMethod"],
+    });
+  }
+  if ((data.amount === 0 || data.amount === undefined) && (data.discountApplied === 0 || data.discountApplied === undefined)) {
+     ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either amount paid or discount applied must be greater than zero.",
+      path: ["amount"], // Or a general form error if preferred
+    });
+  }
 });
 
 type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -134,7 +147,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
 
     try {
-      addPayment({...data, date: data.date.toISOString(), discountApplied: discount, discountDescription: discountDesc });
+      addPayment({...data, date: data.date.toISOString(), discountApplied: discount, discountDescription: discountDesc, paymentMethod: data.paymentMethod });
       const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
       toast({ title: "Payment Recorded", description: `Payment for ${tenantName} recorded successfully.` });
       form.reset({ 
@@ -202,7 +215,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         if (!open) {
             onClose();
             setAmountDueForSelectedTenant(null);
-            form.reset({ // Also reset form on explicit close to clear states
+            form.reset({ 
                 tenantId: defaultTenantId || '', 
                 amount: 0, 
                 date: new Date(), 
@@ -283,7 +296,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <FormControl>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-8" />
+                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -299,7 +312,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <FormControl>
                        <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} className="pl-8"/>
+                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/>
                        </div>
                     </FormControl>
                     <FormMessage />
@@ -371,7 +384,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
               name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Payment Method</FormLabel>
+                  <FormLabel>Payment Method {(form.getValues("amount") || 0) > 0 ? '' : '(Optional)'}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
