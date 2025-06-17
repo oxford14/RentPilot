@@ -21,6 +21,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
     const isAdminRoute = pathname.startsWith('/admin');
     const isClientUserManagementRoute = pathname === '/users';
+    const isClientSettingsRoute = pathname === '/settings'; // New client settings route
 
     if (!isAuthenticated && pathname !== '/login') {
       router.push('/login');
@@ -30,14 +31,20 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this admin page." });
       router.push('/');
     } else if (isAuthenticated && isClientUserManagementRoute) {
-      if (user?.isSuperAdmin) { // Super admins should use /admin/users
+      if (user?.isSuperAdmin) { 
         toast({ variant: "destructive", title: "Access Denied", description: "Super admins should manage users via /admin/users." });
         router.push('/admin/users');
-      } else if (!user?.clientId || user?.role !== 'admin') { // Client users must be admins of their client
+      } else if (!user?.clientId || user?.role !== 'admin') { 
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to manage users." });
         router.push('/');
       }
+    } else if (isAuthenticated && isClientSettingsRoute && user?.isSuperAdmin) {
+      // If a super admin tries to go to /settings, redirect them to /admin/settings
+      toast({ variant: "default", title: "Redirecting", description: "Super admins use /admin/settings for system-wide configurations." });
+      router.push('/admin/settings');
     }
+
+
   }, [isAuthenticated, isLoading, pathname, router, user]);
 
   if (isLoading) {
@@ -75,6 +82,15 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
         </div>
     );
   }
+  
+  if (pathname === '/settings' && isAuthenticated && user?.isSuperAdmin) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-3 text-md text-muted-foreground">Redirecting admin...</p>
+        </div>
+    );
+  }
 
 
   if (pathname === '/login') {
@@ -87,3 +103,4 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
   return null;
 }
+

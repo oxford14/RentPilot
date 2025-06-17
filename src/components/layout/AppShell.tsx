@@ -181,6 +181,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (activeItemFound) break;
     }
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
+    else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
+    else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
 
 
   } else { 
@@ -214,6 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (activeItemFound) break;
     }
      if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
+     else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
      else if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; 
   }
 
@@ -232,11 +235,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.push('/');
   }
 
-  const handleSettingsClick = () => {
+  const handleUserDropdownSettingsClick = () => {
     if (authUser?.isSuperAdmin) {
-      router.push('/admin/settings');
+      router.push('/admin/settings'); // Super Admin system-wide settings
     } else {
-      router.push('/profile');
+      router.push('/settings'); // Client User/Admin password change page
+    }
+  };
+  
+  const handleSidebarFooterSettingsClick = () => {
+    if (authUser?.isSuperAdmin) {
+      router.push('/admin/settings'); // Super Admin system-wide settings
+    } else {
+      router.push('/profile'); // Client users go to their profile from global settings link
     }
   };
 
@@ -360,7 +371,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton
                         tooltip={{ children: "Global Settings", side: "right", className: "ml-2" }}
                         className="justify-start"
-                        onClick={handleSettingsClick}
+                        onClick={handleSidebarFooterSettingsClick}
                         >
                         <Settings className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Global Settings</span>
@@ -429,7 +440,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <UserCircle className="mr-2 h-4 w-4" />
                     Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSettingsClick}>
+                <DropdownMenuItem onClick={handleUserDropdownSettingsClick}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                 </DropdownMenuItem>
