@@ -17,15 +17,16 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building } from 'lucide-react';
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, Shield } from 'lucide-react'; // Added Shield
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
+  adminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -33,13 +34,27 @@ const navItems: NavItem[] = [
   { href: '/tenants', label: 'Tenants', icon: Users },
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/admin/clients', label: 'Admin', icon: Shield, adminOnly: true }, // Admin link
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth(); // Get user and logout function
+  const { user, logout } = useAuth();
 
   const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'TT';
+
+  const availableNavItems = navItems.filter(item => {
+    if (item.adminOnly) {
+      return user?.isSuperAdmin === true;
+    }
+    return true;
+  });
+  
+  const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
+  const activePage = availableNavItems.find(item => 
+    item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')
+  )?.label || 'TenantTracker';
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -53,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
             <SidebarMenu>
-              {navItems.map((item) => (
+              {availableNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
@@ -76,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton 
                         tooltip={{ children: "Settings", side: "right", className: "ml-2" }} 
                         className="justify-start"
-                        onClick={() => alert("Settings clicked!")} // This can be wired up later
+                        onClick={() => alert("Settings clicked!")} 
                         >
                         <Settings className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Settings</span>
@@ -91,20 +106,20 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1">
               <h1 className="text-xl font-semibold font-headline">
-                {navItems.find(item => pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)))?.label || 'TenantTracker'}
+                {activePage}
               </h1>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar" />
+                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar"/>
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.username || 'My Account'}</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.username || 'My Account'}{user?.isSuperAdmin && " (Super Admin)"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => alert("Settings clicked!")}>Settings</DropdownMenuItem>
@@ -121,7 +136,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
         </SidebarInset>
       </div>
-      {/* Toaster is now globally in RootLayout */}
     </SidebarProvider>
   );
 }

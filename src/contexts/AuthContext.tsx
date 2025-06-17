@@ -3,12 +3,9 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Keep useRouter from next/navigation
 import { useToast } from '@/hooks/use-toast';
-
-interface User {
-  username: string;
-}
+import type { User } from '@/lib/types'; // Import the extended User type
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -25,9 +22,8 @@ const AUTH_STORAGE_KEY = 'tenantTrackerAuth';
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Start with loading true
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
-  const pathname = usePathname();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,16 +38,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Failed to load auth state from localStorage", error);
-      // Clear corrupted storage if any
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (usernameInput: string, passwordInput: string) => {
-    // Mock authentication
     if (usernameInput === 'admin' && passwordInput === 'password123') {
-      const userData: User = { username: usernameInput };
+      const userData: User = { username: usernameInput, isSuperAdmin: true };
+      setIsAuthenticated(true);
+      setUser(userData);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+      toast({ title: "Login Successful", description: `Welcome back, ${usernameInput}!` });
+      router.push('/');
+    } else if (usernameInput === 'clientuser' && passwordInput === 'password123') { // Example client user
+      const userData: User = { username: usernameInput, isSuperAdmin: false };
       setIsAuthenticated(true);
       setUser(userData);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));

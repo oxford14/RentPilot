@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,7 +17,12 @@ const initialPayments: Payment[] = [
   { id: uuidv4(), tenantId: initialTenants[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer' },
   { id: uuidv4(), tenantId: initialTenants[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer' },
   { id: uuidv4(), tenantId: initialTenants[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card' },
-  { id: uuidv4(), tenantId: initialTenants[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card' }, // Partial payment
+  { id: uuidv4(), tenantId: initialTenants[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card' },
+];
+
+const initialClients: Client[] = [
+  { id: uuidv4(), name: 'Main Street Properties' },
+  { id: uuidv4(), name: 'Oak View Rentals' },
 ];
 
 const LOCAL_STORAGE_KEY = 'tenantTrackerData';
@@ -25,36 +30,36 @@ const LOCAL_STORAGE_KEY = 'tenantTrackerData';
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // This effect runs only on the client after hydration
     const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (storedData) {
       try {
         const parsedData: AppState = JSON.parse(storedData);
         setTenants(parsedData.tenants || initialTenants);
         setPayments(parsedData.payments || initialPayments);
+        setClients(parsedData.clients || initialClients);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
-        // Fallback to initial data if parsing fails
         setTenants(initialTenants);
         setPayments(initialPayments);
+        setClients(initialClients);
       }
     } else {
-      // Initialize with sample data if nothing in local storage
       setTenants(initialTenants);
       setPayments(initialPayments);
+      setClients(initialClients);
     }
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    // This effect saves to localStorage only on client and after initial load
     if (isLoaded) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ tenants, payments }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ tenants, payments, clients }));
     }
-  }, [tenants, payments, isLoaded]);
+  }, [tenants, payments, clients, isLoaded]);
 
 
   const addTenant = (tenantData: Omit<Tenant, 'id'>) => {
@@ -71,8 +76,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPayments(prev => [...prev, newPayment]);
   };
 
+  const addClient = (clientData: Omit<Client, 'id'>) => {
+    const newClient = { ...clientData, id: uuidv4() };
+    setClients(prev => [...prev, newClient]);
+  };
+
   return (
-    <AppContext.Provider value={{ tenants, payments, addTenant, updateTenant, addPayment }}>
+    <AppContext.Provider value={{ tenants, payments, clients, addTenant, updateTenant, addPayment, addClient }}>
       {children}
     </AppContext.Provider>
   );

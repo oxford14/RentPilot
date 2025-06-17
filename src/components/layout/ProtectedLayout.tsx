@@ -10,21 +10,27 @@ import { Loader2 } from 'lucide-react';
 
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth(); // Get user object
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading) {
-      return; // Wait until authentication status is determined
+      return;
     }
+
+    const isAdminRoute = pathname.startsWith('/admin');
 
     if (!isAuthenticated && pathname !== '/login') {
       router.push('/login');
     } else if (isAuthenticated && pathname === '/login') {
-      router.push('/'); // Redirect to dashboard if logged in and trying to access login page
+      router.push('/');
+    } else if (isAuthenticated && isAdminRoute && !user?.isSuperAdmin) {
+      // If trying to access admin route without super admin rights, redirect
+      toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+      router.push('/');
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [isAuthenticated, isLoading, pathname, router, user]);
 
   if (isLoading) {
     return (
@@ -35,8 +41,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // If not authenticated and not on the login page, router.push will handle it.
-  // During the redirect, we can show a loading state or null to prevent flashing content.
   if (!isAuthenticated && pathname !== '/login') {
      return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -45,17 +49,32 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  
+  // If accessing admin route without super admin rights (and not already caught by useEffect, e.g. direct load)
+  if (pathname.startsWith('/admin') && !(user?.isSuperAdmin)) {
+    // This check might be redundant if useEffect handles it quickly enough, but good for safety
+    if (isAuthenticated) { // Only show access denied if they are logged in but not super admin
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-3 text-md text-muted-foreground">Access Denied. Redirecting...</p>
+            </div>
+        );
+    }
+    // If not authenticated, the above block handles redirect to login
+  }
 
-  // If on the login page, render children directly (which is the LoginPage)
+
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
-  // If authenticated and not on login page, render AppShell with children
   if (isAuthenticated) {
     return <AppShell>{children}</AppShell>;
   }
 
-  // Fallback, should ideally not be reached if logic above is correct
   return null;
 }
+
+// This import was missing for toast
+import { toast } from '@/hooks/use-toast';
