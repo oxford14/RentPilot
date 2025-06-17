@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-// import Image from 'next/image'; // Not used currently for AppLogoOrIcon directly due to external URLs
+import Image from 'next/image';
 import {
   SidebarProvider,
   Sidebar,
@@ -27,7 +27,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; // Ensure AppNavGroup is exported or defined correctly
+import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; 
 import { cn } from '@/lib/utils';
 
 interface AdminTopLevelNavItem {
@@ -261,29 +261,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return authUser?.username || 'My Account';
   };
 
-  const AppLogoOrIcon = () => {
-    if (activeClientForDisplay?.logoUrl) {
-      return (
-        <img 
-          src={activeClientForDisplay.logoUrl} 
-          alt={`${activeClientForDisplay.name} Logo`} 
-          className="h-7 object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
-          data-ai-hint="client logo"
-        />
-      );
-    }
-    return <Building className="h-7 w-7 text-primary" />;
-  };
-
-
   return (
     <SidebarProvider defaultOpen>
       <div className="flex min-h-screen w-full">
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
-                <AppLogoOrIcon />
+                <Image src="/favicon.ico" alt="RentPilot Logo" width={28} height={28} className="h-7 w-7" data-ai-hint="app logo"/>
                 <span className="group-data-[collapsible=icon]:hidden font-headline">
                   {isAdminSection && !viewingClient ? 'RentPilot' : activeClientForDisplay?.name || 'RentPilot'}
                 </span>
@@ -385,15 +369,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && !isAdminSection && ( 
-                  <img 
-                    src={activeClientForDisplay.logoUrl} 
-                    alt={`${activeClientForDisplay.name} Logo`} 
-                    className="h-8 object-contain rounded"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              {activeClientForDisplay?.logoUrl && !isAdminSection ? (
+                  <Image
+                    src={activeClientForDisplay.logoUrl}
+                    alt={`${activeClientForDisplay.name} Logo`}
+                    width={32} 
+                    height={32}
+                    className="h-8 w-8 object-contain rounded" 
                     data-ai-hint="client logo small"
+                    unoptimized
                   />
-              )}
+              ) : !isAdminSection ? (
+                  <Image
+                    src="/favicon.ico"
+                    alt="RentPilot Logo"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 object-contain rounded"
+                    data-ai-hint="app logo small"
+                  />
+              ) : null}
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
                  {loggedInClient && !isAdminSection && !viewingClient && ` - ${loggedInClient.name}`}
@@ -404,7 +399,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar"/>
+                    <AvatarImage src="/favicon.ico" alt="User Avatar" data-ai-hint="app logo avatar"/>
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
