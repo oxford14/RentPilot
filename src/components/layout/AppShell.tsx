@@ -17,7 +17,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, Shield } from 'lucide-react'; // Added Shield
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building } from 'lucide-react'; // Removed Shield import as it's no longer used by a nav item
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
   { href: '/tenants', label: 'Tenants', icon: Users },
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/admin/clients', label: 'Admin', icon: Shield, adminOnly: true }, // Admin link
+  // { href: '/admin/clients', label: 'Admin', icon: Shield, adminOnly: true }, // Admin link REMOVED
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
