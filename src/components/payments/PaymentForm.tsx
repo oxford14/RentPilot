@@ -74,7 +74,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
       amount: 0,
       date: new Date(),
       paymentMethod: undefined,
-      discountApplied: undefined,
+      discountApplied: 0, // Changed from undefined
       discountDescription: '',
     },
   });
@@ -106,7 +106,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         amount: 0,
         date: new Date(),
         paymentMethod: undefined,
-        discountApplied: undefined,
+        discountApplied: 0, // Changed from undefined
         discountDescription: '',
       });
       if (defaultTenantId && clientToday) {
@@ -155,7 +155,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         amount: 0, 
         date: new Date(), 
         paymentMethod: undefined,
-        discountApplied: undefined,
+        discountApplied: 0, // Changed from undefined
         discountDescription: '',
       });
       setAmountDueForSelectedTenant(null); 
@@ -220,7 +220,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                 amount: 0, 
                 date: new Date(), 
                 paymentMethod: undefined,
-                discountApplied: undefined,
+                discountApplied: 0, // Changed from undefined
                 discountDescription: '',
               });
         }
@@ -312,7 +312,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <FormControl>
                        <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}/>
+                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} />
                        </div>
                     </FormControl>
                     <FormMessage />
@@ -439,7 +439,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                         amount: 0, 
                         date: new Date(), 
                         paymentMethod: undefined,
-                        discountApplied: undefined,
+                        discountApplied: 0, // Changed from undefined
                         discountDescription: '',
                       });
                 }}>Cancel</Button>
