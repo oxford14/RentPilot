@@ -83,6 +83,39 @@ export interface Expense {
   clientId?: string;
 }
 
+// Navigation item types
+interface AppNavSubItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  adminOnly?: boolean; // Keep for potential future use if needed in sub-items
+  clientAdminOnly?: boolean;
+  superAdminOnly?: boolean;
+}
+
+interface AppNavGroup {
+  isGroup: true;
+  label: string;
+  icon: React.ElementType; // Icon for the group itself
+  items: AppNavSubItem[];
+  adminOnly?: boolean;
+  clientAdminOnly?: boolean;
+  superAdminOnly?: boolean;
+}
+
+interface AppTopLevelNavItem {
+  isGroup: false;
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  adminOnly?: boolean;
+  clientAdminOnly?: boolean;
+  superAdminOnly?: boolean;
+}
+
+export type AppSidebarNavItem = AppTopLevelNavItem | AppNavGroup;
+
+
 export interface AppState {
   rawTenants: Tenant[];
   rawPayments: Payment[];
@@ -115,7 +148,7 @@ export interface AppContextType {
   clients: Client[];
   managedUsers: ManagedUser[];
   rawSuperAdminUsers: SuperAdminUser[];
-  expenses: Expense[]; // Added
+  expenses: Expense[]; 
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 
@@ -139,10 +172,10 @@ export interface AppContextType {
   updateSuperAdminUser: (user: SuperAdminUser) => void;
   deleteSuperAdminUser: (userId: string) => void;
 
-  addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => void; // Added
-  updateExpense: (expense: Expense) => void; // Added
-  deleteExpense: (expenseId: string) => void; // Added
+  addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => void; 
+  updateExpense: (expense: Expense) => void; 
+  deleteExpense: (expenseId: string) => void; 
 
   rawManagedUsers: ManagedUser[];
-  rawExpenses: Expense[]; // Added rawExpenses for direct access if needed by saving logic
+  rawExpenses: Expense[]; 
 }

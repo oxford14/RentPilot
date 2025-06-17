@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from 'react';
@@ -20,20 +19,12 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-
-interface AppNavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  adminOnly?: boolean;
-  clientAdminOnly?: boolean;
-  superAdminOnly?: boolean; // To hide from client users even if they are admins
-}
+import type { AppSidebarNavItem } from '@/lib/types';
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -58,13 +49,21 @@ interface AdminNavGroup {
 type AdminSidebarConfigItem = AdminTopLevelNavItem | AdminNavGroup;
 
 
-const appNavItems: AppNavItem[] = [
-  { href: '/', label: 'Dashboard', icon: Home },
-  { href: '/tenants', label: 'Tenants', icon: Users },
-  { href: '/payments', label: 'Payments', icon: CreditCard },
-  { href: '/expenses', label: 'Expenses', icon: ReceiptText }, // Added Expenses
-  { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
+const appNavItems: AppSidebarNavItem[] = [
+  { isGroup: false, href: '/', label: 'Dashboard', icon: Home },
+  { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
+  { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
+  { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
+  {
+    isGroup: true,
+    label: 'Reports',
+    icon: BarChart3,
+    items: [
+      { href: '/reports', label: 'Financial Summary', icon: FileText },
+      { href: '/reports/earnings', label: 'Earnings Report', icon: AreaChart },
+    ]
+  },
+  { isGroup: false, href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
 ];
 
 const adminSidebarConfig: AdminSidebarConfigItem[] = [
@@ -92,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
 
-  let currentAppNavItems: AppNavItem[] = [];
+  let currentAppNavItems: AppSidebarNavItem[] = [];
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
   let currentActivePageLabel = 'TenantTracker';
 
@@ -122,21 +121,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
 
 
-  } else { // Tenant-facing part of the app
+  } else { 
     currentAppNavItems = appNavItems.filter(item => {
       if (item.clientAdminOnly) {
         return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
       }
-      if (item.superAdminOnly) { // If an item should only be shown to superAdmins in non-admin section
+      if (item.superAdminOnly) { 
           return !!authUser?.isSuperAdmin;
       }
-      return true; // Default show
+      return true; 
     });
-    const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
-    const activeAppItem = currentAppNavItems.find(item =>
-      item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')
-    );
-    currentActivePageLabel = activeAppItem?.label || 'TenantTracker';
+
+    let activeItemFound = false;
+    for (const item of currentAppNavItems) {
+      if (item.isGroup) {
+        for (const subItem of item.items) {
+          if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
+            currentActivePageLabel = subItem.label;
+            activeItemFound = true;
+            break;
+          }
+        }
+      } else { // Top-level item
+        const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
+        if (item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')) {
+          currentActivePageLabel = item.label;
+          activeItemFound = true;
+        }
+      }
+      if (activeItemFound) break;
+    }
+     if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; // Default if no match
   }
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
@@ -171,7 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           src={activeClientForDisplay.logoUrl} 
           alt={`${activeClientForDisplay.name} Logo`} 
           className="h-7 object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} // Hide if error
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
           data-ai-hint="client logo"
         />
       );
@@ -198,7 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 currentAdminConfigItems.map((item, index) => {
                   if (item.isGroup) {
                     return (
-                      <React.Fragment key={`group-${item.groupLabel}-${index}`}>
+                      <React.Fragment key={`admin-group-${item.groupLabel}-${index}`}>
                         <div className="px-2 py-2 mt-2 text-xs font-semibold text-sidebar-foreground/70 uppercase flex items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2">
                           <item.groupIcon className="h-5 w-5 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
                           <span className="ml-2 group-data-[collapsible=icon]:hidden">{item.groupLabel}</span>
@@ -239,21 +254,55 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                 })
               ) : ( // Tenant-facing sidebar
-                currentAppNavItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
-                      tooltip={{ children: item.label, side: "right", className: "ml-2" }}
-                      className="justify-start"
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="h-5 w-5" />
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
+                currentAppNavItems.map((item, index) => {
+                  if (item.isGroup) {
+                    return (
+                      <React.Fragment key={`app-group-${item.label}-${index}`}>
+                        <div 
+                          className="px-3 py-2 mt-2 text-sm font-medium text-sidebar-foreground/90 flex items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2"
+                          title={item.label} 
+                        >
+                          <item.icon className="h-5 w-5 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+                          <span className="ml-3 group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </div>
+                        <div className="group-data-[collapsible=expanded]:pl-3">
+                          {item.items.map(subItem => (
+                            <SidebarMenuItem key={subItem.href}>
+                              <SidebarMenuButton
+                                asChild
+                                size="sm"
+                                isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
+                                tooltip={{ children: subItem.label, side: "right", className: "ml-2" }}
+                                className="justify-start w-full" 
+                              >
+                                <Link href={subItem.href}>
+                                  <subItem.icon className="h-4 w-4" />
+                                  <span className="pl-2 group-data-[collapsible=icon]:hidden">{subItem.label}</span>
+                                </Link>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </div>
+                      </React.Fragment>
+                    );
+                  } else { // Top-level item
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
+                          tooltip={{ children: item.label, side: "right", className: "ml-2" }}
+                          className="justify-start"
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="h-5 w-5" />
+                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+                })
               )}
             </SidebarMenu>
           </SidebarContent>
@@ -277,7 +326,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && !isAdminSection && ( // Only show client logo in header for non-admin section
+              {activeClientForDisplay?.logoUrl && !isAdminSection && ( 
                   <img 
                     src={activeClientForDisplay.logoUrl} 
                     alt={`${activeClientForDisplay.name} Logo`} 
@@ -338,7 +387,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          {authUser?.isSuperAdmin && viewingClient && !isAdminSection && ( // Only show "viewing as" banner in non-admin section
+          {authUser?.isSuperAdmin && viewingClient && !isAdminSection && ( 
             <div className="bg-primary/10 text-primary-foreground py-2 px-6 text-sm flex items-center justify-center shadow">
               <Eye className="mr-2 h-4 w-4 text-primary" />
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.

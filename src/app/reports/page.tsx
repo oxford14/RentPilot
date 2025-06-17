@@ -8,7 +8,7 @@ import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
 import { DelinquencyCard } from '@/components/reports/DelinquencyCard';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Tenant, Payment } from '@/lib/types';
-import { DollarSign, Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, TrendingDown, FileText } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -26,7 +26,7 @@ const initialFinancialSummary: FinancialSummary = {
   paymentsCount: 0,
 };
 
-export default function ReportsPage() {
+export default function FinancialSummaryReportsPage() { // Renamed component
   const { tenants, payments } = useAppContext();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [clientNow, setClientNow] = useState<Date | null>(null);
@@ -123,7 +123,10 @@ export default function ReportsPage() {
   return (
     <div className="container mx-auto py-2 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline mb-2">Financial Reports</h1>
+        <h1 className="text-3xl font-bold font-headline mb-2 flex items-center">
+          <FileText className="mr-3 h-8 w-8 text-primary" />
+          Financial Summary Report
+        </h1>
         <p className="text-muted-foreground">Analyze financial performance and tenant payment behavior.</p>
       </div>
 
