@@ -1,10 +1,12 @@
 
+
 "use client";
 
 import * as React from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import {
   SidebarProvider,
   Sidebar,
@@ -18,7 +20,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck } from 'lucide-react'; // Changed SuperAdminIcon to ShieldCheck
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +34,6 @@ interface AppNavItem {
   clientAdminOnly?: boolean;
 }
 
-// Types for Admin Sidebar Configuration
 interface AdminTopLevelNavItem {
   isGroup: false;
   href: string;
@@ -74,7 +75,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
     groupIcon: Cog,
     items: [
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
-      { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck }, // Changed SuperAdminIcon to ShieldCheck
+      { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck },
     ]
   }
 ];
@@ -98,7 +99,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (authUser?.isSuperAdmin) {
       currentAdminConfigItems = adminSidebarConfig;
     }
-    // Determine active page label for admin section
     let activeItemFound = false;
     for (const item of currentAdminConfigItems) {
       if (!item.isGroup && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))) {
@@ -136,6 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
+  const activeClientForDisplay = viewingClient || loggedInClient;
 
 
   const handleReturnToAdminView = () => {
@@ -158,6 +159,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     return authUser?.username || 'My Account';
   };
 
+  const AppLogoOrIcon = () => {
+    if (activeClientForDisplay?.logoUrl) {
+      return (
+        <img 
+          src={activeClientForDisplay.logoUrl} 
+          alt={`${activeClientForDisplay.name} Logo`} 
+          className="h-7 object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} // Hide if error
+          data-ai-hint="client logo"
+        />
+      );
+    }
+    return <Building className="h-7 w-7 text-primary" />;
+  };
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -165,8 +181,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
-                <Building className="h-7 w-7 text-primary" />
-                <span className="group-data-[collapsible=icon]:hidden font-headline">TenantTracker</span>
+                <AppLogoOrIcon />
+                <span className="group-data-[collapsible=icon]:hidden font-headline">
+                  {isAdminSection && !viewingClient ? 'TenantTracker' : activeClientForDisplay?.name || 'TenantTracker'}
+                </span>
             </Link>
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
@@ -197,7 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         ))}
                       </React.Fragment>
                     );
-                  } else { // AdminTopLevelNavItem
+                  } else { 
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -253,10 +271,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarInset className="flex-1 flex flex-col bg-background">
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
-            <div className="flex-1">
+            <div className="flex-1 flex items-center gap-3">
+              {activeClientForDisplay?.logoUrl && (
+                  <img 
+                    src={activeClientForDisplay.logoUrl} 
+                    alt={`${activeClientForDisplay.name} Logo`} 
+                    className="h-8 object-contain rounded"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    data-ai-hint="client logo small"
+                  />
+              )}
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
-                 {loggedInClient && !isAdminSection && ` - ${loggedInClient.name}`}
+                 {loggedInClient && !isAdminSection && !viewingClient && ` - ${loggedInClient.name}`}
+                 {viewingClient && ` - ${viewingClient.name}`}
               </h1>
             </div>
             <DropdownMenu>
@@ -319,4 +347,5 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
 

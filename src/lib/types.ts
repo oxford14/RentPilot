@@ -50,6 +50,7 @@ export interface Payment {
 export interface Client {
   id: string;
   name: string;
+  logoUrl?: string; // Added logoUrl
 }
 
 export interface AppState {
@@ -108,3 +109,4 @@ export interface AppContextType {
 
   rawManagedUsers: ManagedUser[];
 }
+

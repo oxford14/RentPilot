@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser } from '@/lib/types';
@@ -8,13 +9,12 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
-  // rawSuperAdminUsers are already part of AppContextType now
 }
 
 const AppContext = createContext<AppContextTypeWithRawData | undefined>(undefined);
 
 const initialClients: Client[] = [
-  { id: 'client-main-street', name: 'Main Street Properties' },
+  { id: 'client-main-street', name: 'Main Street Properties', logoUrl: 'https://placehold.co/100x40.png?text=Main+St' },
   { id: 'client-oak-view', name: 'Oak View Rentals' },
 ];
 
@@ -25,10 +25,7 @@ const initialManagedUsers: ManagedUser[] = [
     { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
 ];
 
-const initialSuperAdminUsers: SuperAdminUser[] = [
-  // The primary 'admin' is handled by AuthContext, this list is for *additional* super admins
-  // { id: uuidv4(), username: 'superadmin2', password: 'password123' }, 
-];
+const initialSuperAdminUsers: SuperAdminUser[] = [];
 
 
 const initialTenantsRaw: Tenant[] = [
@@ -71,7 +68,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
           role: user.role || 'user' as ClientUserRole,
-          password: user.password || 'password123' // Ensure password for login
+          password: user.password || 'password123' 
         }));
         setRawManagedUsersState(usersWithRoles);
         setRawSuperAdminUsersState(parsedData.rawSuperAdminUsers || initialSuperAdminUsers);
@@ -151,11 +148,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
-            // Super admin global view of managed users would typically be handled by rawManagedUsersState in the admin page directly
-            return rawManagedUsersState; // Or decide if this should be empty or specific to a view
+            return rawManagedUsersState; 
         }
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
-     } else if (authUser?.clientId) { // Client admin/user view
+     } else if (authUser?.clientId) { 
         return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
      }
     return [];
@@ -204,7 +200,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addClient = (clientData: Omit<Client, 'id'>) => {
     if (!authUser?.isSuperAdmin) return;
-    const newClient = { ...clientData, id: uuidv4() };
+    const newClient: Client = { 
+      id: uuidv4(), 
+      name: clientData.name,
+      logoUrl: clientData.logoUrl || undefined 
+    };
     setClientsState(prev => [...prev, newClient]);
   };
 
@@ -244,7 +244,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
      if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       if (updatedUser.id !== authUser.username) { // Check if they are trying to edit themselves or someone else
+       if (updatedUser.id !== authUser.username) { 
             console.error("Permission denied: Client users cannot update other users.");
             return;
        }
@@ -267,9 +267,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawManagedUsersState(prev => prev.filter(u => u.id !== userId));
   };
 
-  // Super Admin User CRUD
   const addSuperAdminUser = (userData: Omit<SuperAdminUser, 'id'>) => {
-    if (!authUser?.isSuperAdmin) return; // Only super admins can add other super admins
+    if (!authUser?.isSuperAdmin) return; 
     const newUser: SuperAdminUser = { ...userData, id: uuidv4() };
     setRawSuperAdminUsersState(prev => [...prev, newUser]);
   };
@@ -281,7 +280,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteSuperAdminUser = (userId: string) => {
     if (!authUser?.isSuperAdmin) return;
-    // Prevent primary 'admin' or logged-in super admin from deleting self via this list
     const userToDelete = rawSuperAdminUsersState.find(u => u.id === userId);
     if (userToDelete && authUser.username === userToDelete.username) {
         console.error("Super admin cannot delete their own account through this interface.");
@@ -338,3 +336,4 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
+

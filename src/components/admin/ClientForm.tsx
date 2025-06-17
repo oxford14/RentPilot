@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -15,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
+  logoUrl: z.string().url({ message: "Please enter a valid URL for the logo." }).optional().or(z.literal('')),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -31,25 +33,29 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: client ? { name: client.name } : { name: '' },
+    defaultValues: client ? { name: client.name, logoUrl: client.logoUrl || '' } : { name: '', logoUrl: '' },
   });
 
   useEffect(() => {
     if (isOpen) {
-      form.reset(client ? { name: client.name } : { name: '' });
+      form.reset(client ? { name: client.name, logoUrl: client.logoUrl || '' } : { name: '', logoUrl: '' });
     }
   }, [client, isOpen, form]);
 
   const onSubmit = (data: ClientFormValues) => {
     try {
+      const payload = {
+        ...data,
+        logoUrl: data.logoUrl === '' ? undefined : data.logoUrl, // Store as undefined if empty string
+      };
       if (client) {
-        updateClient({ ...client, ...data });
+        updateClient({ ...client, ...payload });
         toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
       } else {
-        addClient(data);
+        addClient(payload);
         toast({ title: "Client Added", description: `${data.name} has been added successfully.` });
       }
-      form.reset({ name: '' });
+      form.reset({ name: '', logoUrl: '' });
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save client information." });
@@ -59,7 +65,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px] bg-card shadow-xl rounded-lg">
+      <DialogContent className="sm:max-w-[480px] bg-card shadow-xl rounded-lg">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
         </DialogHeader>
@@ -78,6 +84,19 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="logoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Logo URL (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. https://example.com/logo.png" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
@@ -90,3 +109,4 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
     </Dialog>
   );
 }
+
