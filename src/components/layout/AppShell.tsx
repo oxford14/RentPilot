@@ -232,6 +232,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.push('/');
   }
 
+  const handleSettingsClick = () => {
+    if (authUser?.isSuperAdmin) {
+      router.push('/admin/settings');
+    } else {
+      router.push('/profile');
+    }
+  };
+
   const getAccountLabel = () => {
     if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
@@ -352,7 +360,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton
                         tooltip={{ children: "Global Settings", side: "right", className: "ml-2" }}
                         className="justify-start"
-                        onClick={() => alert("Global Settings clicked! Placeholder.")}
+                        onClick={handleSettingsClick}
                         >
                         <Settings className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Global Settings</span>
@@ -421,7 +429,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <UserCircle className="mr-2 h-4 w-4" />
                     Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => alert("Settings clicked!")}>
+                <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                 </DropdownMenuItem>
