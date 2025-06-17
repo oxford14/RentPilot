@@ -7,17 +7,17 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAppContext } from '@/contexts/AppContext'; // Added import
+import { useAppContext } from '@/contexts/AppContext'; 
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  const [amountDue, setAmountDue] = useState<number | null>(null); // Added state for amount due
-  const { payments, tenants } = useAppContext(); // Get payments and tenants from context
+  const [amountDue, setAmountDue] = useState<number | null>(null); 
+  const { payments, tenants } = useAppContext(); 
 
   const handleOpenForm = () => setIsFormOpen(true);
   const handleCloseForm = () => setIsFormOpen(false);
@@ -34,10 +34,9 @@ export default function PaymentsPage() {
       let totalExpectedBilled = 0;
       const tenantJoinDate = new Date(selectedTenant.joinDate);
       const today = new Date();
-      today.setHours(0,0,0,0); // Normalize today to start of day for consistent comparison
+      today.setHours(0,0,0,0); 
 
       if (tenantJoinDate <= today) {
-          // Start with the first billing cycle on joinDate
           totalExpectedBilled += selectedTenant.monthlyRentalRate;
           
           let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
@@ -49,12 +48,12 @@ export default function PaymentsPage() {
           }
       }
       
-      const currentBalance = Math.max(0, totalExpectedBilled - totalPaid);
+      const currentBalance = totalExpectedBilled - totalPaid; // Can be negative if overpaid
       setAmountDue(currentBalance);
     } else {
-      setAmountDue(null); // Reset if no tenant is selected
+      setAmountDue(null); 
     }
-  }, [selectedTenant, payments, tenants]); // Recalculate when selectedTenant, payments, or tenants change
+  }, [selectedTenant, payments, tenants]); 
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -115,10 +114,18 @@ export default function PaymentsPage() {
               <div className="mt-3 p-3 border rounded-md bg-muted/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-destructive" />
-                    <span className="font-semibold text-md">Amount Due:</span>
+                    {amountDue > 0 && <DollarSign className="h-5 w-5 text-destructive" />}
+                    {amountDue < 0 && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                    {amountDue === 0 && <DollarSign className="h-5 w-5 text-muted-foreground" />}
+                    <span className="font-semibold text-md">
+                      {amountDue > 0 ? "Amount Due:" : amountDue < 0 ? "Credit/Deposit:" : "Current Balance:"}
+                    </span>
                   </div>
-                  <span className="font-bold text-lg text-destructive">${amountDue.toLocaleString()}</span>
+                  <span className={`font-bold text-lg ${
+                    amountDue > 0 ? "text-destructive" : amountDue < 0 ? "text-green-600" : "text-foreground"
+                  }`}>
+                    ${Math.abs(amountDue).toLocaleString()}
+                  </span>
                 </div>
               </div>
             )}
