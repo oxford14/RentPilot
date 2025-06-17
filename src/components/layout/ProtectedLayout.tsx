@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { Loader2 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast'; // Moved to top
+import { toast } from '@/hooks/use-toast';
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -20,14 +20,23 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     }
 
     const isAdminRoute = pathname.startsWith('/admin');
+    const isClientUserManagementRoute = pathname === '/users';
 
     if (!isAuthenticated && pathname !== '/login') {
       router.push('/login');
     } else if (isAuthenticated && pathname === '/login') {
       router.push('/');
     } else if (isAuthenticated && isAdminRoute && !user?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+      toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this admin page." });
       router.push('/');
+    } else if (isAuthenticated && isClientUserManagementRoute) {
+      if (user?.isSuperAdmin) { // Super admins should use /admin/users
+        toast({ variant: "destructive", title: "Access Denied", description: "Super admins should manage users via /admin/users." });
+        router.push('/admin/users');
+      } else if (!user?.clientId || user?.role !== 'admin') { // Client users must be admins of their client
+        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to manage users." });
+        router.push('/');
+      }
     }
   }, [isAuthenticated, isLoading, pathname, router, user]);
 
@@ -41,7 +50,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated && pathname !== '/login') {
-     // This state handles the brief period before useEffect redirects.
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -49,10 +57,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  
-  // If authenticated but trying to access an admin route without super admin rights,
-  // and useEffect hasn't completed redirection yet (e.g., on initial direct load).
-  // This shows a temporary loading state while useEffect handles the toast and redirect.
+
   if (pathname.startsWith('/admin') && isAuthenticated && !user?.isSuperAdmin) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -62,15 +67,23 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  if (pathname === '/users' && isAuthenticated && user && !user.isSuperAdmin && user.role !== 'admin') {
+     return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-3 text-md text-muted-foreground">Verifying user role...</p>
+        </div>
+    );
+  }
+
+
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
-  // If authenticated and authorized for the current route (or if useEffect will handle redirection shortly).
   if (isAuthenticated) {
     return <AppShell>{children}</AppShell>;
   }
 
-  // Fallback, should ideally be covered by earlier conditions.
   return null;
 }

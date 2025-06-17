@@ -7,8 +7,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client, ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Building, Edit2, Trash2 } from 'lucide-react'; 
-import { ManagedUserForm } from '@/components/admin/ManagedUserForm'; 
+import { UsersRound, UserPlus, Building, Edit2, Trash2, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { ManagedUserForm } from '@/components/admin/ManagedUserForm';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -20,15 +20,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminUsersPage() {
-  // For super admin, useAppContext().clients and useAppContext().managedUsers (which is filtered by viewingAsClientId)
-  // or useAppContext().rawManagedUsers (for all users if needed for some logic, but display should be scoped)
-  const { clients, managedUsers: contextManagedUsers, deleteManagedUser, rawManagedUsers } = useAppContext();
+  const { clients, deleteManagedUser, rawManagedUsers } = useAppContext();
   const { toast } = useToast();
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
-  const [selectedClientForUserForm, setSelectedClientForUserForm] = useState<Client | null>(null); // Client whose users are being managed in form
+  const [selectedClientForUserForm, setSelectedClientForUserForm] = useState<Client | null>(null);
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
 
 
@@ -50,17 +49,22 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = () => {
     if (userToDelete) {
-      deleteManagedUser(userToDelete.id); // deleteManagedUser in context should handle permissions/scoping if necessary
+      deleteManagedUser(userToDelete.id);
       toast({ title: "User Deleted", description: `User ${userToDelete.username} has been deleted.` });
       setUserToDelete(null);
     }
+  };
+
+  const getRoleIcon = (role: string) => {
+    if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
+    return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
   };
 
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline">All Client User Management (Super Admin)</h1>
-        <p className="text-muted-foreground">Manage user accounts for all client organizations.</p>
+        <p className="text-muted-foreground">Manage user accounts and roles for all client organizations.</p>
       </div>
 
       <Card className="shadow-lg">
@@ -70,14 +74,13 @@ export default function AdminUsersPage() {
             User Administration by Client
           </CardTitle>
           <CardDescription>
-            Expand a client to view their users or add new ones.
+            Expand a client to view their users or add new ones. Set roles for client users.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {clients.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
               {clients.map((client) => {
-                // Get users specifically for this client from rawManagedUsers for display by super admin
                 const clientUsers = rawManagedUsers.filter(user => user.clientId === client.id);
                 return (
                   <AccordionItem value={client.id} key={client.id}>
@@ -92,9 +95,9 @@ export default function AdminUsersPage() {
                         <h4 className="text-md font-semibold flex items-center">
                           <UsersRound className="mr-2 h-5 w-5 text-primary" /> Users for {client.name} ({clientUsers.length})
                         </h4>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleOpenUserForm(client)}
                           className="shadow-sm hover:shadow-md transition-shadow"
                         >
@@ -108,6 +111,10 @@ export default function AdminUsersPage() {
                               <div>
                                 <p className="font-medium">{user.username}</p>
                                 <p className="text-sm text-muted-foreground">{user.email}</p>
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {getRoleIcon(user.role)}
+                                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                </Badge>
                               </div>
                               <div className="space-x-1">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenUserForm(client, user)} title="Edit User">

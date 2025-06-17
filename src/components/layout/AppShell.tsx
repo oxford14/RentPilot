@@ -17,18 +17,18 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound } from 'lucide-react';
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppContext } from '@/contexts/AppContext'; 
+import { useAppContext } from '@/contexts/AppContext';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  adminOnly?: boolean; // Super admin only
-  clientAdminOnly?: boolean; // For client users with rights to manage their own users
+  adminOnly?: boolean;
+  clientAdminOnly?: boolean; // Visible only to client admins
 }
 
 const appNavItems: NavItem[] = [
@@ -36,12 +36,12 @@ const appNavItems: NavItem[] = [
   { href: '/tenants', label: 'Tenants', icon: Users },
   { href: '/payments', label: 'Payments', icon: CreditCard },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/users', label: 'Manage Users', icon: UsersRound, clientAdminOnly: true }, // New for client admins
+  { href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
 ];
 
 const adminNavItems: NavItem[] = [
   { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard, adminOnly: true },
-  { href: '/admin/clients', label: 'Clients', icon: Building, adminOnly: true }, // Changed icon for clarity
+  { href: '/admin/clients', label: 'Clients', icon: Building, adminOnly: true },
   { href: '/admin/users', label: 'All Client Users', icon: UsersRound, adminOnly: true },
   { href: '/admin/settings', label: 'System Settings', icon: Cog, adminOnly: true },
 ];
@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
-  const { viewingAsClientId, clients, setViewMode } = useAppContext(); 
+  const { viewingAsClientId, clients, setViewMode } = useAppContext();
 
   const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
@@ -59,15 +59,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   let currentActivePageLabel = 'TenantTracker';
 
   if (isAdminSection) {
-    currentNavItemsToDisplay = adminNavItems.filter(item => authUser?.isSuperAdmin); // Only super admins see admin nav
+    currentNavItemsToDisplay = adminNavItems.filter(item => authUser?.isSuperAdmin);
     const activeAdminItem = adminNavItems.find(item => pathname.startsWith(item.href) && (item.href === '/admin' ? pathname === '/admin' : true) );
     currentActivePageLabel = activeAdminItem?.label || 'Admin';
   } else {
     currentNavItemsToDisplay = appNavItems.filter(item => {
       if (item.clientAdminOnly) {
-        return !authUser?.isSuperAdmin && !!authUser?.clientId; // Show only to client users
+        // Show to client users who are admins of their client
+        return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
       }
-      return true;
+      return true; // Show to all (super admin and all client users)
     });
     const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
     const activeAppItem = currentNavItemsToDisplay.find(item =>
@@ -81,14 +82,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 
   const handleReturnToAdminView = () => {
-    setViewMode(null); // Clear viewingAsClientId
+    setViewMode(null);
     router.push('/admin');
   };
-  
+
   const handleReturnToGlobalView = () => {
-    setViewMode(null); // Clear viewingAsClientId, super admin returns to their global app view
+    setViewMode(null);
     router.push('/');
   }
+
+  const getAccountLabel = () => {
+    if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
+    if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
+    if (loggedInClient && !authUser?.isSuperAdmin) {
+      const roleLabel = authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User';
+      return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
+    }
+    return authUser?.username || 'My Account';
+  };
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -155,36 +167,31 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                  {authUser?.username || 'My Account'}
-                  {authUser?.isSuperAdmin && !viewingClient && " (Super Admin)"}
-                  {viewingClient && ` (Viewing as ${viewingClient.name})`}
-                  {loggedInClient && !authUser?.isSuperAdmin && ` (${loggedInClient.name} User)`}
+                  {getAccountLabel()}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                
-                {authUser?.isSuperAdmin && viewingAsClientId && ( // Super admin viewing as client
+
+                {authUser?.isSuperAdmin && viewingAsClientId && (
                   <DropdownMenuItem onClick={handleReturnToAdminView}>
                     <ShieldAlert className="mr-2 h-4 w-4" />
                     Return to Admin View
                   </DropdownMenuItem>
                 )}
 
-                {authUser?.isSuperAdmin && !viewingAsClientId && !isAdminSection && ( // Super admin in global app view
+                {authUser?.isSuperAdmin && !viewingAsClientId && !isAdminSection && (
                   <DropdownMenuItem onClick={() => router.push('/admin')}>
                     <ShieldAlert className="mr-2 h-4 w-4" />
                     Go to Admin Dashboard
                   </DropdownMenuItem>
                 )}
-                
-                {authUser?.isSuperAdmin && !viewingAsClientId && isAdminSection && ( // Super admin in admin section, global view
+
+                {authUser?.isSuperAdmin && !viewingAsClientId && isAdminSection && (
                   <DropdownMenuItem onClick={handleReturnToGlobalView}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to App (Global View)
                   </DropdownMenuItem>
                 )}
 
-                {/* No specific client admin dropdown items for now, but could add "Switch Client" if they belong to multiple */}
-                
                 <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => alert("Settings clicked!")}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />

@@ -1,22 +1,17 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth } 
+import { useAuth }
 from '@/contexts/AuthContext';
 
-// Correct AppContextType for export
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
-  // If needed, rawClients, rawTenants, rawPayments could also be exposed
-  // but rawManagedUsers is the primary one needed by AuthContext login via LoginPage
 }
 
-
 const AppContext = createContext<AppContextTypeWithRawData | undefined>(undefined);
-
 
 const initialClients: Client[] = [
   { id: 'client-main-street', name: 'Main Street Properties' },
@@ -24,16 +19,17 @@ const initialClients: Client[] = [
 ];
 
 const initialManagedUsers: ManagedUser[] = [
-    { id: uuidv4(), username: 'clientAdminMain', email: 'main.admin@msp.com', clientId: initialClients[0].id, password: 'password123' },
-    { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id, password: 'password123' },
-    { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123' },
+    { id: uuidv4(), username: 'clientAdminMain', email: 'main.admin@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'admin' },
+    { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'user' },
+    { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'admin' },
+    { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
 ];
 
 const initialTenantsRaw: Tenant[] = [
   { id: uuidv4(), name: 'Alice Wonderland', email: 'alice@example.com', phone: '123-456-7890', monthlyRentalRate: 1200, status: 'active', joinDate: new Date(2023, 0, 15).toISOString(), clientId: initialClients[0].id },
   { id: uuidv4(), name: 'Bob The Builder', email: 'bob@example.com', phone: '987-654-3210', monthlyRentalRate: 950, status: 'active', joinDate: new Date(2022, 5, 1).toISOString(), clientId: initialClients[1].id },
   { id: uuidv4(), name: 'Charlie Brown', email: 'charlie@example.com', phone: '555-555-5555', monthlyRentalRate: 1500, status: 'inactive', joinDate: new Date(2023, 2, 10).toISOString(), clientId: initialClients[0].id },
-  { id: uuidv4(), name: 'Diana Prince (Global)', email: 'diana@example.com', phone: '111-222-3333', monthlyRentalRate: 1100, status: 'active', joinDate: new Date(2023, 4, 20).toISOString() }, 
+  { id: uuidv4(), name: 'Diana Prince (Global)', email: 'diana@example.com', phone: '111-222-3333', monthlyRentalRate: 1100, status: 'active', joinDate: new Date(2023, 4, 20).toISOString() },
 ];
 
 const initialPaymentsRaw: Payment[] = [
@@ -41,18 +37,17 @@ const initialPaymentsRaw: Payment[] = [
   { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', clientId: initialTenantsRaw[0].clientId },
   { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', clientId: initialTenantsRaw[1].clientId },
   { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash' }, 
+  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash' },
 ];
-
 
 const LOCAL_STORAGE_KEY = 'tenantTrackerData';
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth(); 
+  const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth();
   const [rawTenantsState, setRawTenantsState] = useState<Tenant[]>([]);
   const [rawPaymentsState, setRawPaymentsState] = useState<Payment[]>([]);
   const [clientsState, setClientsState] = useState<Client[]>([]);
-  const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]); 
+  const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -64,34 +59,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
         setRawPaymentsState(parsedData.rawPayments || initialPaymentsRaw);
         setClientsState(parsedData.clients || initialClients);
-        setRawManagedUsersState(parsedData.rawManagedUsers || initialManagedUsers); 
+        setRawManagedUsersState(parsedData.rawManagedUsers || initialManagedUsers);
         setViewingAsClientId(parsedData.viewingAsClientId || null);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
         setRawPaymentsState(initialPaymentsRaw);
         setClientsState(initialClients);
-        setRawManagedUsersState(initialManagedUsers); 
+        setRawManagedUsersState(initialManagedUsers);
         setViewingAsClientId(null);
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
       setRawPaymentsState(initialPaymentsRaw);
       setClientsState(initialClients);
-      setRawManagedUsersState(initialManagedUsers); 
+      setRawManagedUsersState(initialManagedUsers);
       setViewingAsClientId(null);
     }
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) { 
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ 
-        rawTenants: rawTenantsState, 
-        rawPayments: rawPaymentsState, 
-        clients: clientsState, 
-        rawManagedUsers: rawManagedUsersState, 
-        viewingAsClientId 
+    if (isLoaded) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+        rawTenants: rawTenantsState,
+        rawPayments: rawPaymentsState,
+        clients: clientsState,
+        rawManagedUsers: rawManagedUsersState,
+        viewingAsClientId
       }));
     }
   }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, viewingAsClientId, isLoaded]);
@@ -103,14 +98,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const tenants = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { 
-        return rawTenantsState; 
+      if (viewingAsClientId === null) {
+        return rawTenantsState;
       }
       return rawTenantsState.filter(t => t.clientId === viewingAsClientId);
-    } else if (authUser?.clientId) { 
+    } else if (authUser?.clientId) {
       return rawTenantsState.filter(t => t.clientId === authUser.clientId);
     }
-    return []; 
+    return [];
   }, [rawTenantsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
 
   const payments = useMemo(() => {
@@ -126,14 +121,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   }, [rawPaymentsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
 
-  const managedUsers = useMemo(() => { 
+  const managedUsers = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
-        if (viewingAsClientId === null) { 
+        if (viewingAsClientId === null) {
             return rawManagedUsersState;
         }
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
-     } else if (authUser?.clientId) { 
+     } else if (authUser?.clientId) {
         return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
      }
     return [];
@@ -147,11 +142,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
       determinedClientId = authUser.clientId;
     }
-    
-    const newTenant: Tenant = { 
-      ...tenantData, 
+
+    const newTenant: Tenant = {
+      ...tenantData,
       id: uuidv4(),
-      ...(determinedClientId && { clientId: determinedClientId }) 
+      ...(determinedClientId && { clientId: determinedClientId })
     };
     setRawTenantsState(prev => [...prev, newTenant]);
   };
@@ -159,7 +154,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const updateTenant = (updatedTenant: Tenant) => {
     if (!authUser?.isSuperAdmin && authUser?.clientId && updatedTenant.clientId !== authUser.clientId) {
       console.error("Permission denied: Client user cannot update tenants of other clients.");
-      return; 
+      return;
     }
     setRawTenantsState(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
   };
@@ -172,8 +167,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       determinedClientId = authUser.clientId;
     }
 
-    const newPayment: Payment = { 
-      ...paymentData, 
+    const newPayment: Payment = {
+      ...paymentData,
       id: uuidv4(),
       ...(determinedClientId && { clientId: determinedClientId })
      };
@@ -181,7 +176,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addClient = (clientData: Omit<Client, 'id'>) => {
-    if (!authUser?.isSuperAdmin) return; 
+    if (!authUser?.isSuperAdmin) return;
     const newClient = { ...clientData, id: uuidv4() };
     setClientsState(prev => [...prev, newClient]);
   };
@@ -202,7 +197,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
     if (!userData.clientId) {
         console.error("Cannot add managed user: clientId is missing from userData.");
-        return; 
+        return;
     }
     if (!authUser?.isSuperAdmin && authUser?.clientId && userData.clientId !== authUser.clientId) {
       console.error("Permission denied: Client user cannot add users to other clients.");
@@ -217,10 +212,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Cannot update managed user: clientId is missing.");
         return;
     }
-    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedUser.clientId !== authUser.clientId) {
+    // Check permissions: Super admin can edit anyone. Client admin can edit users within their own client.
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== updatedUser.clientId) {
       console.error("Permission denied: Client user cannot update users of other clients.");
       return;
     }
+     if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
+       // Non-admin client users cannot update any users, even within their own client
+       console.error("Permission denied: Client users cannot update other users.");
+       // Allow updating their own profile in future, but not other users. For now, block all.
+       // If we want to allow self-update: if (updatedUser.id !== authUser.id) { return; }
+       return;
+    }
+
     setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
   };
 
@@ -228,17 +232,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const userToDelete = rawManagedUsersState.find(u => u.id === userId);
     if (!userToDelete) return;
 
-    if (!authUser?.isSuperAdmin && authUser?.clientId && userToDelete.clientId !== authUser.clientId) {
+    // Check permissions: Super admin can delete anyone. Client admin can delete users within their own client.
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== userToDelete.clientId) {
       console.error("Permission denied: Client user cannot delete users of other clients.");
       return;
     }
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId) {
+       console.error("Permission denied: Client users cannot delete other users.");
+       return;
+    }
+
     setRawManagedUsersState(prev => prev.filter(u => u.id !== userId));
   };
 
   const contextValue: AppContextTypeWithRawData = {
     tenants,
     payments,
-    clients: clientsState, // Use clientsState directly as it's not filtered by authUser
+    clients: clientsState,
     managedUsers,
     viewingAsClientId,
     setViewMode,
@@ -251,7 +261,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addManagedUser,
     updateManagedUser,
     deleteManagedUser,
-    rawManagedUsers: rawManagedUsersState, // Expose raw state for login page
+    rawManagedUsers: rawManagedUsersState,
   };
 
   return (
@@ -266,5 +276,5 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   if (context === undefined) {
     throw new Error('useAppContext must be used within an AppProvider');
   }
-  return context; 
+  return context;
 };

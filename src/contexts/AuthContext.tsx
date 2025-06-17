@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { User, ManagedUser, Client, AuthContextType } from '@/lib/types'; // AuthContextType import for provider value
+import type { User, ManagedUser, Client, AuthContextType, ClientUserRole } from '@/lib/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
   const { toast } = useToast();
-  // AppContext is no longer directly used here at the top level.
 
   useEffect(() => {
     try {
@@ -37,10 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = useCallback(async (
-    usernameInput: string, 
+    usernameInput: string,
     passwordInput: string,
-    allManagedUsers: ManagedUser[], // Parameter from login page
-    allClients: Client[]           // Parameter from login page
+    allManagedUsers: ManagedUser[],
+    allClients: Client[]
   ) => {
     if (usernameInput === 'admin' && passwordInput === 'password123') {
       const userData: User = { username: usernameInput, isSuperAdmin: true };
@@ -53,25 +52,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const matchedUser = allManagedUsers.find(
-      (mu) => mu.username === usernameInput && mu.password === passwordInput 
+      (mu) => mu.username === usernameInput && mu.password === passwordInput
     );
 
     if (matchedUser) {
-      const userData: User = { 
-        username: matchedUser.username, 
-        clientId: matchedUser.clientId, 
-        isSuperAdmin: false 
+      const userData: User = {
+        username: matchedUser.username,
+        clientId: matchedUser.clientId,
+        isSuperAdmin: false,
+        role: matchedUser.role, // Store the role
       };
       setIsAuthenticated(true);
       setUser(userData);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
       const clientName = allClients.find(c => c.id === matchedUser.clientId)?.name || 'your organization';
-      toast({ title: "Login Successful", description: `Welcome back, ${usernameInput} from ${clientName}!` });
+      const roleName = matchedUser.role.charAt(0).toUpperCase() + matchedUser.role.slice(1);
+      toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${usernameInput} from ${clientName}!` });
       router.push('/');
     } else {
       toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
     }
-  }, [router, toast]); // appContext removed from dependencies
+  }, [router, toast]);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);

@@ -9,14 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import type { ManagedUser } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { ManagedUser, ClientUserRole } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+
+const clientUserRoles: ClientUserRole[] = ['admin', 'user'];
 
 const managedUserFormSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().optional(),
+  role: z.enum(clientUserRoles as [ClientUserRole, ...ClientUserRole[]], {
+    required_error: "User role is required.",
+  }),
 });
 
 type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
@@ -24,29 +30,38 @@ type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
 interface ManagedUserFormProps {
   isOpen: boolean;
   onClose: () => void;
-  targetClientId: string; 
-  targetClientName: string; 
-  user?: ManagedUser | null; 
+  targetClientId: string;
+  targetClientName: string;
+  user?: ManagedUser | null;
 }
 
 export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientName, user }: ManagedUserFormProps) {
-  const { addManagedUser, updateManagedUser, rawManagedUsers } = useAppContext(); 
+  const { addManagedUser, updateManagedUser, rawManagedUsers } = useAppContext();
   const { toast } = useToast();
+
+  const defaultFormValues = React.useMemo(() => (
+    user
+      ? { username: user.username, email: user.email, password: '', role: user.role }
+      : { username: '', email: '', password: '', role: 'user' as ClientUserRole }
+  ), [user]);
 
   const form = useForm<ManagedUserFormValues>({
     resolver: zodResolver(managedUserFormSchema),
-    defaultValues: user ? { username: user.username, email: user.email, password: '' } : { username: '', email: '', password: '' },
+    defaultValues: defaultFormValues,
   });
 
   useEffect(() => {
     if (isOpen) {
-      form.reset(user ? { username: user.username, email: user.email, password: '' } : { username: '', email: '', password: '' });
+      form.reset(
+        user
+          ? { username: user.username, email: user.email, password: '', role: user.role }
+          : { username: '', email: '', password: '', role: 'user' as ClientUserRole }
+      );
     }
-  }, [user, isOpen, form, targetClientId]);
+  }, [user, isOpen, form]);
 
   const onSubmit = (data: ManagedUserFormValues) => {
     try {
-      // Password validation for new users or when password is being changed
       if (!user && (!data.password || data.password.length < 6)) {
         form.setError("password", { type: "manual", message: "Password is required and must be at least 6 characters." });
         toast({ variant: "destructive", title: "Validation Error", description: "Password is required and must be at least 6 characters."});
@@ -58,7 +73,6 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
         return;
       }
 
-      // Globally unique password check (if password is provided)
       if (data.password) {
         const existingUserWithSamePassword = rawManagedUsers.find(
           (mu) => mu.password === data.password && mu.id !== user?.id
@@ -69,26 +83,26 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
           return;
         }
       }
-
+      
       const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
         username: data.username,
         email: data.email,
-        clientId: targetClientId, 
+        clientId: targetClientId,
+        role: data.role,
       };
 
-      if (user) { // Editing existing user
-        if (data.password) { 
+      if (user) {
+        if (data.password) {
           userDataPayload.password = data.password;
         }
-        // If password is not provided for an existing user, it's not included in userDataPayload, so AppContext won't update it
-        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId }); 
+        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId, role: data.role });
         toast({ title: "User Updated", description: `${data.username} for ${targetClientName} has been updated.` });
-      } else { // Adding new user
-        userDataPayload.password = data.password; // Password is required for new users (validated above)
-        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>); 
+      } else {
+        userDataPayload.password = data.password!; // Password is required for new users (validated above)
+        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>);
         toast({ title: "User Added", description: `${data.username} has been added to ${targetClientName}.` });
       }
-      form.reset({ username: '', email: '', password: '' });
+      form.reset({ username: '', email: '', password: '', role: 'user' });
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save user information." });
@@ -141,6 +155,30 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {clientUserRoles.map(roleValue => (
+                        <SelectItem key={roleValue} value={roleValue}>
+                          {roleValue.charAt(0).toUpperCase() + roleValue.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

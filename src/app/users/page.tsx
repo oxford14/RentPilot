@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Edit2, Trash2 } from 'lucide-react'; 
-import { ManagedUserForm } from '@/components/admin/ManagedUserForm'; // Re-using the same form
+import { UsersRound, UserPlus, Edit2, Trash2, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { ManagedUserForm } from '@/components/admin/ManagedUserForm';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -21,9 +21,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+
 
 export default function ClientUserManagementPage() {
-  const { managedUsers, deleteManagedUser, clients } = useAppContext(); // managedUsers here are already scoped by AppContext based on authUser
+  const { managedUsers, deleteManagedUser, clients } = useAppContext();
   const { user: authUser } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -37,17 +39,17 @@ export default function ClientUserManagementPage() {
     return clients.find(c => c.id === authUser.clientId);
   }, [authUser, clients]);
 
-  // Redirect if not a client user or client info not found
   useEffect(() => {
-    if (authUser && (authUser.isSuperAdmin || !authUser.clientId || !currentClient)) {
-        toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page or client data is missing."})
+    // This effect now also checks for client admin role
+    if (authUser && (authUser.isSuperAdmin || !authUser.clientId || !currentClient || authUser.role !== 'admin')) {
+        toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page."})
         router.push('/');
     }
   }, [authUser, currentClient, router, toast]);
 
 
   const handleOpenUserForm = (user?: ManagedUser) => {
-    if (!currentClient) return; // Should not happen due to redirect
+    if (!currentClient) return;
     setEditingUser(user || null);
     setIsUserFormOpen(true);
   };
@@ -63,14 +65,24 @@ export default function ClientUserManagementPage() {
 
   const handleDeleteUser = () => {
     if (userToDelete) {
-      deleteManagedUser(userToDelete.id); // AppContext's deleteManagedUser will respect scope
+      // Prevent client admin from deleting themselves - this is a basic check
+      if (authUser?.username === userToDelete.username && authUser?.clientId === userToDelete.clientId) {
+        toast({variant: "destructive", title: "Action Denied", description: "Client admins cannot delete their own accounts."});
+        setUserToDelete(null);
+        return;
+      }
+      deleteManagedUser(userToDelete.id);
       toast({ title: "User Deleted", description: `User ${userToDelete.username} has been deleted.` });
       setUserToDelete(null);
     }
   };
 
-  if (!authUser || authUser.isSuperAdmin || !currentClient) {
-    // Render minimal content or a loader while redirecting or if auth state is unexpected
+  const getRoleIcon = (role: string) => {
+    if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
+    return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
+  };
+
+  if (!authUser || authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin') {
     return <div className="container mx-auto py-2"><p>Loading or unauthorized...</p></div>;
   }
 
@@ -78,7 +90,7 @@ export default function ClientUserManagementPage() {
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline">User Management for {currentClient.name}</h1>
-        <p className="text-muted-foreground">Manage user accounts for your organization.</p>
+        <p className="text-muted-foreground">Manage user accounts and roles for your organization.</p>
       </div>
 
       <Card className="shadow-lg">
@@ -88,9 +100,9 @@ export default function ClientUserManagementPage() {
               <UsersRound className="mr-2 h-6 w-6 text-primary" />
               Users ({managedUsers.length})
             </CardTitle>
-            <Button 
-              variant="default" 
-              size="sm" 
+            <Button
+              variant="default"
+              size="sm"
               onClick={() => handleOpenUserForm()}
               className="shadow-md hover:shadow-lg transition-shadow"
             >
@@ -109,12 +121,18 @@ export default function ClientUserManagementPage() {
                   <div>
                     <p className="font-semibold text-lg">{user.username}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
+                     <Badge variant="outline" className="mt-1 text-xs">
+                        {getRoleIcon(user.role)}
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                     </Badge>
                   </div>
                   <div className="space-x-1">
                     <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={() => handleOpenUserForm(user)} title="Edit User">
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="destructive" size="sm" className="h-8 w-8 p-0" onClick={() => confirmDeleteUser(user)} title="Delete User">
+                    <Button variant="destructive" size="sm" className="h-8 w-8 p-0" onClick={() => confirmDeleteUser(user)} title="Delete User"
+                     disabled={authUser?.username === user.username && authUser?.clientId === user.clientId} // Basic self-delete prevention
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -142,7 +160,7 @@ export default function ClientUserManagementPage() {
       )}
 
       <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => { if (!isOpen) setUserToDelete(null); }}>
-        {userToDelete && currentClient && ( // Ensure currentClient is available
+        {userToDelete && currentClient && (
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
