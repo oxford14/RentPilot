@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppContext } from '@/contexts/AppContext'; // Import useAppContext
+import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { Building, LogIn } from 'lucide-react';
 
@@ -23,8 +23,8 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { login: authLogin, isAuthenticated, isLoading } = useAuth(); // Renamed to authLogin
-  const { rawManagedUsers, clients } = useAppContext(); // Get rawManagedUsers and clients
+  const { login: authLogin, isAuthenticated, isLoading } = useAuth();
+  const { rawManagedUsers, clients, rawSuperAdminUsers } = useAppContext(); // Added rawSuperAdminUsers
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -42,8 +42,7 @@ export default function LoginPage() {
   }, [isAuthenticated, isLoading, router]);
 
   const onSubmit = async (data: LoginFormValues) => {
-    // Pass rawManagedUsers and clients to the login function
-    await authLogin(data.username, data.password, rawManagedUsers, clients); 
+    await authLogin(data.username, data.password, rawManagedUsers, clients, rawSuperAdminUsers); 
   };
 
   if (isLoading || isAuthenticated) {
@@ -103,13 +102,13 @@ export default function LoginPage() {
         </Form>
       </Card>
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Demo credentials: admin / password123
+        Primary Super Admin: admin / password123
       </p>
       <p className="mt-2 text-center text-sm text-muted-foreground">
-        Client Admin: clientAdminMain / password123 (for Main Street Properties)
+        Client Admin (Main St): clientAdminMain / password123
       </p>
        <p className="mt-2 text-center text-sm text-muted-foreground">
-        Client Admin: clientAdminOak / password123 (for Oak View Rentals)
+        Client Admin (Oak View): clientAdminOak / password123
       </p>
     </div>
   );

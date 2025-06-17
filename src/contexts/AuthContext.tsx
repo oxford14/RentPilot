@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { User, ManagedUser, Client, AuthContextType, ClientUserRole } from '@/lib/types';
+import type { User, ManagedUser, Client, AuthContextType, SuperAdminUser } from '@/lib/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -39,8 +39,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     usernameInput: string,
     passwordInput: string,
     allManagedUsers: ManagedUser[],
-    allClients: Client[]
+    allClients: Client[],
+    allSuperAdminUsers: SuperAdminUser[] // Added this
   ) => {
+    // 1. Check primary hardcoded super admin
     if (usernameInput === 'admin' && passwordInput === 'password123') {
       const userData: User = { username: usernameInput, isSuperAdmin: true };
       setIsAuthenticated(true);
@@ -51,27 +53,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const matchedUser = allManagedUsers.find(
+    // 2. Check managed client users
+    const matchedManagedUser = allManagedUsers.find(
       (mu) => mu.username === usernameInput && mu.password === passwordInput
     );
 
-    if (matchedUser) {
+    if (matchedManagedUser) {
       const userData: User = {
-        username: matchedUser.username,
-        clientId: matchedUser.clientId,
+        username: matchedManagedUser.username,
+        clientId: matchedManagedUser.clientId,
         isSuperAdmin: false,
-        role: matchedUser.role, // Store the role
+        role: matchedManagedUser.role,
       };
       setIsAuthenticated(true);
       setUser(userData);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
-      const clientName = allClients.find(c => c.id === matchedUser.clientId)?.name || 'your organization';
-      const roleName = matchedUser.role.charAt(0).toUpperCase() + matchedUser.role.slice(1);
+      const clientName = allClients.find(c => c.id === matchedManagedUser.clientId)?.name || 'your organization';
+      const roleName = matchedManagedUser.role.charAt(0).toUpperCase() + matchedManagedUser.role.slice(1);
       toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${usernameInput} from ${clientName}!` });
       router.push('/');
-    } else {
-      toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
+      return;
     }
+
+    // 3. Check additional super admin users
+    const matchedSuperAdmin = allSuperAdminUsers.find(
+      (sa) => sa.username === usernameInput && sa.password === passwordInput
+    );
+
+    if (matchedSuperAdmin) {
+      const userData: User = { username: matchedSuperAdmin.username, isSuperAdmin: true };
+      setIsAuthenticated(true);
+      setUser(userData);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+      toast({ title: "Login Successful", description: `Welcome back, Super Admin ${usernameInput}!` });
+      router.push('/');
+      return;
+    }
+    
+    // If no match
+    toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
+
   }, [router, toast]);
 
   const logout = useCallback(() => {

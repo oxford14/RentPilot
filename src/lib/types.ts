@@ -18,6 +18,13 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   role: ClientUserRole; 
 }
 
+export interface SuperAdminUser {
+  id: string;
+  username: string;
+  password?: string; // Optional because we might not always fetch/store it post-creation for security
+}
+
+
 export interface Tenant {
   id: string;
   name: string;
@@ -50,6 +57,7 @@ export interface AppState {
   rawPayments: Payment[];
   clients: Client[];
   rawManagedUsers: ManagedUser[];
+  rawSuperAdminUsers: SuperAdminUser[];
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 }
@@ -62,7 +70,8 @@ export interface AuthContextType {
     usernameInput: string,
     passwordInput: string,
     allManagedUsers: ManagedUser[],
-    allClients: Client[]
+    allClients: Client[],
+    allSuperAdminUsers: SuperAdminUser[]
   ) => Promise<void>;
   logout: () => void;
 }
@@ -73,6 +82,7 @@ export interface AppContextType {
   payments: Payment[];
   clients: Client[];
   managedUsers: ManagedUser[];
+  rawSuperAdminUsers: SuperAdminUser[]; // Exposed for SuperAdminUsersPage & login
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 
@@ -92,6 +102,9 @@ export interface AppContextType {
   updateManagedUser: (user: ManagedUser) => void;
   deleteManagedUser: (userId: string) => void;
 
+  addSuperAdminUser: (userData: Omit<SuperAdminUser, 'id'>) => void;
+  updateSuperAdminUser: (user: SuperAdminUser) => void;
+  deleteSuperAdminUser: (userId: string) => void;
+
   rawManagedUsers: ManagedUser[];
 }
-

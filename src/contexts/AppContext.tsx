@@ -1,13 +1,14 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
+  // rawSuperAdminUsers are already part of AppContextType now
 }
 
 const AppContext = createContext<AppContextTypeWithRawData | undefined>(undefined);
@@ -23,6 +24,12 @@ const initialManagedUsers: ManagedUser[] = [
     { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'admin' },
     { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
 ];
+
+const initialSuperAdminUsers: SuperAdminUser[] = [
+  // The primary 'admin' is handled by AuthContext, this list is for *additional* super admins
+  // { id: uuidv4(), username: 'superadmin2', password: 'password123' }, 
+];
+
 
 const initialTenantsRaw: Tenant[] = [
   { id: uuidv4(), name: 'Alice Wonderland', email: 'alice@example.com', phone: '123-456-7890', monthlyRentalRate: 1200, status: 'active', joinDate: new Date(2023, 0, 15).toISOString(), clientId: initialClients[0].id },
@@ -48,6 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawPaymentsState, setRawPaymentsState] = useState<Payment[]>([]);
   const [clientsState, setClientsState] = useState<Client[]>([]);
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
+  const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string | null>(DEFAULT_TIMEZONE);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -63,8 +71,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
           role: user.role || 'user' as ClientUserRole,
+          password: user.password || 'password123' // Ensure password for login
         }));
         setRawManagedUsersState(usersWithRoles);
+        setRawSuperAdminUsersState(parsedData.rawSuperAdminUsers || initialSuperAdminUsers);
         setViewingAsClientId(parsedData.viewingAsClientId || null);
         setSystemTimezoneState(parsedData.systemTimezone || DEFAULT_TIMEZONE);
       } catch (error) {
@@ -72,7 +82,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenantsState(initialTenantsRaw);
         setRawPaymentsState(initialPaymentsRaw);
         setClientsState(initialClients);
-        setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
+        setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
+        setRawSuperAdminUsersState(initialSuperAdminUsers);
         setViewingAsClientId(null);
         setSystemTimezoneState(DEFAULT_TIMEZONE);
       }
@@ -80,7 +91,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawTenantsState(initialTenantsRaw);
       setRawPaymentsState(initialPaymentsRaw);
       setClientsState(initialClients);
-      setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
+      setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
+      setRawSuperAdminUsersState(initialSuperAdminUsers);
       setViewingAsClientId(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
     }
@@ -94,11 +106,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         rawPayments: rawPaymentsState,
         clients: clientsState,
         rawManagedUsers: rawManagedUsersState,
+        rawSuperAdminUsers: rawSuperAdminUsersState,
         viewingAsClientId,
         systemTimezone: systemTimezoneState,
       }));
     }
-  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, viewingAsClientId, systemTimezoneState, isLoaded]);
+  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, rawSuperAdminUsersState, viewingAsClientId, systemTimezoneState, isLoaded]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -138,10 +151,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
-            return rawManagedUsersState;
+            // Super admin global view of managed users would typically be handled by rawManagedUsersState in the admin page directly
+            return rawManagedUsersState; // Or decide if this should be empty or specific to a view
         }
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
-     } else if (authUser?.clientId) {
+     } else if (authUser?.clientId) { // Client admin/user view
         return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
      }
     return [];
@@ -230,12 +244,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
      if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       if (updatedUser.id !== authUser.username) { 
+       if (updatedUser.id !== authUser.username) { // Check if they are trying to edit themselves or someone else
             console.error("Permission denied: Client users cannot update other users.");
             return;
        }
     }
-
     setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser, role: updatedUser.role || u.role || 'user' } : u));
   };
 
@@ -247,19 +260,43 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Permission denied: Client user cannot delete users of other clients.");
       return;
     }
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId) {
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId && userToDelete.id !== authUser.username) {
        console.error("Permission denied: Client users cannot delete other users.");
        return;
     }
-
     setRawManagedUsersState(prev => prev.filter(u => u.id !== userId));
   };
+
+  // Super Admin User CRUD
+  const addSuperAdminUser = (userData: Omit<SuperAdminUser, 'id'>) => {
+    if (!authUser?.isSuperAdmin) return; // Only super admins can add other super admins
+    const newUser: SuperAdminUser = { ...userData, id: uuidv4() };
+    setRawSuperAdminUsersState(prev => [...prev, newUser]);
+  };
+
+  const updateSuperAdminUser = (updatedUser: SuperAdminUser) => {
+    if (!authUser?.isSuperAdmin) return;
+    setRawSuperAdminUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+  };
+
+  const deleteSuperAdminUser = (userId: string) => {
+    if (!authUser?.isSuperAdmin) return;
+    // Prevent primary 'admin' or logged-in super admin from deleting self via this list
+    const userToDelete = rawSuperAdminUsersState.find(u => u.id === userId);
+    if (userToDelete && authUser.username === userToDelete.username) {
+        console.error("Super admin cannot delete their own account through this interface.");
+        return;
+    }
+    setRawSuperAdminUsersState(prev => prev.filter(u => u.id !== userId));
+  };
+
 
   const contextValue: AppContextTypeWithRawData = {
     tenants,
     payments,
     clients: clientsState,
     managedUsers,
+    rawSuperAdminUsers: rawSuperAdminUsersState,
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
     setViewMode,
@@ -273,6 +310,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addManagedUser,
     updateManagedUser,
     deleteManagedUser,
+    addSuperAdminUser,
+    updateSuperAdminUser,
+    deleteSuperAdminUser,
     rawManagedUsers: rawManagedUsersState,
   };
 
@@ -298,4 +338,3 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
-
