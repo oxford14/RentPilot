@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,7 +21,7 @@ const tenantFormSchema = z.object({
   phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   status: z.enum(['active', 'inactive']),
-  joinDate: z.string().refine((date) => !isNaN(new Date(date).getTime()), { message: "Invalid date" }),
+  joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
 });
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>;
@@ -36,46 +36,53 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
   const { addTenant, updateTenant } = useAppContext();
   const { toast } = useToast();
 
-  const defaultValues = tenant ? {
-    ...tenant,
-    joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-  } : {
-    name: '',
-    email: '',
-    phone: '',
-    monthlyRentalRate: 0,
-    status: 'active' as 'active' | 'inactive',
-    joinDate: new Date().toISOString().split('T')[0],
-  };
+  // Use state for the default join date for new tenants to ensure `new Date()` is stable per form instance
+  const [newTenantJoinDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const defaultValues = React.useMemo(() => {
+    return tenant ? {
+      ...tenant,
+      joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+    } : {
+      name: '',
+      email: '',
+      phone: '',
+      monthlyRentalRate: 0,
+      status: 'active' as 'active' | 'inactive',
+      joinDate: newTenantJoinDate,
+    };
+  }, [tenant, newTenantJoinDate]);
   
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
     defaultValues,
   });
 
-  React.useEffect(() => {
-    if (tenant) {
-      form.reset({
-        ...tenant,
-        joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      });
-    } else {
-      form.reset(defaultValues);
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(
+        tenant 
+        ? { ...tenant, joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate }
+        : { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
+      );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenant, form.reset, isOpen]);
+  }, [tenant, isOpen, form.reset, newTenantJoinDate]);
 
 
   const onSubmit = (data: TenantFormValues) => {
     try {
+      const finalJoinDate = new Date(data.joinDate).toISOString();
       if (tenant) {
-        updateTenant({ ...tenant, ...data, joinDate: new Date(data.joinDate).toISOString() });
+        updateTenant({ ...tenant, ...data, joinDate: finalJoinDate });
         toast({ title: "Tenant Updated", description: `${data.name} has been updated successfully.` });
       } else {
-        addTenant({...data, joinDate: new Date(data.joinDate).toISOString()});
+        addTenant({...data, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
-      form.reset(defaultValues); // Reset form to default after successful submission
+      // Reset with potentially new newTenantJoinDate if form stays open and becomes a new tenant form
+      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
+      form.reset(resetValues); 
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save tenant information." });

@@ -28,23 +28,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedData) {
+    // This effect runs only on the client after hydration
+    const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (storedData) {
+      try {
         const parsedData: AppState = JSON.parse(storedData);
         setTenants(parsedData.tenants || initialTenants);
         setPayments(parsedData.payments || initialPayments);
-      } else {
-        // Initialize with sample data if nothing in local storage
+      } catch (error) {
+        console.error("Failed to parse data from localStorage", error);
+        // Fallback to initial data if parsing fails
         setTenants(initialTenants);
         setPayments(initialPayments);
       }
-      setIsLoaded(true);
+    } else {
+      // Initialize with sample data if nothing in local storage
+      setTenants(initialTenants);
+      setPayments(initialPayments);
     }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && isLoaded) {
+    // This effect saves to localStorage only on client and after initial load
+    if (isLoaded) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ tenants, payments }));
     }
   }, [tenants, payments, isLoaded]);
@@ -64,12 +71,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPayments(prev => [...prev, newPayment]);
   };
 
-  if (!isLoaded && typeof window !== 'undefined') {
-     // Basic loading state to prevent hydration mismatch or UI flicker
-    return <div className="flex h-screen items-center justify-center"><p>Loading application data...</p></div>;
-  }
-
-
+  // Render children directly. The initial state (empty arrays) will be used for server render
+  // and client's first render, then useEffect will update with localStorage data.
   return (
     <AppContext.Provider value={{ tenants, payments, addTenant, updateTenant, addPayment }}>
       {children}

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
@@ -14,14 +14,27 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FinancialSummary {
   totalCollected: number;
-  totalOutstanding: number; // This is simplified; real calculation is complex
+  totalOutstanding: number;
   activeTenantsInRange: number;
   paymentsCount: number;
 }
 
+const initialFinancialSummary: FinancialSummary = {
+  totalCollected: 0,
+  totalOutstanding: 0,
+  activeTenantsInRange: 0,
+  paymentsCount: 0,
+};
+
 export default function ReportsPage() {
   const { tenants, payments } = useAppContext();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [clientNow, setClientNow] = useState<Date | null>(null);
+  const [calculatedSummary, setCalculatedSummary] = useState<FinancialSummary>(initialFinancialSummary);
+
+  useEffect(() => {
+    setClientNow(new Date());
+  }, []);
 
   const filteredData = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) {
@@ -29,18 +42,17 @@ export default function ReportsPage() {
     }
     const fromDate = new Date(dateRange.from);
     const toDate = new Date(dateRange.to);
-    toDate.setHours(23, 59, 59, 999); // Ensure end of day for 'to' date
+    toDate.setHours(23, 59, 59, 999); 
 
     const filteredPayments = payments.filter(p => {
       const paymentDate = new Date(p.date);
       return paymentDate >= fromDate && paymentDate <= toDate;
     });
 
-    // Tenants active at any point during the range or who made payments in range
     const relevantTenantIds = new Set<string>(filteredPayments.map(p => p.tenantId));
     tenants.forEach(t => {
         const joinDate = new Date(t.joinDate);
-        if (joinDate <= toDate) { // simplified: tenant joined before or during range end
+        if (joinDate <= toDate) { 
             relevantTenantIds.add(t.id);
         }
     });
@@ -49,29 +61,34 @@ export default function ReportsPage() {
     return { filteredPayments, relevantTenants };
   }, [payments, tenants, dateRange]);
 
-  const financialSummary = useMemo((): FinancialSummary => {
+  useEffect(() => {
+    if (!clientNow) { // Wait for clientNow to be set
+      setCalculatedSummary(initialFinancialSummary); // Show loading state or default
+      return;
+    }
+
     const { filteredPayments, relevantTenants } = filteredData;
     const totalCollected = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
     
-    // Simplified outstanding calculation for tenants active in range
     let totalExpectedRentInPeriod = 0;
     relevantTenants.forEach(tenant => {
-        if (tenant.status === 'active') { // only consider active tenants for simplicity
+        if (tenant.status === 'active') { 
             const joinD = new Date(tenant.joinDate);
-            const rangeStart = dateRange?.from ? new Date(dateRange.from) : joinD;
-            const rangeEnd = dateRange?.to ? new Date(dateRange.to) : new Date();
-
-            // Calculate months active within the period
-            let monthsInPeriod = 0;
-            let currentDate = new Date(Math.max(joinD.getTime(), rangeStart.getTime()));
             
-            while(currentDate <= rangeEnd) {
+            // Use clientNow if dateRange.to is not set (e.g. open-ended range for "this month" preset before end of month)
+            // or if dateRange itself is not set yet.
+            const periodStartDate = dateRange?.from ? new Date(dateRange.from) : joinD;
+            const periodEndDate = dateRange?.to ? new Date(dateRange.to) : clientNow;
+
+            let monthsInPeriod = 0;
+            let currentDateInLoop = new Date(Math.max(joinD.getTime(), periodStartDate.getTime()));
+            
+            while(currentDateInLoop <= periodEndDate) {
                 monthsInPeriod++;
-                currentDate.setMonth(currentDate.getMonth() + 1);
-                currentDate.setDate(1); // move to start of next month to count it
-                 if(currentDate > rangeEnd && monthsInPeriod === 1 && (rangeEnd.getTime() - Math.max(joinD.getTime(), rangeStart.getTime())) / (1000 * 3600 * 24) < 15) {
-                     // if period is less than 15 days and it's the first month, maybe don't count full rent.
-                     // This is complex logic, for now, any part of month counts as full.
+                currentDateInLoop.setMonth(currentDateInLoop.getMonth() + 1);
+                currentDateInLoop.setDate(1); 
+                 if(currentDateInLoop > periodEndDate && monthsInPeriod === 1 && (periodEndDate.getTime() - Math.max(joinD.getTime(), periodStartDate.getTime())) / (1000 * 3600 * 24) < 15) {
+                     // This logic might need refinement for very short periods
                  }
             }
             if (monthsInPeriod > 0) totalExpectedRentInPeriod += tenant.monthlyRentalRate * monthsInPeriod;
@@ -79,31 +96,30 @@ export default function ReportsPage() {
     });
     const totalOutstanding = Math.max(0, totalExpectedRentInPeriod - totalCollected);
 
-    return {
+    setCalculatedSummary({
       totalCollected,
       totalOutstanding,
       activeTenantsInRange: relevantTenants.filter(t => t.status === 'active').length,
       paymentsCount: filteredPayments.length,
-    };
-  }, [filteredData, dateRange]);
+    });
+  }, [filteredData, dateRange, clientNow]);
+
 
   const tenantReportData = useMemo(() => {
     return filteredData.relevantTenants.map(tenant => {
         const tenantPayments = filteredData.filteredPayments.filter(p => p.tenantId === tenant.id);
         const totalPaidByTenant = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
-        // Simplified due amount for the period. 
-        const monthsActiveInPeriod = 1; // Placeholder, real calculation is complex
-        const dueAmount = tenant.status === 'active' ? tenant.monthlyRentalRate * monthsActiveInPeriod : 0; // Very simplified
         return {
             id: tenant.id,
             name: tenant.name,
             status: tenant.status,
             totalPaid: totalPaidByTenant,
-            // balance: dueAmount - totalPaidByTenant, // This is also simplified.
             numberOfPayments: tenantPayments.length,
         };
     }).sort((a,b) => b.totalPaid - a.totalPaid);
   }, [filteredData]);
+
+  const displaySummary = clientNow ? calculatedSummary : initialFinancialSummary;
 
 
   return (
@@ -130,8 +146,8 @@ export default function ReportsPage() {
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialSummary.totalCollected.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{financialSummary.paymentsCount} payments received</p>
+            <div className="text-2xl font-bold">${clientNow ? displaySummary.totalCollected.toLocaleString() : '...'}</div>
+            <p className="text-xs text-muted-foreground">{clientNow ? displaySummary.paymentsCount : '...'} payments received</p>
           </CardContent>
         </Card>
         <Card className="shadow-lg">
@@ -140,7 +156,7 @@ export default function ReportsPage() {
             <TrendingDown className="h-5 w-5 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${financialSummary.totalOutstanding.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${clientNow ? displaySummary.totalOutstanding.toLocaleString() : '...'}</div>
             <p className="text-xs text-muted-foreground">Estimated based on active tenants</p>
           </CardContent>
         </Card>
@@ -150,7 +166,7 @@ export default function ReportsPage() {
             <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{financialSummary.activeTenantsInRange}</div>
+            <div className="text-2xl font-bold">{clientNow ? displaySummary.activeTenantsInRange : '...'}</div>
             <p className="text-xs text-muted-foreground">Tenants active in selected period</p>
           </CardContent>
         </Card>
@@ -160,7 +176,7 @@ export default function ReportsPage() {
             <TrendingUp className="h-5 w-5 text-indigo-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{financialSummary.paymentsCount}</div>
+            <div className="text-2xl font-bold">{clientNow ? displaySummary.paymentsCount : '...'}</div>
             <p className="text-xs text-muted-foreground">Total payments in period</p>
           </CardContent>
         </Card>
@@ -193,7 +209,7 @@ export default function ReportsPage() {
                         )) : (
                             <TableRow>
                                 <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
-                                    No tenant payment data for the selected period.
+                                    { clientNow ? 'No tenant payment data for the selected period.' : 'Loading report data...'}
                                 </TableCell>
                             </TableRow>
                         )}

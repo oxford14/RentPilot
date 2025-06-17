@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
 import { Users, CreditCard, AlertTriangle, DollarSign, BarChart3 } from "lucide-react";
@@ -9,27 +10,42 @@ import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   const { tenants, payments } = useAppContext();
+  const [activeTenantsCount, setActiveTenantsCount] = useState(0);
+  const [currentMonthPaymentsTotal, setCurrentMonthPaymentsTotal] = useState(0);
+  const [delinquentTenantsCount, setDelinquentTenantsCount] = useState(0);
+  const [clientLoaded, setClientLoaded] = useState(false);
 
-  const activeTenants = tenants.filter(t => t.status === 'active').length;
-  const totalPaymentsThisMonth = payments.filter(p => {
-    const paymentDate = new Date(p.date);
-    const today = new Date();
-    return paymentDate.getMonth() === today.getMonth() && paymentDate.getFullYear() === today.getFullYear();
-  }).reduce((sum, p) => sum + p.amount, 0);
+  useEffect(() => {
+    // Ensure this runs only on the client after hydration
+    setClientLoaded(true);
+  }, []);
 
-  // This is a simplified delinquency calculation. A more robust one would be in reports.
-  const potentiallyDelinquentTenants = tenants.filter(tenant => {
-    if (tenant.status === 'inactive') return false;
-    const tenantPayments = payments.filter(p => p.tenantId === tenant.id);
-    const lastPayment = tenantPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-    if (!lastPayment) return true; // No payments ever
-    
+  useEffect(() => {
+    if (!clientLoaded) return;
+
+    const active = tenants.filter(t => t.status === 'active').length;
+    setActiveTenantsCount(active);
+
     const today = new Date();
-    const lastPaymentDate = new Date(lastPayment.date);
-    // If last payment was more than 35 days ago (approx > 1 month + grace period)
-    const daysSinceLastPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 3600 * 24);
-    return daysSinceLastPayment > 35;
-  }).length;
+    const totalForMonth = payments.filter(p => {
+      const paymentDate = new Date(p.date);
+      return paymentDate.getMonth() === today.getMonth() && paymentDate.getFullYear() === today.getFullYear();
+    }).reduce((sum, p) => sum + p.amount, 0);
+    setCurrentMonthPaymentsTotal(totalForMonth);
+
+    const potentiallyDelinquent = tenants.filter(tenant => {
+      if (tenant.status === 'inactive') return false;
+      const tenantPayments = payments.filter(p => p.tenantId === tenant.id);
+      const lastPayment = tenantPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+      if (!lastPayment) return true; 
+      
+      const lastPaymentDate = new Date(lastPayment.date);
+      const daysSinceLastPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 3600 * 24);
+      return daysSinceLastPayment > 35;
+    }).length;
+    setDelinquentTenantsCount(potentiallyDelinquent);
+
+  }, [tenants, payments, clientLoaded]);
 
   return (
     <div className="container mx-auto py-2">
@@ -45,7 +61,7 @@ export default function DashboardPage() {
             <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeTenants}</div>
+            <div className="text-2xl font-bold">{clientLoaded ? activeTenantsCount : '...'}</div>
             <p className="text-xs text-muted-foreground">Currently active tenants in the system.</p>
             <Link href="/tenants" passHref className="mt-2">
               <Button variant="outline" size="sm" className="mt-2">View Tenants</Button>
@@ -59,7 +75,7 @@ export default function DashboardPage() {
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalPaymentsThisMonth.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${clientLoaded ? currentMonthPaymentsTotal.toLocaleString() : '...'}</div>
             <p className="text-xs text-muted-foreground">Total amount collected this month.</p>
              <Link href="/payments" passHref className="mt-2">
               <Button variant="outline" size="sm" className="mt-2">View Payments</Button>
@@ -73,7 +89,7 @@ export default function DashboardPage() {
             <AlertTriangle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{potentiallyDelinquentTenants}</div>
+            <div className="text-2xl font-bold">{clientLoaded ? delinquentTenantsCount : '...'}</div>
             <p className="text-xs text-muted-foreground">Tenants who might be overdue.</p>
              <Link href="/reports" passHref className="mt-2">
               <Button variant="outline" size="sm" className="mt-2">View Reports</Button>
