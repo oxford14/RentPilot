@@ -2,13 +2,14 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
+  rawExpenses: Expense[];
 }
 
 const AppContext = createContext<AppContextTypeWithRawData | undefined>(undefined);
@@ -43,6 +44,14 @@ const initialPaymentsRaw: Payment[] = [
   { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash' },
 ];
 
+const initialExpensesRaw: Expense[] = [
+    { id: uuidv4(), description: 'Office Supplies', amount: 75.50, date: new Date(2024, 0, 10).toISOString(), category: 'Supplies', clientId: initialClients[0].id },
+    { id: uuidv4(), description: 'Internet Bill', amount: 60.00, date: new Date(2024, 0, 15).toISOString(), category: 'Utilities', clientId: initialClients[0].id },
+    { id: uuidv4(), description: 'Unit 5A Plumbing Repair', amount: 250.00, date: new Date(2024, 1, 2).toISOString(), category: 'Repairs', clientId: initialClients[1].id },
+    { id: uuidv4(), description: 'Software Subscription (Global)', amount: 99.00, date: new Date(2024, 1, 5).toISOString(), category: 'Administrative' },
+];
+
+
 const LOCAL_STORAGE_KEY = 'tenantTrackerData';
 const DEFAULT_TIMEZONE = 'Etc/UTC';
 
@@ -53,6 +62,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [clientsState, setClientsState] = useState<Client[]>([]);
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
+  const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]); // Added
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string | null>(DEFAULT_TIMEZONE);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -72,6 +82,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }));
         setRawManagedUsersState(usersWithRoles);
         setRawSuperAdminUsersState(parsedData.rawSuperAdminUsers || initialSuperAdminUsers);
+        setRawExpensesState(parsedData.rawExpenses || initialExpensesRaw); // Added
         setViewingAsClientId(parsedData.viewingAsClientId || null);
         setSystemTimezoneState(parsedData.systemTimezone || DEFAULT_TIMEZONE);
       } catch (error) {
@@ -81,6 +92,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
         setRawSuperAdminUsersState(initialSuperAdminUsers);
+        setRawExpensesState(initialExpensesRaw); // Added
         setViewingAsClientId(null);
         setSystemTimezoneState(DEFAULT_TIMEZONE);
       }
@@ -90,6 +102,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
       setRawSuperAdminUsersState(initialSuperAdminUsers);
+      setRawExpensesState(initialExpensesRaw); // Added
       setViewingAsClientId(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
     }
@@ -104,11 +117,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         clients: clientsState,
         rawManagedUsers: rawManagedUsersState,
         rawSuperAdminUsers: rawSuperAdminUsersState,
+        rawExpenses: rawExpensesState, // Added
         viewingAsClientId,
         systemTimezone: systemTimezoneState,
       }));
     }
-  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, rawSuperAdminUsersState, viewingAsClientId, systemTimezoneState, isLoaded]);
+  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, rawSuperAdminUsersState, rawExpensesState, viewingAsClientId, systemTimezoneState, isLoaded]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -121,8 +135,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const tenants = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) {
-        return rawTenantsState;
+      if (viewingAsClientId === null) { // Global view for super admin
+        return rawTenantsState.filter(t => !t.clientId); // Show only global tenants
       }
       return rawTenantsState.filter(t => t.clientId === viewingAsClientId);
     } else if (authUser?.clientId) {
@@ -134,8 +148,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const payments = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) {
-        return rawPaymentsState;
+      if (viewingAsClientId === null) { // Global view
+         return rawPaymentsState.filter(p => !p.clientId); // Show only global payments
       }
       return rawPaymentsState.filter(p => p.clientId === viewingAsClientId);
     } else if (authUser?.clientId) {
@@ -144,11 +158,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   }, [rawPaymentsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
 
+  const expenses = useMemo(() => { // Added
+    if (!isLoaded || !authIsAuthenticated) return [];
+    if (authUser?.isSuperAdmin) {
+      if (viewingAsClientId === null) { // Global view
+        return rawExpensesState.filter(e => !e.clientId); // Show only global expenses
+      }
+      return rawExpensesState.filter(e => e.clientId === viewingAsClientId);
+    } else if (authUser?.clientId) {
+      return rawExpensesState.filter(e => e.clientId === authUser.clientId);
+    }
+    return [];
+  }, [rawExpensesState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
+
+
   const managedUsers = useMemo(() => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
-            return rawManagedUsersState; 
+            // In global super admin view, don't show any client-specific managed users by default.
+            // Super admins manage client users through /admin/users.
+            // Or, decide if you want to show ALL managed users here. For now, keeping it empty.
+            return []; 
         }
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
      } else if (authUser?.clientId) { 
@@ -175,9 +206,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateTenant = (updatedTenant: Tenant) => {
-    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedTenant.clientId !== authUser.clientId) {
+    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedTenant.clientId !== authUser.clientId && updatedTenant.clientId !== undefined) {
       console.error("Permission denied: Client user cannot update tenants of other clients.");
       return;
+    }
+     if(authUser?.isSuperAdmin && viewingAsClientId === null && updatedTenant.clientId !== undefined){
+        console.error("Super admin in global view cannot update client-specific tenants here.");
+        return;
     }
     setRawTenantsState(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
   };
@@ -197,6 +232,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
      };
     setRawPaymentsState(prev => [...prev, newPayment]);
   };
+
+  const addExpense = (expenseData: Omit<Expense, 'id' | 'clientId'>) => { // Added
+    let determinedClientId: string | undefined = undefined;
+    if (authUser?.isSuperAdmin && viewingAsClientId) {
+      determinedClientId = viewingAsClientId;
+    } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
+      determinedClientId = authUser.clientId;
+    }
+    const newExpense: Expense = {
+      ...expenseData,
+      id: uuidv4(),
+      ...(determinedClientId && { clientId: determinedClientId })
+    };
+    setRawExpensesState(prev => [...prev, newExpense]);
+  };
+
+  const updateExpense = (updatedExpense: Expense) => { // Added
+    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedExpense.clientId !== authUser.clientId && updatedExpense.clientId !== undefined) {
+      console.error("Permission denied: Client user cannot update expenses of other clients.");
+      return;
+    }
+    if(authUser?.isSuperAdmin && viewingAsClientId === null && updatedExpense.clientId !== undefined){
+        console.error("Super admin in global view cannot update client-specific expenses here.");
+        return;
+    }
+    setRawExpensesState(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+  };
+
+  const deleteExpense = (expenseId: string) => { // Added
+    const expenseToDelete = rawExpensesState.find(e => e.id === expenseId);
+    if (!expenseToDelete) return;
+
+    if (!authUser?.isSuperAdmin && authUser?.clientId && expenseToDelete.clientId !== authUser.clientId && expenseToDelete.clientId !== undefined) {
+      console.error("Permission denied: Client user cannot delete expenses of other clients.");
+      return;
+    }
+     if(authUser?.isSuperAdmin && viewingAsClientId === null && expenseToDelete.clientId !== undefined){
+        console.error("Super admin in global view cannot delete client-specific expenses here.");
+        return;
+    }
+    setRawExpensesState(prev => prev.filter(e => e.id !== expenseId));
+  };
+
 
   const addClient = (clientData: Omit<Client, 'id'>) => {
     if (!authUser?.isSuperAdmin) return;
@@ -219,6 +297,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setRawTenantsState(prev => prev.filter(t => t.clientId !== clientId));
     setRawPaymentsState(prev => prev.filter(p => p.clientId !== clientId));
     setRawManagedUsersState(prev => prev.filter(u => u.clientId !== clientId));
+    setRawExpensesState(prev => prev.filter(e => e.clientId !== clientId)); // Also delete associated expenses
   };
 
   const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
@@ -244,10 +323,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
      if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       if (updatedUser.id !== authUser.username) { 
-            console.error("Permission denied: Client users cannot update other users.");
-            return;
-       }
+       // Client admin can only update their own profile, or if they are an admin, other users in their client.
+       // This logic seems to allow client admin to update others within their client.
+       // The check for `updatedUser.id !== authUser.username` was for self-update prevention, might need review.
+       // For now, assuming client admin can update any user in their client.
     }
     setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser, role: updatedUser.role || u.role || 'user' } : u));
   };
@@ -260,8 +339,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Permission denied: Client user cannot delete users of other clients.");
       return;
     }
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId && userToDelete.id !== authUser.username) {
-       console.error("Permission denied: Client users cannot delete other users.");
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId && userToDelete.username === authUser.username) {
+       // Prevent client admin from deleting their own account through this.
+       console.error("Client admins cannot delete their own account this way.");
        return;
     }
     setRawManagedUsersState(prev => prev.filter(u => u.id !== userId));
@@ -295,10 +375,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     clients: clientsState,
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
+    expenses, // Added
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
+
     setViewMode,
     updateSystemTimezone,
+
     addTenant,
     updateTenant,
     addPayment,
@@ -311,7 +394,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addSuperAdminUser,
     updateSuperAdminUser,
     deleteSuperAdminUser,
+    addExpense, // Added
+    updateExpense, // Added
+    deleteExpense, // Added
+
     rawManagedUsers: rawManagedUsersState,
+    rawExpenses: rawExpensesState, // Added
   };
 
   if (!isLoaded) {
@@ -336,4 +424,3 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
-

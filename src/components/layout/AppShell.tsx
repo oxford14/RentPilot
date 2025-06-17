@@ -20,7 +20,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,6 +32,7 @@ interface AppNavItem {
   icon: React.ElementType;
   adminOnly?: boolean;
   clientAdminOnly?: boolean;
+  superAdminOnly?: boolean; // To hide from client users even if they are admins
 }
 
 interface AdminTopLevelNavItem {
@@ -61,6 +62,7 @@ const appNavItems: AppNavItem[] = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/tenants', label: 'Tenants', icon: Users },
   { href: '/payments', label: 'Payments', icon: CreditCard },
+  { href: '/expenses', label: 'Expenses', icon: ReceiptText }, // Added Expenses
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
 ];
@@ -120,12 +122,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
 
 
-  } else {
+  } else { // Tenant-facing part of the app
     currentAppNavItems = appNavItems.filter(item => {
       if (item.clientAdminOnly) {
         return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
       }
-      return true;
+      if (item.superAdminOnly) { // If an item should only be shown to superAdmins in non-admin section
+          return !!authUser?.isSuperAdmin;
+      }
+      return true; // Default show
     });
     const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
     const activeAppItem = currentAppNavItems.find(item =>
@@ -233,7 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     );
                   }
                 })
-              ) : (
+              ) : ( // Tenant-facing sidebar
                 currentAppNavItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
@@ -272,7 +277,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && (
+              {activeClientForDisplay?.logoUrl && !isAdminSection && ( // Only show client logo in header for non-admin section
                   <img 
                     src={activeClientForDisplay.logoUrl} 
                     alt={`${activeClientForDisplay.name} Logo`} 
@@ -284,7 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
                  {loggedInClient && !isAdminSection && !viewingClient && ` - ${loggedInClient.name}`}
-                 {viewingClient && ` - ${viewingClient.name}`}
+                 {viewingClient && !isAdminSection && ` - ${viewingClient.name}`}
               </h1>
             </div>
             <DropdownMenu>
@@ -333,7 +338,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          {authUser?.isSuperAdmin && viewingClient && (
+          {authUser?.isSuperAdmin && viewingClient && !isAdminSection && ( // Only show "viewing as" banner in non-admin section
             <div className="bg-primary/10 text-primary-foreground py-2 px-6 text-sm flex items-center justify-center shadow">
               <Eye className="mr-2 h-4 w-4 text-primary" />
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
@@ -347,5 +352,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
-

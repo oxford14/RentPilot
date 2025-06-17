@@ -50,7 +50,37 @@ export interface Payment {
 export interface Client {
   id: string;
   name: string;
-  logoUrl?: string; // Added logoUrl
+  logoUrl?: string;
+}
+
+export type ExpenseCategory = 
+  | 'Maintenance' 
+  | 'Utilities' 
+  | 'Administrative' 
+  | 'Marketing' 
+  | 'Supplies' 
+  | 'Repairs' 
+  | 'Taxes & Fees' 
+  | 'Other';
+
+export const expenseCategories: ExpenseCategory[] = [
+  'Maintenance', 
+  'Utilities', 
+  'Administrative', 
+  'Marketing', 
+  'Supplies', 
+  'Repairs', 
+  'Taxes & Fees', 
+  'Other'
+];
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string; // ISO string
+  category: ExpenseCategory;
+  clientId?: string;
 }
 
 export interface AppState {
@@ -59,6 +89,7 @@ export interface AppState {
   clients: Client[];
   rawManagedUsers: ManagedUser[];
   rawSuperAdminUsers: SuperAdminUser[];
+  rawExpenses: Expense[];
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 }
@@ -83,7 +114,8 @@ export interface AppContextType {
   payments: Payment[];
   clients: Client[];
   managedUsers: ManagedUser[];
-  rawSuperAdminUsers: SuperAdminUser[]; // Exposed for SuperAdminUsersPage & login
+  rawSuperAdminUsers: SuperAdminUser[];
+  expenses: Expense[]; // Added
   viewingAsClientId: string | null;
   systemTimezone: string | null;
 
@@ -107,6 +139,10 @@ export interface AppContextType {
   updateSuperAdminUser: (user: SuperAdminUser) => void;
   deleteSuperAdminUser: (userId: string) => void;
 
-  rawManagedUsers: ManagedUser[];
-}
+  addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => void; // Added
+  updateExpense: (expense: Expense) => void; // Added
+  deleteExpense: (expenseId: string) => void; // Added
 
+  rawManagedUsers: ManagedUser[];
+  rawExpenses: Expense[]; // Added rawExpenses for direct access if needed by saving logic
+}
