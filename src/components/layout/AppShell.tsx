@@ -5,7 +5,7 @@ import * as React from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import Image from 'next/image';
+// import Image from 'next/image'; // Not used currently for AppLogoOrIcon directly due to external URLs
 import {
   SidebarProvider,
   Sidebar,
@@ -17,17 +17,17 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-  useSidebar, // Import useSidebar to access state
+  useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; // TooltipProvider is already at root of AppShell
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import type { AppSidebarNavItem } from '@/lib/types';
+import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; // Ensure AppNavGroup is exported or defined correctly
 import { cn } from '@/lib/utils';
 
 interface AdminTopLevelNavItem {
@@ -85,13 +85,71 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   }
 ];
 
+// Helper component for grouped app navigation items
+const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
+  const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
+  const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
+  const showTooltip = sidebarState === 'collapsed' && !isMobile;
+
+  const trigger = (
+    <AccordionTrigger
+      className={cn(
+        "flex w-full items-center rounded-md p-2 text-left text-sm font-medium outline-none ring-sidebar-ring transition-colors hover:no-underline focus-visible:ring-2",
+        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center",
+        (isGroupActive && "data-[state=closed]:bg-sidebar-accent data-[state=closed]:text-sidebar-accent-foreground"),
+        "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+      )}
+    >
+      <div className="flex flex-1 items-center gap-2">
+        <item.icon className="h-5 w-5 shrink-0" />
+        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+      </div>
+    </AccordionTrigger>
+  );
+
+  return (
+    <AccordionItem value={item.label} className="border-b-0">
+      {showTooltip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+          <TooltipContent side="right" align="center" className="ml-2">
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
+      <AccordionContent className="group-data-[collapsible=icon]:hidden">
+        <div className="pt-1 pb-1 pl-[calc(theme(spacing.2)_+_theme(spacing.4))] space-y-1">
+          {item.items.map(subItem => (
+            <SidebarMenuItem key={subItem.href} className="p-0">
+              <SidebarMenuButton
+                asChild
+                size="sm"
+                isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
+                className="justify-start w-full"
+              >
+                <Link href={subItem.href}>
+                  <subItem.icon className="h-4 w-4" />
+                  <span className="pl-2">{subItem.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+};
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
-  const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar(); // Get sidebar state
+  // const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar(); // Removed from here
 
   const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
@@ -142,13 +200,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (item.isGroup) {
         for (const subItem of item.items) {
           if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
-            currentActivePageLabel = subItem.label; // Keep this for header title
-            // For sidebar active state, the group itself might be considered active
+            currentActivePageLabel = subItem.label; 
             activeItemFound = true; 
             break;
           }
         }
-      } else { // Top-level item
+      } else { 
         const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
         if (item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')) {
           currentActivePageLabel = item.label;
@@ -157,7 +214,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       }
       if (activeItemFound) break;
     }
-     if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; // Default if no match
+     if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; 
   }
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
@@ -259,57 +316,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                     );
                   }
                 })
-              ) : ( // Tenant-facing sidebar
+              ) : ( 
                 currentAppNavItems.map((item, index) => {
                   if (item.isGroup) {
-                    const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
+                    const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
                     return (
-                      <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}-${index}`} defaultValue={isGroupActive ? item.label : undefined}>
-                        <AccordionItem value={item.label} className="border-b-0">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                               <AccordionTrigger
-                                className={cn(
-                                  "flex w-full items-center rounded-md p-2 text-left text-sm font-medium outline-none ring-sidebar-ring transition-colors hover:no-underline focus-visible:ring-2",
-                                  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                                  "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center",
-                                  (isGroupActive && "data-[state=closed]:bg-sidebar-accent data-[state=closed]:text-sidebar-accent-foreground"),
-                                  "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                                )}
-                              >
-                                <div className="flex flex-1 items-center gap-2">
-                                  <item.icon className="h-5 w-5 shrink-0" />
-                                  <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                                </div>
-                              </AccordionTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" align="center" className="ml-2" hidden={sidebarState === "expanded" || sidebarIsMobile}>
-                              {item.label}
-                            </TooltipContent>
-                          </Tooltip>
-                          <AccordionContent className="group-data-[collapsible=icon]:hidden">
-                            <div className="pt-1 pb-1 pl-[calc(theme(spacing.2)_+_theme(spacing.4))] space-y-1"> {/* Adjusted padding */}
-                              {item.items.map(subItem => (
-                                <SidebarMenuItem key={subItem.href} className="p-0">
-                                  <SidebarMenuButton
-                                    asChild
-                                    size="sm"
-                                    isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
-                                    className="justify-start w-full"
-                                  >
-                                    <Link href={subItem.href}>
-                                      <subItem.icon className="h-4 w-4" />
-                                      <span className="pl-2">{subItem.label}</span>
-                                    </Link>
-                                  </SidebarMenuButton>
-                                </SidebarMenuItem>
-                              ))}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
+                       <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}-${index}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
+                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} />
                       </Accordion>
                     );
-                  } else { // Top-level item
+                  } else { 
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -425,3 +441,4 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
