@@ -43,7 +43,6 @@ export function DelinquencyCard() {
     setPrediction(null);
 
     try {
-      // Prepare payment history string
       const tenantPayments = payments
         .filter(p => p.tenantId === tenant.id)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -55,14 +54,29 @@ export function DelinquencyCard() {
         paymentHistoryString = "No payment history found.";
       }
 
-      // Calculate current balance (simplified)
-      // This is a very basic calculation. A real system would track due dates and amounts precisely.
       const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
-      const joinDate = new Date(tenant.joinDate);
+      
+      let totalExpectedBilled = 0;
+      const tenantJoinDate = new Date(tenant.joinDate);
       const today = new Date();
-      const monthsActive = (today.getFullYear() - joinDate.getFullYear()) * 12 + (today.getMonth() - joinDate.getMonth()) + 1;
-      const totalExpected = monthsActive * tenant.monthlyRentalRate;
-      const currentBalance = Math.max(0, totalExpected - totalPaid); // Ensure balance is not negative for this simple model
+      today.setHours(0,0,0,0); // Normalize today to start of day for consistent comparison
+
+      if (tenantJoinDate <= today) {
+          // Start with the first billing cycle on joinDate
+          totalExpectedBilled += tenant.monthlyRentalRate;
+          
+          // Create a mutable date starting from the join date for iteration
+          let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
+          nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1); // Move to the next month's anniversary
+
+          // Loop through subsequent months
+          while (nextBillingAnniversary <= today) {
+              totalExpectedBilled += tenant.monthlyRentalRate;
+              nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1);
+          }
+      }
+      
+      const currentBalance = Math.max(0, totalExpectedBilled - totalPaid);
 
       const input: DelinquencyPredictionInput = {
         tenantName: tenant.name,
