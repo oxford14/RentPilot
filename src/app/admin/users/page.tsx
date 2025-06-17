@@ -55,9 +55,16 @@ export default function AdminUsersPage() {
     }
   };
 
-  const getRoleIcon = (role: string) => {
+  const getRoleIcon = (role?: string) => {
     if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
     return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
+  };
+
+  const formatRoleName = (role?: string) => {
+    if (role && typeof role === 'string' && role.length > 0) {
+      return role.charAt(0).toUpperCase() + role.slice(1);
+    }
+    return 'N/A';
   };
 
   return (
@@ -98,7 +105,7 @@ export default function AdminUsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleOpenUserForm(client)}
+                          onClick={() => handleOpenUserForm(client, undefined)}
                           className="shadow-sm hover:shadow-md transition-shadow"
                         >
                           <UserPlus className="mr-2 h-4 w-4" /> Add User to {client.name}
@@ -113,7 +120,7 @@ export default function AdminUsersPage() {
                                 <p className="text-sm text-muted-foreground">{user.email}</p>
                                 <Badge variant="outline" className="mt-1 text-xs">
                                   {getRoleIcon(user.role)}
-                                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                  {formatRoleName(user.role)}
                                 </Badge>
                               </div>
                               <div className="space-x-1">

@@ -4,8 +4,7 @@
 import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth }
-from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface AppContextTypeWithRawData extends AppContextType {
   rawManagedUsers: ManagedUser[];
@@ -23,6 +22,8 @@ const initialManagedUsers: ManagedUser[] = [
     { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'user' },
     { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'admin' },
     { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
+    // Example of a user potentially without a role initially, if data wasn't migrated (though it should be set by form now)
+    // { id: uuidv4(), username: 'legacyUser', email: 'legacy@example.com', clientId: initialClients[0].id, password: 'password123' },
 ];
 
 const initialTenantsRaw: Tenant[] = [
@@ -59,21 +60,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
         setRawPaymentsState(parsedData.rawPayments || initialPaymentsRaw);
         setClientsState(parsedData.clients || initialClients);
-        setRawManagedUsersState(parsedData.rawManagedUsers || initialManagedUsers);
+        // Ensure all loaded managed users have a role, defaulting to 'user' if missing
+        const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
+          ...user,
+          role: user.role || 'user' as ClientUserRole,
+        }));
+        setRawManagedUsersState(usersWithRoles);
         setViewingAsClientId(parsedData.viewingAsClientId || null);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
         setRawPaymentsState(initialPaymentsRaw);
         setClientsState(initialClients);
-        setRawManagedUsersState(initialManagedUsers);
+        setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
         setViewingAsClientId(null);
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
       setRawPaymentsState(initialPaymentsRaw);
       setClientsState(initialClients);
-      setRawManagedUsersState(initialManagedUsers);
+      setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
       setViewingAsClientId(null);
     }
     setIsLoaded(true);
@@ -125,10 +131,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
+            // Super admin global view: show all users but ideally only for clients
+            // or allow filtering. For now, showing all.
             return rawManagedUsersState;
         }
+        // Super admin viewing as specific client
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
      } else if (authUser?.clientId) {
+        // Client user view (admin or regular user for their client)
         return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
      }
     return [];
@@ -203,7 +213,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Permission denied: Client user cannot add users to other clients.");
       return;
     }
-    const newUserWithId = { ...userData, id: uuidv4() };
+    const newUserWithId: ManagedUser = { ...userData, id: uuidv4(), role: userData.role || 'user' };
     setRawManagedUsersState(prev => [...prev, newUserWithId]);
   };
 
@@ -212,27 +222,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Cannot update managed user: clientId is missing.");
         return;
     }
-    // Check permissions: Super admin can edit anyone. Client admin can edit users within their own client.
     if (!authUser?.isSuperAdmin && authUser?.clientId !== updatedUser.clientId) {
       console.error("Permission denied: Client user cannot update users of other clients.");
       return;
     }
      if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       // Non-admin client users cannot update any users, even within their own client
-       console.error("Permission denied: Client users cannot update other users.");
-       // Allow updating their own profile in future, but not other users. For now, block all.
-       // If we want to allow self-update: if (updatedUser.id !== authUser.id) { return; }
-       return;
+       if (updatedUser.id !== authUser.username) { // Check if they are trying to edit someone else
+            console.error("Permission denied: Client users cannot update other users.");
+            return;
+       }
     }
 
-    setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+    setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser, role: updatedUser.role || u.role || 'user' } : u));
   };
 
   const deleteManagedUser = (userId: string) => {
     const userToDelete = rawManagedUsersState.find(u => u.id === userId);
     if (!userToDelete) return;
 
-    // Check permissions: Super admin can delete anyone. Client admin can delete users within their own client.
     if (!authUser?.isSuperAdmin && authUser?.clientId !== userToDelete.clientId) {
       console.error("Permission denied: Client user cannot delete users of other clients.");
       return;
@@ -263,6 +270,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteManagedUser,
     rawManagedUsers: rawManagedUsersState,
   };
+
+  if (!isLoaded) {
+    return (
+      <AppContext.Provider value={contextValue}>
+        <div>Loading context...</div>
+      </AppContext.Provider>
+    );
+  }
 
   return (
     <AppContext.Provider value={contextValue}>

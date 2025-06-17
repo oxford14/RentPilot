@@ -40,8 +40,7 @@ export default function ClientUserManagementPage() {
   }, [authUser, clients]);
 
   useEffect(() => {
-    // This effect now also checks for client admin role
-    if (authUser && (authUser.isSuperAdmin || !authUser.clientId || !currentClient || authUser.role !== 'admin')) {
+    if (authUser && (authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin')) {
         toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page."})
         router.push('/');
     }
@@ -65,7 +64,6 @@ export default function ClientUserManagementPage() {
 
   const handleDeleteUser = () => {
     if (userToDelete) {
-      // Prevent client admin from deleting themselves - this is a basic check
       if (authUser?.username === userToDelete.username && authUser?.clientId === userToDelete.clientId) {
         toast({variant: "destructive", title: "Action Denied", description: "Client admins cannot delete their own accounts."});
         setUserToDelete(null);
@@ -77,9 +75,16 @@ export default function ClientUserManagementPage() {
     }
   };
 
-  const getRoleIcon = (role: string) => {
+  const getRoleIcon = (role?: string) => {
     if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
     return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
+  };
+
+  const formatRoleName = (role?: string) => {
+    if (role && typeof role === 'string' && role.length > 0) {
+      return role.charAt(0).toUpperCase() + role.slice(1);
+    }
+    return 'N/A';
   };
 
   if (!authUser || authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin') {
@@ -123,7 +128,7 @@ export default function ClientUserManagementPage() {
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                      <Badge variant="outline" className="mt-1 text-xs">
                         {getRoleIcon(user.role)}
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        {formatRoleName(user.role)}
                      </Badge>
                   </div>
                   <div className="space-x-1">
@@ -131,7 +136,7 @@ export default function ClientUserManagementPage() {
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button variant="destructive" size="sm" className="h-8 w-8 p-0" onClick={() => confirmDeleteUser(user)} title="Delete User"
-                     disabled={authUser?.username === user.username && authUser?.clientId === user.clientId} // Basic self-delete prevention
+                     disabled={authUser?.username === user.username && authUser?.clientId === user.clientId} 
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
