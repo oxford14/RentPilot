@@ -1,20 +1,23 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant } from '@/lib/types';
-import { PlusCircle, Search, UserSearch, FileText, Users } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useAppContext } from '@/contexts/AppContext'; // Added import
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [amountDue, setAmountDue] = useState<number | null>(null); // Added state for amount due
+  const { payments, tenants } = useAppContext(); // Get payments and tenants from context
 
   const handleOpenForm = () => setIsFormOpen(true);
   const handleCloseForm = () => setIsFormOpen(false);
@@ -22,6 +25,36 @@ export default function PaymentsPage() {
   const handleSelectTenant = (tenant: Tenant) => {
     setSelectedTenant(tenant);
   };
+
+  useEffect(() => {
+    if (selectedTenant) {
+      const tenantPayments = payments.filter(p => p.tenantId === selectedTenant.id);
+      const totalPaid = tenantPayments.reduce((sum, p) => sum + p.amount, 0);
+
+      let totalExpectedBilled = 0;
+      const tenantJoinDate = new Date(selectedTenant.joinDate);
+      const today = new Date();
+      today.setHours(0,0,0,0); // Normalize today to start of day for consistent comparison
+
+      if (tenantJoinDate <= today) {
+          // Start with the first billing cycle on joinDate
+          totalExpectedBilled += selectedTenant.monthlyRentalRate;
+          
+          let nextBillingAnniversary = new Date(tenantJoinDate.getFullYear(), tenantJoinDate.getMonth(), tenantJoinDate.getDate());
+          nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1); 
+
+          while (nextBillingAnniversary <= today) {
+              totalExpectedBilled += selectedTenant.monthlyRentalRate;
+              nextBillingAnniversary.setMonth(nextBillingAnniversary.getMonth() + 1);
+          }
+      }
+      
+      const currentBalance = Math.max(0, totalExpectedBilled - totalPaid);
+      setAmountDue(currentBalance);
+    } else {
+      setAmountDue(null); // Reset if no tenant is selected
+    }
+  }, [selectedTenant, payments, tenants]); // Recalculate when selectedTenant, payments, or tenants change
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -58,7 +91,7 @@ export default function PaymentsPage() {
               />
             </div>
           </CardHeader>
-          <CardContent className="p-0"> {/* Remove padding for table to fit nicely */}
+          <CardContent className="p-0">
             <TenantsListForPayments 
               onSelectTenant={handleSelectTenant} 
               searchTerm={searchTerm} 
@@ -78,6 +111,17 @@ export default function PaymentsPage() {
             <CardDescription className="text-xs">
               {selectedTenant ? `Showing all payments for ${selectedTenant.name}.` : "Select a tenant from the list to view their payments."}
             </CardDescription>
+            {selectedTenant && amountDue !== null && (
+              <div className="mt-3 p-3 border rounded-md bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-destructive" />
+                    <span className="font-semibold text-md">Amount Due:</span>
+                  </div>
+                  <span className="font-bold text-lg text-destructive">${amountDue.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="flex-grow">
             <PaymentsTable tenantId={selectedTenant?.id} />
