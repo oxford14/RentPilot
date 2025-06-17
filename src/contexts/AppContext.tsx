@@ -71,8 +71,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPayments(prev => [...prev, newPayment]);
   };
 
-  // Render children directly. The initial state (empty arrays) will be used for server render
-  // and client's first render, then useEffect will update with localStorage data.
   return (
     <AppContext.Provider value={{ tenants, payments, addTenant, updateTenant, addPayment }}>
       {children}
