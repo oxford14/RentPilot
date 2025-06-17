@@ -17,14 +17,18 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
+  useSidebar, // Import useSidebar to access state
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; // TooltipProvider is already at root of AppShell
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import type { AppSidebarNavItem } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -87,6 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
+  const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar(); // Get sidebar state
 
   const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
@@ -137,8 +142,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (item.isGroup) {
         for (const subItem of item.items) {
           if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
-            currentActivePageLabel = subItem.label;
-            activeItemFound = true;
+            currentActivePageLabel = subItem.label; // Keep this for header title
+            // For sidebar active state, the group itself might be considered active
+            activeItemFound = true; 
             break;
           }
         }
@@ -256,34 +262,52 @@ export function AppShell({ children }: { children: ReactNode }) {
               ) : ( // Tenant-facing sidebar
                 currentAppNavItems.map((item, index) => {
                   if (item.isGroup) {
+                    const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
                     return (
-                      <React.Fragment key={`app-group-${item.label}-${index}`}>
-                        <div 
-                          className="px-3 py-2 mt-2 text-sm font-medium text-sidebar-foreground/90 flex items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2"
-                          title={item.label} 
-                        >
-                          <item.icon className="h-5 w-5 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
-                          <span className="ml-3 group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </div>
-                        <div className="group-data-[collapsible=expanded]:pl-3">
-                          {item.items.map(subItem => (
-                            <SidebarMenuItem key={subItem.href}>
-                              <SidebarMenuButton
-                                asChild
-                                size="sm"
-                                isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
-                                tooltip={{ children: subItem.label, side: "right", className: "ml-2" }}
-                                className="justify-start w-full" 
+                      <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}-${index}`} defaultValue={isGroupActive ? item.label : undefined}>
+                        <AccordionItem value={item.label} className="border-b-0">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                               <AccordionTrigger
+                                className={cn(
+                                  "flex w-full items-center rounded-md p-2 text-left text-sm font-medium outline-none ring-sidebar-ring transition-colors hover:no-underline focus-visible:ring-2",
+                                  "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                  "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center",
+                                  (isGroupActive && "data-[state=closed]:bg-sidebar-accent data-[state=closed]:text-sidebar-accent-foreground"),
+                                  "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                )}
                               >
-                                <Link href={subItem.href}>
-                                  <subItem.icon className="h-4 w-4" />
-                                  <span className="pl-2 group-data-[collapsible=icon]:hidden">{subItem.label}</span>
-                                </Link>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                        </div>
-                      </React.Fragment>
+                                <div className="flex flex-1 items-center gap-2">
+                                  <item.icon className="h-5 w-5 shrink-0" />
+                                  <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                                </div>
+                              </AccordionTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" align="center" className="ml-2" hidden={sidebarState === "expanded" || sidebarIsMobile}>
+                              {item.label}
+                            </TooltipContent>
+                          </Tooltip>
+                          <AccordionContent className="group-data-[collapsible=icon]:hidden">
+                            <div className="pt-1 pb-1 pl-[calc(theme(spacing.2)_+_theme(spacing.4))] space-y-1"> {/* Adjusted padding */}
+                              {item.items.map(subItem => (
+                                <SidebarMenuItem key={subItem.href} className="p-0">
+                                  <SidebarMenuButton
+                                    asChild
+                                    size="sm"
+                                    isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
+                                    className="justify-start w-full"
+                                  >
+                                    <Link href={subItem.href}>
+                                      <subItem.icon className="h-4 w-4" />
+                                      <span className="pl-2">{subItem.label}</span>
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     );
                   } else { // Top-level item
                     return (
