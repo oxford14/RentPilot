@@ -55,7 +55,7 @@ export function DelinquencyCard() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       let paymentHistoryString = tenantPayments.map(p => 
-        `Paid $${p.amount} on ${new Date(p.date).toLocaleDateString()} via ${p.paymentMethod}.`
+        `Paid ₱${p.amount} on ${new Date(p.date).toLocaleDateString()} via ${p.paymentMethod}.`
       ).join('\n');
       if (tenantPayments.length === 0) {
         paymentHistoryString = "No payment history found.";
@@ -67,7 +67,7 @@ export function DelinquencyCard() {
         tenantName: tenant.name,
         paymentHistory: paymentHistoryString,
         rentalRate: tenant.monthlyRentalRate,
-        currentBalance: currentBalance > 0 ? currentBalance : 0, // AI likely expects non-negative "balance owed"
+        currentBalance: currentBalance > 0 ? currentBalance : 0, 
       };
       
       const result = await predictDelinquency(input);

@@ -36,7 +36,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
   const { addTenant, updateTenant } = useAppContext();
   const { toast } = useToast();
 
-  // Use state for the default join date for new tenants to ensure `new Date()` is stable per form instance
   const [newTenantJoinDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const defaultValues = React.useMemo(() => {
@@ -66,7 +65,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         : { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant, isOpen, form.reset, newTenantJoinDate]);
 
 
@@ -80,7 +78,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         addTenant({...data, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
-      // Reset with potentially new newTenantJoinDate if form stays open and becomes a new tenant form
       const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
       form.reset(resetValues); 
       onClose();
@@ -145,7 +142,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="monthlyRentalRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Monthly Rental Rate ($)</FormLabel>
+                    <FormLabel>Monthly Rental Rate (₱)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="e.g. 1200" {...field} />
                     </FormControl>

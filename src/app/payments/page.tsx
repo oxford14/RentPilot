@@ -50,7 +50,7 @@ export default function PaymentsPage() {
       setAmountDue(null); 
       setRentStatusMessage(null);
     }
-  }, [selectedTenant, payments, clientToday, tenants]); // Added tenants to dependency array for safety, though balance calc is primary concern
+  }, [selectedTenant, payments, clientToday, tenants]); 
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -121,7 +121,7 @@ export default function PaymentsPage() {
                   <span className={`font-bold text-lg ${
                     amountDue > 0 ? "text-destructive" : amountDue < 0 ? "text-green-600" : "text-foreground"
                   }`}>
-                    ${Math.abs(amountDue).toLocaleString()}
+                    ₱{Math.abs(amountDue).toLocaleString()}
                   </span>
                 </div>
                 {rentStatusMessage && (

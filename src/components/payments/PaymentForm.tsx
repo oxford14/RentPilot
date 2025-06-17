@@ -69,7 +69,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     try {
       addPayment({...data, date: data.date.toISOString()});
       const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
-      toast({ title: "Payment Recorded", description: `Payment of $${data.amount} for ${tenantName} recorded successfully.` });
+      toast({ title: "Payment Recorded", description: `Payment of ₱${data.amount} for ${tenantName} recorded successfully.` });
       form.reset({ 
         tenantId: defaultTenantId || '', 
         amount: 0, 
@@ -105,7 +105,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <SelectContent>
                       {activeTenants.map(tenant => (
                         <SelectItem key={tenant.id} value={tenant.id}>
-                          {tenant.name} (Rent: ${tenant.monthlyRentalRate})
+                          {tenant.name} (Rent: ₱{tenant.monthlyRentalRate})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -120,10 +120,10 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Amount ($)</FormLabel>
+                  <FormLabel>Amount (₱)</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
                       <Input type="number" placeholder="e.g. 500" {...field} className="pl-8" />
                     </div>
                   </FormControl>

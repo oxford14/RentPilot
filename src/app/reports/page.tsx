@@ -62,8 +62,8 @@ export default function ReportsPage() {
   }, [payments, tenants, dateRange]);
 
   useEffect(() => {
-    if (!clientNow) { // Wait for clientNow to be set
-      setCalculatedSummary(initialFinancialSummary); // Show loading state or default
+    if (!clientNow) { 
+      setCalculatedSummary(initialFinancialSummary); 
       return;
     }
 
@@ -75,8 +75,6 @@ export default function ReportsPage() {
         if (tenant.status === 'active') { 
             const joinD = new Date(tenant.joinDate);
             
-            // Use clientNow if dateRange.to is not set (e.g. open-ended range for "this month" preset before end of month)
-            // or if dateRange itself is not set yet.
             const periodStartDate = dateRange?.from ? new Date(dateRange.from) : joinD;
             const periodEndDate = dateRange?.to ? new Date(dateRange.to) : clientNow;
 
@@ -88,7 +86,7 @@ export default function ReportsPage() {
                 currentDateInLoop.setMonth(currentDateInLoop.getMonth() + 1);
                 currentDateInLoop.setDate(1); 
                  if(currentDateInLoop > periodEndDate && monthsInPeriod === 1 && (periodEndDate.getTime() - Math.max(joinD.getTime(), periodStartDate.getTime())) / (1000 * 3600 * 24) < 15) {
-                     // This logic might need refinement for very short periods
+                     
                  }
             }
             if (monthsInPeriod > 0) totalExpectedRentInPeriod += tenant.monthlyRentalRate * monthsInPeriod;
@@ -146,7 +144,7 @@ export default function ReportsPage() {
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientNow ? displaySummary.totalCollected.toLocaleString() : '...'}</div>
+            <div className="text-2xl font-bold">₱{clientNow ? displaySummary.totalCollected.toLocaleString() : '...'}</div>
             <p className="text-xs text-muted-foreground">{clientNow ? displaySummary.paymentsCount : '...'} payments received</p>
           </CardContent>
         </Card>
@@ -156,7 +154,7 @@ export default function ReportsPage() {
             <TrendingDown className="h-5 w-5 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientNow ? displaySummary.totalOutstanding.toLocaleString() : '...'}</div>
+            <div className="text-2xl font-bold">₱{clientNow ? displaySummary.totalOutstanding.toLocaleString() : '...'}</div>
             <p className="text-xs text-muted-foreground">Estimated based on active tenants</p>
           </CardContent>
         </Card>
@@ -194,7 +192,7 @@ export default function ReportsPage() {
                         <TableRow>
                             <TableHead>Tenant Name</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Total Paid ($)</TableHead>
+                            <TableHead className="text-right">Total Paid (₱)</TableHead>
                             <TableHead className="text-center"># Payments</TableHead>
                         </TableRow>
                     </TableHeader>

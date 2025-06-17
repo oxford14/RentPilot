@@ -67,7 +67,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead className="hidden md:table-cell">Phone</TableHead>
-            <TableHead className="text-right">Rent ($)</TableHead>
+            <TableHead className="text-right">Rent (₱)</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="text-center">Rent Status</TableHead>
             <TableHead className="hidden md:table-cell text-center">Join Date</TableHead>

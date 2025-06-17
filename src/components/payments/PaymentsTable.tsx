@@ -89,7 +89,7 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
-            <TableHead className="text-right">Amount ($)</TableHead>
+            <TableHead className="text-right">Amount (₱)</TableHead>
             <TableHead className="text-center">Method</TableHead>
           </TableRow>
         </TableHeader>

@@ -75,7 +75,7 @@ export default function DashboardPage() {
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${clientLoaded ? currentMonthPaymentsTotal.toLocaleString() : '...'}</div>
+            <div className="text-2xl font-bold">₱{clientLoaded ? currentMonthPaymentsTotal.toLocaleString() : '...'}</div>
             <p className="text-xs text-muted-foreground">Total amount collected this month.</p>
              <Link href="/payments" passHref className="mt-2">
               <Button variant="outline" size="sm" className="mt-2">View Payments</Button>
