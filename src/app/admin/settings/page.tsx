@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Cog, Save } from 'lucide-react';
+import { Clock, Save, Cog } from 'lucide-react'; // Changed Cog to Clock for primary icon
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,7 +23,7 @@ const timezones = [
   { value: 'Asia/Manila', label: 'Manila (PST)'},
 ];
 
-export default function AdminSettingsPage() {
+export default function AdminTimezoneSettingsPage() { // Renamed component
   const { systemTimezone, updateSystemTimezone } = useAppContext();
   const { toast } = useToast();
   const [selectedTimezone, setSelectedTimezone] = useState<string | null>(null);
@@ -36,8 +36,6 @@ export default function AdminSettingsPage() {
 
   const handleTimezoneChange = (value: string) => {
     setSelectedTimezone(value);
-    // Optionally update context immediately or wait for save button
-    // For this example, we'll update immediately and save button will confirm
     updateSystemTimezone(value); 
   };
 
@@ -60,26 +58,23 @@ export default function AdminSettingsPage() {
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline">System Settings</h1>
-        <p className="text-muted-foreground">Manage global TenantTracker application settings.</p>
+        <h1 className="text-3xl font-bold font-headline">System Timezone Settings</h1>
+        <p className="text-muted-foreground">Manage the primary timezone for the TenantTracker application.</p>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Cog className="mr-2 h-6 w-6 text-primary" />
-            Configuration Options
+            <Clock className="mr-2 h-6 w-6 text-primary" /> {/* Changed icon */}
+            Timezone Configuration
           </CardTitle>
           <CardDescription>
-            Set system-wide preferences for the application.
+            Set the system-wide timezone. This may affect how dates and times are displayed and processed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="timezone-select" className="text-base font-semibold">System Timezone</Label>
-            <p className="text-sm text-muted-foreground">
-              Select the primary timezone for the application. This may affect how dates and times are displayed and processed.
-            </p>
             <Select 
               value={selectedTimezone || ''} 
               onValueChange={handleTimezoneChange}
@@ -105,25 +100,19 @@ export default function AdminSettingsPage() {
           <div className="border-t pt-6">
             <Button onClick={handleSaveChanges} className="shadow-md hover:shadow-lg transition-shadow">
               <Save className="mr-2 h-4 w-4" />
-              Save Settings
+              Save Timezone Setting
             </Button>
           </div>
-
+          
           <div className="mt-8 p-6 border rounded-lg bg-muted/30">
              <h3 className="text-lg font-semibold mb-2 flex items-center">
                 <Cog className="mr-2 h-5 w-5 text-muted-foreground" />
-                Other Settings
+                Other System Settings
              </h3>
              <p className="text-sm text-muted-foreground">
-                Placeholder for future system-wide configuration options. Examples could include:
+                Other global configuration options will be managed in their respective sections (e.g., Super Admin Users).
              </p>
-             <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1 pl-2">
-                <li>Default currency formatting.</li>
-                <li>Date display preferences (e.g., MM/DD/YYYY vs DD/MM/YYYY).</li>
-                <li>Branding options (e.g., application logo for white-labeling).</li>
-             </ul>
           </div>
-
         </CardContent>
       </Card>
     </div>
