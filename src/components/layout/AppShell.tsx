@@ -17,16 +17,17 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft } from 'lucide-react';
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppContext } from '@/contexts/AppContext'; // Added for viewingAsClientId
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  adminOnly?: boolean; // This property is for the main app view
+  adminOnly?: boolean;
 }
 
 const appNavItems: NavItem[] = [
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { viewingAsClientId, clients, setViewMode } = useAppContext(); // Get context for impersonation
 
   const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
@@ -58,12 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const activeAdminItem = adminNavItems.find(item => pathname.startsWith(item.href) && (item.href === '/admin' ? pathname === '/admin' : true) );
     currentActivePageLabel = activeAdminItem?.label || 'Admin';
   } else {
-    currentNavItemsToDisplay = appNavItems.filter(item => {
-      if (item.adminOnly) { // Should not apply to appNavItems as defined
-        return user?.isSuperAdmin === true;
-      }
-      return true;
-    });
+    currentNavItemsToDisplay = appNavItems;
     const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
     const activeAppItem = currentNavItemsToDisplay.find(item =>
       item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')
@@ -71,6 +68,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     currentActivePageLabel = activeAppItem?.label || 'TenantTracker';
   }
 
+  const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
+
+  const handleReturnToAdminView = () => {
+    setViewMode(null);
+    router.push('/admin');
+  };
 
   return (
     <SidebarProvider defaultOpen>
@@ -129,24 +132,34 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar" />
+                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar"/>
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.username || 'My Account'}{user?.isSuperAdmin && " (Super Admin)"}</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {user?.username || 'My Account'}
+                  {user?.isSuperAdmin && !viewingClient && " (Super Admin)"}
+                  {viewingClient && ` (Viewing as ${viewingClient.name})`}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {user?.isSuperAdmin && !isAdminSection && (
+                {user?.isSuperAdmin && viewingAsClientId && (
+                  <DropdownMenuItem onClick={handleReturnToAdminView}>
+                    <ShieldAlert className="mr-2 h-4 w-4" />
+                    Return to Admin View
+                  </DropdownMenuItem>
+                )}
+                {user?.isSuperAdmin && !viewingAsClientId && !isAdminSection && (
                   <DropdownMenuItem onClick={() => router.push('/admin')}>
                     <ShieldAlert className="mr-2 h-4 w-4" />
                     Go to Admin
                   </DropdownMenuItem>
                 )}
-                {isAdminSection && (
+                {user?.isSuperAdmin && !viewingAsClientId && isAdminSection && (
                   <DropdownMenuItem onClick={() => router.push('/')}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to App
+                    Back to App (Global View)
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
@@ -159,6 +172,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
+          {user?.isSuperAdmin && viewingClient && (
+            <div className="bg-primary/10 text-primary-foreground py-2 px-6 text-sm flex items-center justify-center shadow">
+              <Eye className="mr-2 h-4 w-4 text-primary" />
+              You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
+            </div>
+          )}
           <main className="flex-1 overflow-y-auto p-6">
             {children}
           </main>

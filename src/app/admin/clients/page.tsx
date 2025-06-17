@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Users } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye } from 'lucide-react'; // Replaced Users with Eye
 import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -19,11 +19,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // Removed as it's no longer used
 } from "@/components/ui/alert-dialog";
+import { useRouter } from 'next/navigation';
 
 export default function AdminClientsPage() {
-  const { clients, addClient, deleteClient } = useAppContext();
+  const { clients, addClient, deleteClient, setViewMode } = useAppContext();
+  const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -39,8 +40,10 @@ export default function AdminClientsPage() {
     setIsFormOpen(false);
   };
   
-  const handleManageUsers = (client: Client) => {
-    toast({ title: "Not Implemented", description: `User management for ${client.name} is not yet implemented.`});
+  const handleViewAsClient = (client: Client) => {
+    setViewMode(client.id);
+    router.push('/'); // Navigate to the main dashboard
+    toast({ title: "Viewing as Client", description: `Now viewing data for ${client.name}.`});
   }
   
   const confirmDeleteClient = (client: Client) => {
@@ -85,8 +88,8 @@ export default function AdminClientsPage() {
                     <TableRow key={client.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell className="font-medium">{client.name}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleManageUsers(client)} title="Manage Users">
-                           <Users className="h-4 w-4" />
+                        <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client)} title="View as Client">
+                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)} title="Edit Client">
                            <Edit className="h-4 w-4" />
@@ -119,6 +122,7 @@ export default function AdminClientsPage() {
           setClientToDelete(null);
         }
       }}>
+        {/* AlertDialogContent is only rendered if clientToDelete is not null to prevent errors */}
         {clientToDelete && (
           <AlertDialogContent>
             <AlertDialogHeader>
