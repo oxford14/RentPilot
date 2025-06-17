@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { Users, CreditCard, AlertTriangle, DollarSign } from "lucide-react";
+import { Users, CreditCard, AlertTriangle, DollarSign, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
