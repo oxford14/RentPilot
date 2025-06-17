@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -35,9 +35,10 @@ type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultTenantId?: string | null;
 }
 
-export function PaymentForm({ isOpen, onClose }: PaymentFormProps) {
+export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormProps) {
   const { tenants, addPayment } = useAppContext();
   const { toast } = useToast();
 
@@ -46,18 +47,35 @@ export function PaymentForm({ isOpen, onClose }: PaymentFormProps) {
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      tenantId: '',
+      tenantId: defaultTenantId || '',
       amount: 0,
       date: new Date(),
       paymentMethod: undefined,
     },
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        tenantId: defaultTenantId || '',
+        amount: 0,
+        date: new Date(),
+        paymentMethod: undefined,
+      });
+    }
+  }, [isOpen, defaultTenantId, form]);
+
   const onSubmit = (data: PaymentFormValues) => {
     try {
       addPayment({...data, date: data.date.toISOString()});
-      toast({ title: "Payment Recorded", description: `Payment of $${data.amount} for tenant recorded successfully.` });
-      form.reset();
+      const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
+      toast({ title: "Payment Recorded", description: `Payment of $${data.amount} for ${tenantName} recorded successfully.` });
+      form.reset({ 
+        tenantId: defaultTenantId || '', 
+        amount: 0, 
+        date: new Date(), 
+        paymentMethod: undefined 
+      });
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to record payment." });
@@ -78,7 +96,7 @@ export function PaymentForm({ isOpen, onClose }: PaymentFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tenant</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a tenant" />
@@ -162,7 +180,7 @@ export function PaymentForm({ isOpen, onClose }: PaymentFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Payment Method</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select payment method" />
