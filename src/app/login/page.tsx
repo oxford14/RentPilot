@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppContext } from '@/contexts/AppContext'; // Import useAppContext
 import { useRouter } from 'next/navigation';
 import { Building, LogIn } from 'lucide-react';
 
@@ -22,7 +23,8 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login: authLogin, isAuthenticated, isLoading } = useAuth(); // Renamed to authLogin
+  const { rawManagedUsers, clients } = useAppContext(); // Get rawManagedUsers and clients
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -35,16 +37,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push('/'); // Redirect if already logged in
+      router.push('/'); 
     }
   }, [isAuthenticated, isLoading, router]);
 
   const onSubmit = async (data: LoginFormValues) => {
-    await login(data.username, data.password);
+    // Pass rawManagedUsers and clients to the login function
+    await authLogin(data.username, data.password, rawManagedUsers, clients); 
   };
 
   if (isLoading || isAuthenticated) {
-     // Show loading or nothing while checking auth or redirecting
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
         <p className="text-muted-foreground">Loading...</p>
@@ -102,6 +104,12 @@ export default function LoginPage() {
       </Card>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Demo credentials: admin / password123
+      </p>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        Client Admin: clientAdminMain / password123 (for Main Street Properties)
+      </p>
+       <p className="mt-2 text-center text-sm text-muted-foreground">
+        Client Admin: clientAdminOak / password123 (for Oak View Rentals)
       </p>
     </div>
   );

@@ -7,7 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client, ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Users, Building, Edit2, Trash2 } from 'lucide-react'; // Added Edit2, Trash2
+import { UsersRound, UserPlus, Building, Edit2, Trash2 } from 'lucide-react'; 
 import { ManagedUserForm } from '@/components/admin/ManagedUserForm'; 
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -22,22 +22,24 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function AdminUsersPage() {
-  const { clients, managedUsers, deleteManagedUser } = useAppContext();
+  // For super admin, useAppContext().clients and useAppContext().managedUsers (which is filtered by viewingAsClientId)
+  // or useAppContext().rawManagedUsers (for all users if needed for some logic, but display should be scoped)
+  const { clients, managedUsers: contextManagedUsers, deleteManagedUser, rawManagedUsers } = useAppContext();
   const { toast } = useToast();
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
-  const [selectedClientForUser, setSelectedClientForUser] = useState<Client | null>(null);
+  const [selectedClientForUserForm, setSelectedClientForUserForm] = useState<Client | null>(null); // Client whose users are being managed in form
   const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
 
 
   const handleOpenUserForm = (client: Client, user?: ManagedUser) => {
-    setSelectedClientForUser(client);
+    setSelectedClientForUserForm(client);
     setEditingUser(user || null);
     setIsUserFormOpen(true);
   };
 
   const handleCloseUserForm = () => {
-    setSelectedClientForUser(null);
+    setSelectedClientForUserForm(null);
     setEditingUser(null);
     setIsUserFormOpen(false);
   };
@@ -48,7 +50,7 @@ export default function AdminUsersPage() {
 
   const handleDeleteUser = () => {
     if (userToDelete) {
-      deleteManagedUser(userToDelete.id);
+      deleteManagedUser(userToDelete.id); // deleteManagedUser in context should handle permissions/scoping if necessary
       toast({ title: "User Deleted", description: `User ${userToDelete.username} has been deleted.` });
       setUserToDelete(null);
     }
@@ -57,8 +59,8 @@ export default function AdminUsersPage() {
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline">Client User Management</h1>
-        <p className="text-muted-foreground">Manage user accounts for your client organizations.</p>
+        <h1 className="text-3xl font-bold font-headline">All Client User Management (Super Admin)</h1>
+        <p className="text-muted-foreground">Manage user accounts for all client organizations.</p>
       </div>
 
       <Card className="shadow-lg">
@@ -75,7 +77,8 @@ export default function AdminUsersPage() {
           {clients.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
               {clients.map((client) => {
-                const clientUsers = managedUsers.filter(user => user.clientId === client.id);
+                // Get users specifically for this client from rawManagedUsers for display by super admin
+                const clientUsers = rawManagedUsers.filter(user => user.clientId === client.id);
                 return (
                   <AccordionItem value={client.id} key={client.id}>
                     <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 rounded-md transition-colors">
@@ -87,7 +90,7 @@ export default function AdminUsersPage() {
                     <AccordionContent className="pt-2 pb-4 px-4 space-y-3 bg-muted/30 rounded-b-md border-t">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="text-md font-semibold flex items-center">
-                          <Users className="mr-2 h-5 w-5 text-primary" /> Users for {client.name} ({clientUsers.length})
+                          <UsersRound className="mr-2 h-5 w-5 text-primary" /> Users for {client.name} ({clientUsers.length})
                         </h4>
                         <Button 
                           variant="outline" 
@@ -135,11 +138,12 @@ export default function AdminUsersPage() {
         </CardContent>
       </Card>
 
-      {isUserFormOpen && selectedClientForUser && (
+      {isUserFormOpen && selectedClientForUserForm && (
         <ManagedUserForm
           isOpen={isUserFormOpen}
           onClose={handleCloseUserForm}
-          client={selectedClientForUser}
+          targetClientId={selectedClientForUserForm.id}
+          targetClientName={selectedClientForUserForm.name}
           user={editingUser}
         />
       )}

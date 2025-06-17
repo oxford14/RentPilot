@@ -1,8 +1,8 @@
 
-
 export interface User { // For AuthContext user
   username: string;
   isSuperAdmin?: boolean;
+  clientId?: string; 
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin
@@ -10,8 +10,7 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   username: string;
   email: string;
   clientId: string;
-  password?: string; // Optional: for creation/update, not always displayed/stored in plaintext long-term
-  // role?: 'client-admin' | 'client-viewer'; // Future enhancement
+  password?: string; 
 }
 
 export interface Tenant {
@@ -21,7 +20,7 @@ export interface Tenant {
   phone: string;
   monthlyRentalRate: number;
   status: 'active' | 'inactive';
-  joinDate: string; // Store as ISO string for simplicity
+  joinDate: string; 
   clientId?: string; 
 }
 
@@ -30,7 +29,7 @@ export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Other';
 export interface Payment {
   id: string;
   tenantId: string;
-  date: string; // Store as ISO string
+  date: string; 
   amount: number;
   paymentMethod: PaymentMethod;
   clientId?: string; 
@@ -45,15 +44,29 @@ export interface AppState {
   rawTenants: Tenant[];
   rawPayments: Payment[];
   clients: Client[];
-  rawManagedUsers: ManagedUser[]; // Added for client users
+  rawManagedUsers: ManagedUser[];
   viewingAsClientId: string | null;
 }
+
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  user: User | null;
+  isLoading: boolean;
+  login: (
+    usernameInput: string, 
+    passwordInput: string,
+    allManagedUsers: ManagedUser[], // Added
+    allClients: Client[]           // Added
+  ) => Promise<void>;
+  logout: () => void;
+}
+
 
 export interface AppContextType {
   tenants: Tenant[]; 
   payments: Payment[]; 
   clients: Client[];
-  managedUsers: ManagedUser[]; // Added for client users
+  managedUsers: ManagedUser[]; 
   viewingAsClientId: string | null;
   
   setViewMode: (clientId: string | null) => void;
@@ -67,8 +80,9 @@ export interface AppContextType {
   updateClient: (client: Client) => void; 
   deleteClient: (clientId: string) => void;
 
-  addManagedUser: (userData: Omit<ManagedUser, 'id'>) => void;
+  addManagedUser: (userData: Omit<ManagedUser, 'id'>) => void; 
   updateManagedUser: (user: ManagedUser) => void;
   deleteManagedUser: (userId: string) => void;
-}
 
+  rawManagedUsers: ManagedUser[]; // Exposed for login page
+}
