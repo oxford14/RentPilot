@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -89,7 +89,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
   const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
-  const showTooltip = sidebarState === 'collapsed' && !isMobile;
+  const showTooltip = sidebarState === 'collapsed' && !sidebarIsMobile;
 
   const trigger = (
     <AccordionTrigger
@@ -149,7 +149,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
-  // const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar(); // Removed from here
 
   const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
   const isAdminSection = pathname.startsWith('/admin');
@@ -214,7 +213,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       }
       if (activeItemFound) break;
     }
-     if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; 
+     if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
+     else if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; 
   }
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
@@ -417,8 +417,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => alert("Settings clicked!")}>Settings</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => alert("Settings clicked!")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
