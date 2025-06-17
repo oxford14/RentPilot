@@ -13,12 +13,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, CalendarClock } from 'lucide-react';
-import type { Tenant, Payment } from '@/lib/types';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2 } from 'lucide-react';
+import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfDay } from 'date-fns';
-import { isTenantCurrentlyDueForRent } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -26,14 +25,9 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, payments, updateTenant } = useAppContext();
+  const { tenants, updateTenant } = useAppContext();
   const { toast } = useToast();
-  const [clientToday, setClientToday] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setClientToday(startOfDay(new Date()));
-  }, []);
-
+  
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
     updateTenant({ ...tenant, status: newStatus });
@@ -69,14 +63,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             <TableHead className="hidden md:table-cell">Phone</TableHead>
             <TableHead className="text-right">Rent (₱)</TableHead>
             <TableHead className="text-center">Status</TableHead>
-            <TableHead className="text-center">Rent Status</TableHead>
             <TableHead className="hidden md:table-cell text-center">Join Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {displayedTenants.map((tenant) => {
-            const rentIsDueToday = clientToday ? isTenantCurrentlyDueForRent(tenant, payments, clientToday) : false;
             return (
               <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                 <TableCell className="font-medium">{tenant.name}</TableCell>
@@ -88,18 +80,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                     {tenant.status === 'active' ? <UserCheck className="h-3 w-3 mr-1" /> : <UserX className="h-3 w-3 mr-1" />}
                     {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-center">
-                  {clientToday === null ? (
-                    <span className="text-xs text-muted-foreground">...</span>
-                  ) : rentIsDueToday ? (
-                    <Badge variant="outline" className="bg-orange-500/20 text-orange-700 border-orange-500">
-                      <CalendarClock className="h-3 w-3 mr-1" />
-                      Due Today
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">-</span>
-                  )}
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-center">{format(new Date(tenant.joinDate), "PP")}</TableCell>
                 <TableCell className="text-right">
