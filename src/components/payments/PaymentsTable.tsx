@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search } from 'lucide-react';
 
 const PaymentMethodIcon = ({ method }: { method: string }) => {
   switch (method) {
@@ -24,7 +24,11 @@ const PaymentMethodIcon = ({ method }: { method: string }) => {
   }
 };
 
-export function PaymentsTable() {
+interface PaymentsTableProps {
+  searchTerm?: string;
+}
+
+export function PaymentsTable({ searchTerm }: PaymentsTableProps) {
   const { payments, tenants } = useAppContext();
 
   const getTenantName = (tenantId: string): string => {
@@ -32,10 +36,29 @@ export function PaymentsTable() {
     return tenant ? tenant.name : 'Unknown Tenant';
   };
 
-  const sortedPayments = [...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredAndSortedPayments = useMemo(() => {
+    let processedPayments = [...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  if (!sortedPayments || sortedPayments.length === 0) {
-    return <p className="text-center text-muted-foreground py-8">No payments recorded yet. Add a payment to see it here.</p>;
+    if (searchTerm && searchTerm.trim() !== '') {
+      const lowercasedSearchTerm = searchTerm.toLowerCase();
+      processedPayments = processedPayments.filter(payment =>
+        getTenantName(payment.tenantId).toLowerCase().includes(lowercasedSearchTerm)
+      );
+    }
+    return processedPayments;
+  }, [payments, searchTerm, tenants]);
+
+
+  if (!filteredAndSortedPayments || filteredAndSortedPayments.length === 0) {
+    const message = searchTerm && searchTerm.trim() !== ''
+      ? "No payments found matching your search."
+      : "No payments recorded yet. Add a payment to see it here.";
+    return (
+      <div className="text-center text-muted-foreground py-8">
+        {searchTerm && searchTerm.trim() !== '' && <Search className="mx-auto h-10 w-10 mb-2 text-gray-400" />}
+        <p>{message}</p>
+      </div>
+    );
   }
 
   return (
@@ -50,7 +73,7 @@ export function PaymentsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedPayments.map((payment) => (
+          {filteredAndSortedPayments.map((payment) => (
             <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
               <TableCell className="font-medium">{getTenantName(payment.tenantId)}</TableCell>
               <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
