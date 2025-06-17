@@ -59,7 +59,7 @@ export default function LoginPage() {
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center items-center gap-2 mb-4">
             <Building className="h-10 w-10 text-primary" />
-            <CardTitle className="text-3xl font-bold font-headline">TenantTracker</CardTitle>
+            <CardTitle className="text-3xl font-bold font-headline">RentPilot</CardTitle>
           </div>
           <CardDescription>Please sign in to access your account</CardDescription>
         </CardHeader>

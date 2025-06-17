@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 
 
 export const metadata: Metadata = {
-  title: 'TenantTracker - Rental Management',
+  title: 'RentPilot - Rental Management',
   description: 'Manage tenants, payments, and reports efficiently.',
 };
 

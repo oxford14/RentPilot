@@ -59,7 +59,7 @@ export default function AdminTimezoneSettingsPage() { // Renamed component
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline">System Timezone Settings</h1>
-        <p className="text-muted-foreground">Manage the primary timezone for the TenantTracker application.</p>
+        <p className="text-muted-foreground">Manage the primary timezone for the RentPilot application.</p>
       </div>
 
       <Card className="shadow-lg">
@@ -118,4 +118,3 @@ export default function AdminTimezoneSettingsPage() { // Renamed component
     </div>
   );
 }
-

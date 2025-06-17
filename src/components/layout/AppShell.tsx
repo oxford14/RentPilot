@@ -150,12 +150,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
 
-  const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'TT';
+  const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'RP';
   const isAdminSection = pathname.startsWith('/admin');
 
   let currentAppNavItems: AppSidebarNavItem[] = [];
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
-  let currentActivePageLabel = 'TenantTracker';
+  let currentActivePageLabel = 'RentPilot';
 
 
   if (isAdminSection) {
@@ -217,7 +217,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
      if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
      else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
-     else if (!activeItemFound) currentActivePageLabel = 'TenantTracker'; 
+     else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
@@ -237,17 +237,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const handleUserDropdownSettingsClick = () => {
     if (authUser?.isSuperAdmin) {
-      router.push('/admin/settings'); // Super Admin system-wide settings
+      router.push('/admin/settings'); 
     } else {
-      router.push('/settings'); // Client User/Admin password change page
+      router.push('/settings'); 
     }
   };
   
   const handleSidebarFooterSettingsClick = () => {
     if (authUser?.isSuperAdmin) {
-      router.push('/admin/settings'); // Super Admin system-wide settings
+      router.push('/admin/settings'); 
     } else {
-      router.push('/profile'); // Client users go to their profile from global settings link
+      router.push('/profile'); 
     }
   };
 
@@ -285,7 +285,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
                 <AppLogoOrIcon />
                 <span className="group-data-[collapsible=icon]:hidden font-headline">
-                  {isAdminSection && !viewingClient ? 'TenantTracker' : activeClientForDisplay?.name || 'TenantTracker'}
+                  {isAdminSection && !viewingClient ? 'RentPilot' : activeClientForDisplay?.name || 'RentPilot'}
                 </span>
             </Link>
           </SidebarHeader>
@@ -466,4 +466,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
