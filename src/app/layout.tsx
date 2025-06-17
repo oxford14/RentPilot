@@ -1,7 +1,11 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { AppProvider } from '@/contexts/AppContext';
-import { AppShell } from '@/components/layout/AppShell';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
+import { Toaster } from "@/components/ui/toaster";
+
 
 export const metadata: Metadata = {
   title: 'TenantTracker - Rental Management',
@@ -21,11 +25,14 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <AppProvider>
-          <AppShell>
-            {children}
-          </AppShell>
-        </AppProvider>
+        <AuthProvider>
+          <AppProvider>
+            <ProtectedLayout>
+              {children}
+            </ProtectedLayout>
+            <Toaster />
+          </AppProvider>
+        </AuthProvider>
       </body>
     </html>
   );

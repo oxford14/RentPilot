@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Toaster } from "@/components/ui/toaster";
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 interface NavItem {
   href: string;
@@ -37,6 +37,9 @@ const navItems: NavItem[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user, logout } = useAuth(); // Get user and logout function
+
+  const userInitials = user?.username ? user.username.substring(0, 2).toUpperCase() : 'TT';
 
   return (
     <SidebarProvider defaultOpen>
@@ -73,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton 
                         tooltip={{ children: "Settings", side: "right", className: "ml-2" }} 
                         className="justify-start"
-                        onClick={() => alert("Settings clicked!")}
+                        onClick={() => alert("Settings clicked!")} // This can be wired up later
                         >
                         <Settings className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Settings</span>
@@ -96,17 +99,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
                     <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>TT</AvatarFallback>
+                    <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.username || 'My Account'}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => alert("Settings clicked!")}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>
@@ -118,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
         </SidebarInset>
       </div>
-      <Toaster />
+      {/* Toaster is now globally in RootLayout */}
     </SidebarProvider>
   );
 }

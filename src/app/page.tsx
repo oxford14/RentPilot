@@ -41,7 +41,7 @@ export default function DashboardPage() {
       
       const lastPaymentDate = new Date(lastPayment.date);
       const daysSinceLastPayment = (today.getTime() - lastPaymentDate.getTime()) / (1000 * 3600 * 24);
-      return daysSinceLastPayment > 35;
+      return daysSinceLastPayment > 35; // A simple heuristic: more than ~35 days since last payment might indicate delinquency
     }).length;
     setDelinquentTenantsCount(potentiallyDelinquent);
 
