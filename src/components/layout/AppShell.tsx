@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from 'react'; // Added this import
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck as SuperAdminIcon } from 'lucide-react'; // Added Clock and renamed ShieldCheck for clarity
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, SuperAdminIcon } from 'lucide-react'; // ShieldCheck renamed to SuperAdminIcon for admin role
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +28,7 @@ interface AppNavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  adminOnly?: boolean; // Should not be used for appNavItems
+  adminOnly?: boolean;
   clientAdminOnly?: boolean;
 }
 
