@@ -26,7 +26,7 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
-  const { addClient, updateClient, clients } = useAppContext(); // updateClient might not exist yet
+  const { addClient, updateClient } = useAppContext(); 
   const { toast } = useToast();
 
   const form = useForm<ClientFormValues>({
@@ -43,14 +43,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   const onSubmit = (data: ClientFormValues) => {
     try {
       if (client) {
-        if (updateClient) {
-          updateClient({ ...client, ...data });
-           toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
-        } else {
-            // Mock update if updateClient is not implemented in context
-            console.log("Mock update client:", { ...client, ...data });
-            toast({ title: "Client Updated (Mock)", description: `${data.name} would be updated.` });
-        }
+        updateClient({ ...client, ...data });
+        toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
       } else {
         addClient(data);
         toast({ title: "Client Added", description: `${data.name} has been added successfully.` });

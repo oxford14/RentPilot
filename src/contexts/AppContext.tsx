@@ -81,8 +81,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setClients(prev => [...prev, newClient]);
   };
 
+  const updateClient = (updatedClient: Client) => {
+    setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+  };
+
+  const deleteClient = (clientId: string) => {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
   return (
-    <AppContext.Provider value={{ tenants, payments, clients, addTenant, updateTenant, addPayment, addClient }}>
+    <AppContext.Provider value={{ tenants, payments, clients, addTenant, updateTenant, addPayment, addClient, updateClient, deleteClient }}>
       {children}
     </AppContext.Provider>
   );

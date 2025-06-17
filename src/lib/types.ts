@@ -43,6 +43,6 @@ export interface AppContextType extends AppState {
   updateTenant: (tenant: Tenant) => void;
   addPayment: (payment: Omit<Payment, 'id'>) => void;
   addClient: (clientData: Omit<Client, 'id'>) => void;
-  updateClient?: (client: Client) => void; // Optional for future
-  deleteClient?: (clientId: string) => void; // Optional for future
+  updateClient: (client: Client) => void; 
+  deleteClient: (clientId: string) => void;
 }

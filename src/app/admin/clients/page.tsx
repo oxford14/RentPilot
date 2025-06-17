@@ -8,13 +8,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
 import { PlusCircle, Edit, Trash2, Users } from 'lucide-react';
-import { ClientForm } from '@/components/admin/ClientForm'; // We'll create this
+import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminClientsPage() {
-  const { clients, addClient } = useAppContext();
+  const { clients, addClient, deleteClient } = useAppContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const { toast } = useToast();
 
   const handleOpenForm = (client?: Client) => {
@@ -31,9 +43,17 @@ export default function AdminClientsPage() {
     toast({ title: "Not Implemented", description: `User management for ${client.name} is not yet implemented.`});
   }
   
-  const handleDeleteClient = (client: Client) => {
-    toast({ variant: "destructive", title: "Not Implemented", description: `Deletion of ${client.name} is not yet implemented.`});
-  }
+  const confirmDeleteClient = (client: Client) => {
+    setClientToDelete(client);
+  };
+
+  const handleDeleteClient = () => {
+    if (clientToDelete) {
+      deleteClient(clientToDelete.id);
+      toast({ title: "Client Deleted", description: `${clientToDelete.name} has been deleted.`});
+      setClientToDelete(null);
+    }
+  };
 
 
   return (
@@ -71,9 +91,11 @@ export default function AdminClientsPage() {
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)} title="Edit Client">
                            <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteClient(client)} title="Delete Client">
-                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" onClick={() => confirmDeleteClient(client)} title="Delete Client">
+                             <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -91,8 +113,24 @@ export default function AdminClientsPage() {
           isOpen={isFormOpen}
           onClose={handleCloseForm}
           client={editingClient}
-          // addClient and updateClient will be handled within ClientForm using useAppContext
         />
+      )}
+
+      {clientToDelete && (
+        <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the client "{clientToDelete.name}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setClientToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteClient}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
