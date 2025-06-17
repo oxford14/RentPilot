@@ -24,13 +24,13 @@ type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
 interface ManagedUserFormProps {
   isOpen: boolean;
   onClose: () => void;
-  targetClientId: string; // Changed from client: Client
-  targetClientName: string; // Added for dialog title
+  targetClientId: string; 
+  targetClientName: string; 
   user?: ManagedUser | null; 
 }
 
 export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientName, user }: ManagedUserFormProps) {
-  const { addManagedUser, updateManagedUser, rawManagedUsers } = useAppContext(); // Use rawManagedUsers for broader check if needed, or context-filtered 'managedUsers'
+  const { addManagedUser, updateManagedUser, rawManagedUsers } = useAppContext(); 
   const { toast } = useToast();
 
   const form = useForm<ManagedUserFormValues>({
@@ -46,46 +46,46 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
 
   const onSubmit = (data: ManagedUserFormValues) => {
     try {
-      // Check for duplicate username within the same client (targetClientId)
-      // Note: useAppContext().managedUsers might be filtered depending on who is logged in.
-      // For super admin using this form from /admin/users, they are likely seeing all users for the targetClient.
-      // For client admin using this form from /users, they see their own client's users.
-      // So, checking against `rawManagedUsers` filtered by `targetClientId` is most robust.
-      const existingUserWithSameUsername = rawManagedUsers.find(
-        (mu) => mu.clientId === targetClientId && mu.username.toLowerCase() === data.username.toLowerCase() && mu.id !== user?.id
-      );
-
-      if (existingUserWithSameUsername) {
-        form.setError("username", { type: "manual", message: "Username already exists for this client." });
-        toast({ variant: "destructive", title: "Validation Error", description: "Username already exists for this client." });
+      // Password validation for new users or when password is being changed
+      if (!user && (!data.password || data.password.length < 6)) {
+        form.setError("password", { type: "manual", message: "Password is required and must be at least 6 characters." });
+        toast({ variant: "destructive", title: "Validation Error", description: "Password is required and must be at least 6 characters."});
         return;
+      }
+      if (user && data.password && data.password.length < 6) {
+        form.setError("password", { type: "manual", message: "New password must be at least 6 characters." });
+        toast({ variant: "destructive", title: "Validation Error", description: "New password must be at least 6 characters." });
+        return;
+      }
+
+      // Globally unique password check (if password is provided)
+      if (data.password) {
+        const existingUserWithSamePassword = rawManagedUsers.find(
+          (mu) => mu.password === data.password && mu.id !== user?.id
+        );
+        if (existingUserWithSamePassword) {
+          form.setError("password", { type: "manual", message: "This password is already in use globally. Please choose a different one." });
+          toast({ variant: "destructive", title: "Validation Error", description: "This password is already in use globally. Please choose a different one." });
+          return;
+        }
       }
 
       const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
         username: data.username,
         email: data.email,
-        clientId: targetClientId, // Use targetClientId passed to the form
+        clientId: targetClientId, 
       };
 
       if (user) { // Editing existing user
         if (data.password) { 
-          if (data.password.length < 6) {
-            form.setError("password", { type: "manual", message: "New password must be at least 6 characters." });
-            toast({ variant: "destructive", title: "Validation Error", description: "New password must be at least 6 characters." });
-            return;
-          }
           userDataPayload.password = data.password;
         }
-        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId }); // Ensure clientId is correctly passed
+        // If password is not provided for an existing user, it's not included in userDataPayload, so AppContext won't update it
+        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId }); 
         toast({ title: "User Updated", description: `${data.username} for ${targetClientName} has been updated.` });
       } else { // Adding new user
-        if (!data.password || data.password.length < 6) {
-          form.setError("password", { type: "manual", message: "Password is required and must be at least 6 characters." });
-          toast({ variant: "destructive", title: "Validation Error", description: "Password is required and must be at least 6 characters."});
-          return;
-        }
-        userDataPayload.password = data.password;
-        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>); // addManagedUser expects clientId to be on userData
+        userDataPayload.password = data.password; // Password is required for new users (validated above)
+        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>); 
         toast({ title: "User Added", description: `${data.username} has been added to ${targetClientName}.` });
       }
       form.reset({ username: '', email: '', password: '' });
@@ -137,7 +137,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{user ? 'New Password (optional)' : 'Password'}</FormLabel>
+                  <FormLabel>{user ? 'New Password (optional to change)' : 'Password'}</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
