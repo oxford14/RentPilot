@@ -6,10 +6,11 @@ import type { DateRange } from 'react-day-picker';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
 import { useAppContext } from '@/contexts/AppContext';
-import { AreaChart as LucideAreaChart, BarChartHorizontalBig, Info } from 'lucide-react';
+import { AreaChart as LucideAreaChart, BarChartHorizontalBig, Info, TrendingUp, TrendingDown, DollarSign, ListChecks } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { cn } from "@/lib/utils";
 
 interface MonthlyData {
   name: string; // e.g., "Jan '24"
@@ -35,17 +36,19 @@ const chartConfig = {
 
 
 export default function EarningsReportPage() {
-  const { payments, expenses: allExpenses } = useAppContext(); // Renamed to avoid conflict
+  const { payments, expenses: allExpenses } = useAppContext();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [chartData, setChartData] = useState<MonthlyData[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [totalIncomeForPeriod, setTotalIncomeForPeriod] = useState(0);
+  const [totalExpensesForPeriod, setTotalExpensesForPeriod] = useState(0);
+  const [netProfitForPeriod, setNetProfitForPeriod] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
-     // Set a default date range, e.g., this month, on initial load
     const today = new Date();
     const from = startOfDay(new Date(today.getFullYear(), today.getMonth(), 1));
-    const to = endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0)); // Last day of current month
+    const to = endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0));
     setDateRange({ from, to });
   }, []);
 
@@ -53,14 +56,31 @@ export default function EarningsReportPage() {
   useEffect(() => {
     if (!isClient || !dateRange?.from || !dateRange?.to) {
       setChartData([]);
+      setTotalIncomeForPeriod(0);
+      setTotalExpensesForPeriod(0);
+      setNetProfitForPeriod(0);
       return;
     }
 
     const startDate = startOfDay(new Date(dateRange.from));
     const endDate = endOfDay(new Date(dateRange.to));
 
-    const monthlyAggregates: Record<string, { name: string; income: number; expenses: number }> = {};
+    const periodPayments = payments.filter(p => {
+        const paymentDate = new Date(p.date);
+        return paymentDate >= startDate && paymentDate <= endDate;
+    });
+    const periodExpenses = allExpenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate >= startDate && expenseDate <= endDate;
+    });
 
+    const currentTotalIncome = periodPayments.reduce((sum, p) => sum + p.amount, 0);
+    const currentTotalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+    setTotalIncomeForPeriod(currentTotalIncome);
+    setTotalExpensesForPeriod(currentTotalExpenses);
+    setNetProfitForPeriod(currentTotalIncome - currentTotalExpenses);
+
+    const monthlyAggregates: Record<string, { name: string; income: number; expenses: number }> = {};
     let currentMonthIter = new Date(startDate);
     while (currentMonthIter <= endDate) {
       const monthYearStr = getMonthYear(currentMonthIter.toISOString());
@@ -72,29 +92,19 @@ export default function EarningsReportPage() {
       currentMonthIter.setDate(1); 
     }
 
-    payments
-      .filter(p => {
-        const paymentDate = new Date(p.date);
-        return paymentDate >= startDate && paymentDate <= endDate;
-      })
-      .forEach(p => {
+    periodPayments.forEach(p => {
         const monthYearStr = getMonthYear(p.date);
         if (monthlyAggregates[monthYearStr]) {
           monthlyAggregates[monthYearStr].income += p.amount;
         }
-      });
+    });
 
-    allExpenses
-      .filter(e => {
-        const expenseDate = new Date(e.date);
-        return expenseDate >= startDate && expenseDate <= endDate;
-      })
-      .forEach(e => {
+    periodExpenses.forEach(e => {
         const monthYearStr = getMonthYear(e.date);
         if (monthlyAggregates[monthYearStr]) {
           monthlyAggregates[monthYearStr].expenses += e.amount;
         }
-      });
+    });
     
     const sortedChartData = Object.keys(monthlyAggregates)
       .sort()
@@ -182,6 +192,55 @@ export default function EarningsReportPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center">
+            <ListChecks className="mr-2 h-5 w-5 text-primary" />
+            Period Summary
+          </CardTitle>
+          <CardDescription>
+            Total income, expenses, and net profit for the selected period.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-7 w-7 text-green-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Income</p>
+                <p className="text-xl font-semibold text-green-600">
+                  ₱{isClient ? totalIncomeForPeriod.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+            <div className="flex items-center gap-3">
+              <TrendingDown className="h-7 w-7 text-red-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Expenses</p>
+                <p className="text-xl font-semibold text-destructive">
+                  ₱{isClient ? totalExpensesForPeriod.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-3 border rounded-md bg-card shadow-sm">
+            <div className="flex items-center gap-3">
+              <DollarSign className={cn("h-7 w-7", isClient && netProfitForPeriod >= 0 ? "text-green-500" : isClient && netProfitForPeriod < 0 ? "text-destructive" : "text-muted-foreground")} />
+              <div>
+                 <p className="text-sm text-muted-foreground">Net Profit</p>
+                <p className={cn("text-xl font-bold", isClient && netProfitForPeriod >= 0 ? "text-green-600" : isClient && netProfitForPeriod < 0 ? "text-destructive" : "text-foreground")}>
+                  ₱{isClient ? netProfitForPeriod.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
+
