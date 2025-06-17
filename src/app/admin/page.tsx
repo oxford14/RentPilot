@@ -5,7 +5,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Users, Building } from 'lucide-react'; // Users for clients, Building for something else if needed
+import { Users, Cog } from 'lucide-react'; // Changed Building to Cog
 
 export default function AdminDashboardPage() {
   return (
@@ -30,16 +30,17 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Placeholder for future admin functionalities */}
-        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 opacity-50">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium font-headline">System Settings</CardTitle>
-            <Building className="h-5 w-5 text-muted-foreground" />
+            <Cog className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">Configuration</div>
-            <p className="text-xs text-muted-foreground">Future: Global application settings.</p>
-            <Button variant="outline" size="sm" className="mt-2" disabled>Coming Soon</Button>
+            <p className="text-xs text-muted-foreground">Configure system-wide settings, e.g., timezone.</p>
+            <Link href="/admin/settings" passHref className="mt-2">
+                <Button variant="outline" size="sm" className="mt-2">Go to System Settings</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>
