@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
 import { calculateTenantBalance, isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -41,7 +42,7 @@ export default function PaymentsPage() {
       setAmountDue(currentBalance);
 
       if (isTenantCurrentlyDueForRent(selectedTenant, payments, clientToday)) {
-        setRentStatusMessage("Rent is due today");
+        setRentStatusMessage("Rent is due for the current period");
       } else {
         setRentStatusMessage(null);
       }
@@ -115,16 +116,16 @@ export default function PaymentsPage() {
                     {amountDue < 0 && <CheckCircle2 className="h-5 w-5 text-green-500" />}
                     {amountDue === 0 && <DollarSign className="h-5 w-5 text-muted-foreground" />}
                     <span className="font-semibold text-md">
-                      {amountDue > 0 ? "Amount Due:" : amountDue < 0 ? "Credit/Deposit:" : "Current Balance:"}
+                      {amountDue > 0 ? "Current Amount Due:" : amountDue < 0 ? "Current Credit/Deposit:" : "Current Balance:"}
                     </span>
                   </div>
-                  <span className={`font-bold text-lg ${
-                    amountDue > 0 ? "text-destructive" : amountDue < 0 ? "text-green-600" : "text-foreground"
-                  }`}>
-                    ₱{Math.abs(amountDue).toLocaleString()}
+                  <span className={cn("font-bold text-lg", 
+                        amountDue > 0 ? "text-destructive" : 
+                        amountDue < 0 ? "text-green-600" : "text-foreground")}>
+                    ₱{Math.abs(amountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
-                {rentStatusMessage && (
+                {rentStatusMessage && amountDue > 0 && (
                    <div className="flex items-center justify-start">
                      <Badge variant="outline" className="bg-orange-500/20 text-orange-700 border-orange-500">
                         <CalendarClock className="h-3 w-3 mr-1" />
@@ -151,3 +152,4 @@ export default function PaymentsPage() {
     </div>
   );
 }
+
