@@ -7,26 +7,52 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client, ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Users, Building } from 'lucide-react';
-// import { ManagedUserForm } from '@/components/admin/ManagedUserForm'; // Will be created later
+import { UsersRound, UserPlus, Users, Building, Edit2, Trash2 } from 'lucide-react'; // Added Edit2, Trash2
+import { ManagedUserForm } from '@/components/admin/ManagedUserForm'; 
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminUsersPage() {
-  const { clients, managedUsers } = useAppContext();
-  // const [isUserFormOpen, setIsUserFormOpen] = useState(false);
-  // const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
-  // const [selectedClientForUser, setSelectedClientForUser] = useState<Client | null>(null);
+  const { clients, managedUsers, deleteManagedUser } = useAppContext();
+  const { toast } = useToast();
+  const [isUserFormOpen, setIsUserFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [selectedClientForUser, setSelectedClientForUser] = useState<Client | null>(null);
+  const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
 
-  // const handleOpenUserForm = (client: Client, user?: ManagedUser) => {
-  //   setSelectedClientForUser(client);
-  //   setEditingUser(user || null);
-  //   setIsUserFormOpen(true);
-  // };
 
-  // const handleCloseUserForm = () => {
-  //   setSelectedClientForUser(null);
-  //   setEditingUser(null);
-  //   setIsUserFormOpen(false);
-  // };
+  const handleOpenUserForm = (client: Client, user?: ManagedUser) => {
+    setSelectedClientForUser(client);
+    setEditingUser(user || null);
+    setIsUserFormOpen(true);
+  };
+
+  const handleCloseUserForm = () => {
+    setSelectedClientForUser(null);
+    setEditingUser(null);
+    setIsUserFormOpen(false);
+  };
+
+  const confirmDeleteUser = (user: ManagedUser) => {
+    setUserToDelete(user);
+  };
+
+  const handleDeleteUser = () => {
+    if (userToDelete) {
+      deleteManagedUser(userToDelete.id);
+      toast({ title: "User Deleted", description: `User ${userToDelete.username} has been deleted.` });
+      setUserToDelete(null);
+    }
+  };
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -61,12 +87,12 @@ export default function AdminUsersPage() {
                     <AccordionContent className="pt-2 pb-4 px-4 space-y-3 bg-muted/30 rounded-b-md border-t">
                       <div className="flex justify-between items-center mb-2">
                         <h4 className="text-md font-semibold flex items-center">
-                          <Users className="mr-2 h-5 w-5 text-primary" /> Users for {client.name}
+                          <Users className="mr-2 h-5 w-5 text-primary" /> Users for {client.name} ({clientUsers.length})
                         </h4>
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => alert(`'Add User' clicked for ${client.name}`)} // Placeholder action
+                          onClick={() => handleOpenUserForm(client)}
                           className="shadow-sm hover:shadow-md transition-shadow"
                         >
                           <UserPlus className="mr-2 h-4 w-4" /> Add User to {client.name}
@@ -75,15 +101,24 @@ export default function AdminUsersPage() {
                       {clientUsers.length > 0 ? (
                         <ul className="space-y-2 pl-2 border-l-2 border-primary/50 ml-2">
                           {clientUsers.map((user) => (
-                            <li key={user.id} className="p-2 rounded-md hover:bg-background transition-colors">
-                              <p className="font-medium">{user.username}</p>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
-                              {/* Add Edit/Delete buttons for users later */}
+                            <li key={user.id} className="p-2 rounded-md hover:bg-background transition-colors flex justify-between items-center">
+                              <div>
+                                <p className="font-medium">{user.username}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
+                              <div className="space-x-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenUserForm(client, user)} title="Edit User">
+                                  <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => confirmDeleteUser(user)} title="Delete User">
+                                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
+                                </Button>
+                              </div>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-sm text-muted-foreground pl-4">No users found for this client.</p>
+                        <p className="text-sm text-muted-foreground pl-4 py-2">No users found for this client.</p>
                       )}
                     </AccordionContent>
                   </AccordionItem>
@@ -100,14 +135,32 @@ export default function AdminUsersPage() {
         </CardContent>
       </Card>
 
-      {/* {isUserFormOpen && selectedClientForUser && (
+      {isUserFormOpen && selectedClientForUser && (
         <ManagedUserForm
           isOpen={isUserFormOpen}
           onClose={handleCloseUserForm}
           client={selectedClientForUser}
           user={editingUser}
         />
-      )} */}
+      )}
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => { if (!isOpen) setUserToDelete(null); }}>
+        {userToDelete && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the user "{userToDelete.username}" for client "{clients.find(c => c.id === userToDelete.clientId)?.name}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteUser}>Delete User</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
     </div>
   );
 }
