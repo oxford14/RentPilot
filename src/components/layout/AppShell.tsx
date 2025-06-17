@@ -17,7 +17,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog } from 'lucide-react';
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -137,10 +137,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{user?.username || 'My Account'}{user?.isSuperAdmin && " (Super Admin)"}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {user?.isSuperAdmin && (
+                {user?.isSuperAdmin && !isAdminSection && (
                   <DropdownMenuItem onClick={() => router.push('/admin')}>
                     <ShieldAlert className="mr-2 h-4 w-4" />
                     Go to Admin
+                  </DropdownMenuItem>
+                )}
+                {isAdminSection && (
+                  <DropdownMenuItem onClick={() => router.push('/')}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to App
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={() => alert("Profile clicked!")}>Profile</DropdownMenuItem>
