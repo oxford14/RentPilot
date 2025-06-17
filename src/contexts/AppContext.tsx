@@ -40,7 +40,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawTenants, setRawTenants] = useState<Tenant[]>([]);
   const [rawPayments, setRawPayments] = useState<Payment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [rawManagedUsers, setRawManagedUsers] = useState<ManagedUser[]>([]); // Added
+  const [rawManagedUsers, setRawManagedUsers] = useState<ManagedUser[]>([]); 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -52,21 +52,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenants(parsedData.rawTenants || initialTenantsRaw);
         setRawPayments(parsedData.rawPayments || initialPaymentsRaw);
         setClients(parsedData.clients || initialClients);
-        setRawManagedUsers(parsedData.rawManagedUsers || initialManagedUsers); // Added
+        setRawManagedUsers(parsedData.rawManagedUsers || initialManagedUsers); 
         setViewingAsClientId(parsedData.viewingAsClientId || null);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenants(initialTenantsRaw);
         setRawPayments(initialPaymentsRaw);
         setClients(initialClients);
-        setRawManagedUsers(initialManagedUsers); // Added
+        setRawManagedUsers(initialManagedUsers); 
         setViewingAsClientId(null);
       }
     } else {
       setRawTenants(initialTenantsRaw);
       setRawPayments(initialPaymentsRaw);
       setClients(initialClients);
-      setRawManagedUsers(initialManagedUsers); // Added
+      setRawManagedUsers(initialManagedUsers); 
       setViewingAsClientId(null);
     }
     setIsLoaded(true);
@@ -84,11 +84,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const tenants = useMemo(() => {
     if (!isLoaded) return [];
-    // For super admin global view (viewingAsClientId is null), show all tenants without explicit client ID or those explicitly unassigned
     if (viewingAsClientId === null) {
         return rawTenants; 
     }
-    // For client-specific view, filter by clientId
     return rawTenants.filter(t => t.clientId === viewingAsClientId);
   }, [rawTenants, viewingAsClientId, isLoaded]);
 
@@ -100,7 +98,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return rawPayments.filter(p => p.clientId === viewingAsClientId);
   }, [rawPayments, viewingAsClientId, isLoaded]);
 
-  const managedUsers = useMemo(() => { // For now, admin user management page will handle its own filtering if needed. This provides all.
+  const managedUsers = useMemo(() => { 
     if(!isLoaded) return [];
     return rawManagedUsers;
   }, [rawManagedUsers, isLoaded]);
@@ -110,7 +108,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newTenant: Tenant = { 
       ...tenantData, 
       id: uuidv4(),
-      // Assign clientId if admin is viewing as a specific client, otherwise it's unassigned (global)
       ...(viewingAsClientId && { clientId: viewingAsClientId }) 
     };
     setRawTenants(prev => [...prev, newTenant]);
@@ -140,17 +137,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteClient = (clientId: string) => {
     setClients(prev => prev.filter(c => c.id !== clientId));
-    // Optionally, also remove associated tenants, payments, and users, or reassign them.
-    // For now, leaving them as potentially "orphaned" or to be handled by more specific logic later.
   };
 
   const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
-    const newUser = { ...userData, id: uuidv4() };
-    setRawManagedUsers(prev => [...prev, newUser]);
+    const newUserWithId = { ...userData, id: uuidv4() };
+    setRawManagedUsers(prev => [...prev, newUserWithId]);
   };
 
   const updateManagedUser = (updatedUser: ManagedUser) => {
-    setRawManagedUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setRawManagedUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
   };
 
   const deleteManagedUser = (userId: string) => {
@@ -162,7 +157,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       tenants, 
       payments, 
       clients, 
-      managedUsers, // Added
+      managedUsers, 
       viewingAsClientId,
       setViewMode,
       addTenant, 
@@ -171,9 +166,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addClient, 
       updateClient, 
       deleteClient,
-      addManagedUser, // Added
-      updateManagedUser, // Added
-      deleteManagedUser // Added
+      addManagedUser, 
+      updateManagedUser, 
+      deleteManagedUser 
     }}>
       {children}
     </AppContext.Provider>
@@ -187,4 +182,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

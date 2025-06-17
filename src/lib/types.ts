@@ -10,7 +10,7 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   username: string;
   email: string;
   clientId: string;
-  // password?: string; // Typically not stored directly, but might be used for creation
+  password?: string; // Optional: for creation/update, not always displayed/stored in plaintext long-term
   // role?: 'client-admin' | 'client-viewer'; // Future enhancement
 }
 

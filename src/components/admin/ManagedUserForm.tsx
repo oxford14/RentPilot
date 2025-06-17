@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 const managedUserFormSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
-  // clientId is not part of the form data, it's passed as a prop
+  password: z.string().optional(),
 });
 
 type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
@@ -24,8 +24,8 @@ type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
 interface ManagedUserFormProps {
   isOpen: boolean;
   onClose: () => void;
-  client: Client; // Client to whom the user is being added/edited
-  user?: ManagedUser | null; // For editing
+  client: Client; 
+  user?: ManagedUser | null; 
 }
 
 export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFormProps) {
@@ -34,27 +34,48 @@ export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFo
 
   const form = useForm<ManagedUserFormValues>({
     resolver: zodResolver(managedUserFormSchema),
-    defaultValues: user ? { username: user.username, email: user.email } : { username: '', email: '' },
+    defaultValues: user ? { username: user.username, email: user.email, password: '' } : { username: '', email: '', password: '' },
   });
 
   useEffect(() => {
     if (isOpen) {
-      form.reset(user ? { username: user.username, email: user.email } : { username: '', email: '' });
+      form.reset(user ? { username: user.username, email: user.email, password: '' } : { username: '', email: '', password: '' });
     }
   }, [user, isOpen, form, client]);
 
   const onSubmit = (data: ManagedUserFormValues) => {
     try {
-      if (user) {
-        // Update existing user
-        updateManagedUser({ ...user, ...data, clientId: client.id });
+      // Explicitly type to ensure all necessary fields for ManagedUser are considered.
+      // ID is handled by context or comes from existing user.
+      const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
+        username: data.username,
+        email: data.email,
+        clientId: client.id,
+      };
+
+      if (user) { // Editing existing user
+        if (data.password) { // If password field has a value
+          if (data.password.length < 6) {
+            form.setError("password", { type: "manual", message: "New password must be at least 6 characters." });
+            toast({ variant: "destructive", title: "Validation Error", description: "New password must be at least 6 characters." });
+            return;
+          }
+          userDataPayload.password = data.password;
+        }
+        // If data.password is empty, the password field on userDataPayload remains undefined, so it won't overwrite existing.
+        updateManagedUser({ ...user, ...userDataPayload });
         toast({ title: "User Updated", description: `${data.username} for ${client.name} has been updated.` });
-      } else {
-        // Add new user
-        addManagedUser({ ...data, clientId: client.id });
+      } else { // Adding new user
+        if (!data.password || data.password.length < 6) {
+          form.setError("password", { type: "manual", message: "Password is required and must be at least 6 characters." });
+          toast({ variant: "destructive", title: "Validation Error", description: "Password is required and must be at least 6 characters."});
+          return;
+        }
+        userDataPayload.password = data.password;
+        addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>); // Cast: ID will be added by context
         toast({ title: "User Added", description: `${data.username} has been added to ${client.name}.` });
       }
-      form.reset({ username: '', email: '' });
+      form.reset({ username: '', email: '', password: '' });
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save user information." });
@@ -93,6 +114,19 @@ export function ManagedUserForm({ isOpen, onClose, client, user }: ManagedUserFo
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="e.g. user@client.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{user ? 'New Password (optional)' : 'Password'}</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
