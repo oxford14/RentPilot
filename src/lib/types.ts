@@ -6,7 +6,7 @@ export interface User { // For AuthContext user
   username: string;
   isSuperAdmin?: boolean;
   clientId?: string;
-  role?: ClientUserRole; // Added for client user roles
+  role?: ClientUserRole; 
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
@@ -15,7 +15,7 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   email: string;
   clientId: string;
   password?: string;
-  role: ClientUserRole; // Added: 'admin' or 'user' for client context
+  role: ClientUserRole; 
 }
 
 export interface Tenant {
@@ -51,6 +51,7 @@ export interface AppState {
   clients: Client[];
   rawManagedUsers: ManagedUser[];
   viewingAsClientId: string | null;
+  systemTimezone: string | null;
 }
 
 export interface AuthContextType {
@@ -73,8 +74,10 @@ export interface AppContextType {
   clients: Client[];
   managedUsers: ManagedUser[];
   viewingAsClientId: string | null;
+  systemTimezone: string | null;
 
   setViewMode: (clientId: string | null) => void;
+  updateSystemTimezone: (timezone: string) => void;
 
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => void;
   updateTenant: (tenant: Tenant) => void;
@@ -91,3 +94,4 @@ export interface AppContextType {
 
   rawManagedUsers: ManagedUser[];
 }
+

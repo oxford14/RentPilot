@@ -22,8 +22,6 @@ const initialManagedUsers: ManagedUser[] = [
     { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'user' },
     { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'admin' },
     { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
-    // Example of a user potentially without a role initially, if data wasn't migrated (though it should be set by form now)
-    // { id: uuidv4(), username: 'legacyUser', email: 'legacy@example.com', clientId: initialClients[0].id, password: 'password123' },
 ];
 
 const initialTenantsRaw: Tenant[] = [
@@ -42,6 +40,7 @@ const initialPaymentsRaw: Payment[] = [
 ];
 
 const LOCAL_STORAGE_KEY = 'tenantTrackerData';
+const DEFAULT_TIMEZONE = 'Etc/UTC';
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth();
@@ -50,6 +49,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [clientsState, setClientsState] = useState<Client[]>([]);
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
+  const [systemTimezoneState, setSystemTimezoneState] = useState<string | null>(DEFAULT_TIMEZONE);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -60,13 +60,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
         setRawPaymentsState(parsedData.rawPayments || initialPaymentsRaw);
         setClientsState(parsedData.clients || initialClients);
-        // Ensure all loaded managed users have a role, defaulting to 'user' if missing
         const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
           ...user,
           role: user.role || 'user' as ClientUserRole,
         }));
         setRawManagedUsersState(usersWithRoles);
         setViewingAsClientId(parsedData.viewingAsClientId || null);
+        setSystemTimezoneState(parsedData.systemTimezone || DEFAULT_TIMEZONE);
       } catch (error) {
         console.error("Failed to parse data from localStorage", error);
         setRawTenantsState(initialTenantsRaw);
@@ -74,6 +74,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setClientsState(initialClients);
         setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
         setViewingAsClientId(null);
+        setSystemTimezoneState(DEFAULT_TIMEZONE);
       }
     } else {
       setRawTenantsState(initialTenantsRaw);
@@ -81,6 +82,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setClientsState(initialClients);
       setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole })));
       setViewingAsClientId(null);
+      setSystemTimezoneState(DEFAULT_TIMEZONE);
     }
     setIsLoaded(true);
   }, []);
@@ -92,13 +94,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         rawPayments: rawPaymentsState,
         clients: clientsState,
         rawManagedUsers: rawManagedUsersState,
-        viewingAsClientId
+        viewingAsClientId,
+        systemTimezone: systemTimezoneState,
       }));
     }
-  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, viewingAsClientId, isLoaded]);
+  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, viewingAsClientId, systemTimezoneState, isLoaded]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
+  };
+
+  const updateSystemTimezone = (timezone: string) => {
+    setSystemTimezoneState(timezone);
   };
 
   const tenants = useMemo(() => {
@@ -131,14 +138,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isLoaded || !authIsAuthenticated) return [];
      if (authUser?.isSuperAdmin) {
         if (viewingAsClientId === null) {
-            // Super admin global view: show all users but ideally only for clients
-            // or allow filtering. For now, showing all.
             return rawManagedUsersState;
         }
-        // Super admin viewing as specific client
         return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
      } else if (authUser?.clientId) {
-        // Client user view (admin or regular user for their client)
         return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
      }
     return [];
@@ -227,7 +230,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
      if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === updatedUser.clientId) {
-       if (updatedUser.id !== authUser.username) { // Check if they are trying to edit someone else
+       if (updatedUser.id !== authUser.username) { 
             console.error("Permission denied: Client users cannot update other users.");
             return;
        }
@@ -258,7 +261,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     clients: clientsState,
     managedUsers,
     viewingAsClientId,
+    systemTimezone: systemTimezoneState,
     setViewMode,
+    updateSystemTimezone,
     addTenant,
     updateTenant,
     addPayment,
@@ -293,3 +298,4 @@ export const useAppContext = (): AppContextTypeWithRawData => {
   }
   return context;
 };
+
