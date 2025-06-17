@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from 'react'; // Added this import
+import * as React from 'react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,7 +18,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, SuperAdminIcon } from 'lucide-react'; // ShieldCheck renamed to SuperAdminIcon for admin role
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck } from 'lucide-react'; // Changed SuperAdminIcon to ShieldCheck
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -74,7 +74,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
     groupIcon: Cog,
     items: [
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
-      { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: SuperAdminIcon },
+      { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck }, // Changed SuperAdminIcon to ShieldCheck
     ]
   }
 ];
