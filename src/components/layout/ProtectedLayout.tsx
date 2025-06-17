@@ -7,10 +7,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { Loader2 } from 'lucide-react';
-
+import { toast } from '@/hooks/use-toast'; // Moved to top
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, isLoading } = useAuth(); // Get user object
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -26,7 +26,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     } else if (isAuthenticated && pathname === '/login') {
       router.push('/');
     } else if (isAuthenticated && isAdminRoute && !user?.isSuperAdmin) {
-      // If trying to access admin route without super admin rights, redirect
       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
       router.push('/');
     }
@@ -42,7 +41,8 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated && pathname !== '/login') {
-     return (
+     // This state handles the brief period before useEffect redirects.
+    return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
          <p className="ml-3 text-md text-muted-foreground">Redirecting to login...</p>
@@ -50,31 +50,27 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
   
-  // If accessing admin route without super admin rights (and not already caught by useEffect, e.g. direct load)
-  if (pathname.startsWith('/admin') && !(user?.isSuperAdmin)) {
-    // This check might be redundant if useEffect handles it quickly enough, but good for safety
-    if (isAuthenticated) { // Only show access denied if they are logged in but not super admin
-        return (
-            <div className="flex h-screen w-full items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-3 text-md text-muted-foreground">Access Denied. Redirecting...</p>
-            </div>
-        );
-    }
-    // If not authenticated, the above block handles redirect to login
+  // If authenticated but trying to access an admin route without super admin rights,
+  // and useEffect hasn't completed redirection yet (e.g., on initial direct load).
+  // This shows a temporary loading state while useEffect handles the toast and redirect.
+  if (pathname.startsWith('/admin') && isAuthenticated && !user?.isSuperAdmin) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-3 text-md text-muted-foreground">Checking permissions...</p>
+        </div>
+    );
   }
-
 
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
+  // If authenticated and authorized for the current route (or if useEffect will handle redirection shortly).
   if (isAuthenticated) {
     return <AppShell>{children}</AppShell>;
   }
 
+  // Fallback, should ideally be covered by earlier conditions.
   return null;
 }
-
-// This import was missing for toast
-import { toast } from '@/hooks/use-toast';
