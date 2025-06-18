@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod } from '@/lib/types';
@@ -475,4 +474,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
