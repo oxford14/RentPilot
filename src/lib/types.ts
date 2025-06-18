@@ -51,7 +51,7 @@ export interface Payment {
 export interface Client {
   id: string; // Firestore document ID
   name: string;
-  logoUrl?: string;
+  logoUrl?: string | null; // Allowed to be string, null, or undefined (if property is absent)
 }
 
 export type ExpenseCategory = 

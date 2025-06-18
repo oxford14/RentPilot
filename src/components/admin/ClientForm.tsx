@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -44,16 +43,17 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   const onSubmit = (data: ClientFormValues) => {
     try {
-      const payload = {
-        ...data,
-        logoUrl: data.logoUrl === '' ? undefined : data.logoUrl, // Store as undefined if empty string
-      };
-      if (client) {
-        updateClient({ ...client, ...payload });
-        toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
-      } else {
-        addClient(payload);
-        toast({ title: "Client Added", description: `${data.name} has been added successfully.` });
+      const name = data.name;
+      // If logoUrl from form is empty or just whitespace, set to null for Firestore. Otherwise, use the trimmed URL.
+      const logoUrl = (data.logoUrl && data.logoUrl.trim() !== '') ? data.logoUrl.trim() : null;
+
+      if (client) { // Editing existing client
+        updateClient({ ...client, name, logoUrl });
+        toast({ title: "Client Updated", description: `${name} has been updated successfully.` });
+      } else { // Adding new client
+        // addClient expects Omit<Client, 'id'>. If logoUrl is null, it's fine.
+        addClient({ name, logoUrl });
+        toast({ title: "Client Added", description: `${name} has been added successfully.` });
       }
       form.reset({ name: '', logoUrl: '' });
       onClose();
@@ -109,4 +109,3 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
     </Dialog>
   );
 }
-
