@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { User, ManagedUser, Client, AuthContextType, SuperAdminUser } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'; // Added doc, getDoc
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'rentPilotAuth'; // Keep this for client-side session persistence
+const AUTH_STORAGE_KEY = 'rentPilotAuth'; 
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -21,8 +21,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // This effect still tries to load persisted auth state from localStorage
-    // to maintain session across page reloads for the same browser.
     try {
       const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
       if (storedAuth) {
@@ -34,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Failed to load auth state from localStorage", error);
-      localStorage.removeItem(AUTH_STORAGE_KEY); // Clear corrupted data
+      localStorage.removeItem(AUTH_STORAGE_KEY); 
     }
     setIsLoading(false);
   }, []);
@@ -42,10 +40,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (
     usernameInput: string,
     passwordInput: string,
-    // These parameters are no longer needed as we fetch from Firestore
-    _allManagedUsers_unused?: ManagedUser[], 
-    _allClients_unused?: Client[],
-    _allSuperAdminUsers_unused?: SuperAdminUser[]
   ) => {
     setIsLoading(true);
     try {
@@ -65,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const superAdminQuery = query(
         collection(db, 'superAdminUsers'),
         where('username', '==', usernameInput),
-        where('password', '==', passwordInput) // WARNING: Plain text password
+        where('password', '==', passwordInput) 
       );
       const superAdminSnapshot = await getDocs(superAdminQuery);
 
@@ -85,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const managedUserQuery = query(
         collection(db, 'managedUsers'),
         where('username', '==', usernameInput),
-        where('password', '==', passwordInput) // WARNING: Plain text password
+        where('password', '==', passwordInput) 
       );
       const managedUserSnapshot = await getDocs(managedUserQuery);
 
@@ -97,33 +91,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           isSuperAdmin: false,
           role: managedUserDocData.role,
         };
-        setIsAuthenticated(true);
+
+        setIsAuthenticated(true); 
         setUser(userData);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
         
-        // Fetch client name for toast
-        let clientName = 'your organization';
+        let clientNameForToast = 'your organization';
         if (managedUserDocData.clientId) {
-            const clientQuery = query(collection(db, 'clients'), where('id', '==', managedUserDocData.clientId));
-            const clientSnapshot = await getDocs(clientQuery);
-            if (!clientSnapshot.empty) {
-                 clientName = (clientSnapshot.docs[0].data() as Client).name || clientName;
-            } else { // If client ID is present but client doc not found, try to get client by ID from Firestore
-                 const clientDocSnapshot = await getDocs(query(collection(db, "clients"), where("__name__", "==", managedUserDocData.clientId)));
-                 if(!clientDocSnapshot.empty){
-                    clientName = (clientDocSnapshot.docs[0].data() as Client).name || clientName;
-                 }
+          try {
+            const clientDocRef = doc(db, "clients", managedUserDocData.clientId);
+            const clientDocSnap = await getDoc(clientDocRef);
+            if (clientDocSnap.exists()) {
+              clientNameForToast = (clientDocSnap.data() as Client).name || clientNameForToast;
+            } else {
+              console.warn(`Client document for toast not found using ID: ${managedUserDocData.clientId}`);
             }
+          } catch (e) {
+            console.error("Error fetching client name for toast:", e);
+          }
         }
-
+        
         const roleName = managedUserDocData.role.charAt(0).toUpperCase() + managedUserDocData.role.slice(1);
-        toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${managedUserDocData.username} from ${clientName}!` });
+        toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${managedUserDocData.username} from ${clientNameForToast}!` });
+        
         router.push('/');
         setIsLoading(false);
         return;
       }
       
-      // If no match
       toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
     } catch (error) {
       console.error("Login error:", error);
