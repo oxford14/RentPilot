@@ -295,7 +295,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      await addDoc(collection(db, 'clients'), clientData);
+      // Firestore does not allow 'undefined' values. Ensure logoUrl is null if not provided or empty.
+      const dataToSave = {
+        ...clientData,
+        logoUrl: clientData.logoUrl || null,
+      };
+      await addDoc(collection(db, 'clients'), dataToSave);
       toast({ title: "Success", description: "Client added successfully." });
     } catch (error: any) {
       console.error("Error adding client to Firestore:", error);
@@ -310,7 +315,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const { id, ...dataToUpdate } = updatedClient;
     try {
-      await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
+      // Ensure logoUrl is null if not provided or empty before saving
+      const dataToSave = {
+        ...dataToUpdate,
+        logoUrl: dataToUpdate.logoUrl || null,
+      };
+      await setDoc(doc(db, 'clients', id), dataToSave, { merge: true });
       toast({ title: "Success", description: "Client updated successfully." });
     } catch (error: any) {
       console.error("Error updating client in Firestore:", error);
@@ -490,5 +500,7 @@ export const useAppContext = (): AppContextType => {
   return context;
 };
 
+
+    
 
     
