@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Inter', Arial, Helvetica, sans-serif;
-}
+/* Redundant body font-family rule removed. Font is applied via font-body class in layout.tsx */
 
 @layer base {
   :root {
@@ -111,5 +109,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* font-family: 'Inter', Arial, Helvetica, sans-serif; <- This line was removed */
   }
 }
