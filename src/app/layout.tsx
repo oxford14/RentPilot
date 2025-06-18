@@ -8,8 +8,8 @@ import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 import { Toaster } from "@/components/ui/toaster";
 
 // Initialize Inter font
-const inter = Inter({ 
-  subsets: ['latin'], 
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-inter', // Define CSS variable
   display: 'swap',
 });
@@ -17,12 +17,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'RentPilot - Rental Management',
   description: 'Manage tenants, payments, and reports efficiently.',
-  manifest: '/manifest.json', // Add manifest path
-  icons: { // Add icons
-    icon: '/favicon.ico', // Standard favicon
-    // apple: '/icons/apple-touch-icon.png', // Keep commented if file doesn't exist or not used
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
   },
-  themeColor: '#6699CC', // Add theme color
+  themeColor: '#6699CC',
 };
 
 export default function RootLayout({
@@ -31,11 +30,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}> {/* Apply Inter font CSS variable to html tag */}
-      {/* Manual <head> tag removed. Next.js handles this via metadata. */}
-      <body className="font-body antialiased"> {/* Tailwind's font-body will use var(--font-inter) */}
-        <AuthProvider> {/* AuthProvider is the outer provider */}
-          <AppProvider> {/* AppProvider is the inner provider, allowing it to use useAuth() */}
+    <html lang="en" className={inter.variable}>
+      <body className="font-body antialiased">
+        <AuthProvider>
+          <AppProvider>
             <ProtectedLayout>
               {children}
             </ProtectedLayout>
