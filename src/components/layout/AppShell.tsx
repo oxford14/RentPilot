@@ -267,7 +267,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
-                <Image src="/favicon.ico" alt="RentPilot Logo" width={28} height={28} className="h-7 w-7" data-ai-hint="app logo"/>
+                <Image 
+                  src="https://placehold.co/100x32.png" 
+                  alt="RentPilot Logo Placeholder" 
+                  width={28} 
+                  height={28} 
+                  className="h-7 w-7 object-contain" 
+                  data-ai-hint="app logo"
+                  unoptimized
+                />
                 <span className="group-data-[collapsible=icon]:hidden font-headline">
                   {isAdminSection && !viewingClient ? 'RentPilot' : activeClientForDisplay?.name || 'RentPilot'}
                 </span>
@@ -381,12 +389,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   />
               ) : !isAdminSection ? (
                   <Image
-                    src="/favicon.ico"
-                    alt="RentPilot Logo"
+                    src="https://placehold.co/100x32.png" 
+                    alt="RentPilot Logo Placeholder"
                     width={32}
                     height={32}
                     className="h-8 w-8 object-contain rounded"
                     data-ai-hint="app logo small"
+                    unoptimized
                   />
               ) : null}
               <h1 className="text-xl font-semibold font-headline">
@@ -399,7 +408,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src="/favicon.ico" alt="User Avatar" data-ai-hint="app logo avatar"/>
+                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar Placeholder" data-ai-hint="user avatar placeholder"/>
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
