@@ -6,10 +6,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { User, ManagedUser, Client, AuthContextType, SuperAdminUser } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'tenantTrackerAuth';
+const AUTH_STORAGE_KEY = 'rentPilotAuth'; // Keep this for client-side session persistence
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -19,6 +21,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // This effect still tries to load persisted auth state from localStorage
+    // to maintain session across page reloads for the same browser.
     try {
       const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
       if (storedAuth) {
@@ -30,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Failed to load auth state from localStorage", error);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY); // Clear corrupted data
     }
     setIsLoading(false);
   }, []);
@@ -38,61 +42,94 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (
     usernameInput: string,
     passwordInput: string,
-    allManagedUsers: ManagedUser[],
-    allClients: Client[],
-    allSuperAdminUsers: SuperAdminUser[] // Added this
+    // These parameters are no longer needed as we fetch from Firestore
+    _allManagedUsers_unused?: ManagedUser[], 
+    _allClients_unused?: Client[],
+    _allSuperAdminUsers_unused?: SuperAdminUser[]
   ) => {
-    // 1. Check primary hardcoded super admin
-    if (usernameInput === 'admin' && passwordInput === 'password123') {
-      const userData: User = { username: usernameInput, isSuperAdmin: true };
-      setIsAuthenticated(true);
-      setUser(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
-      toast({ title: "Login Successful", description: `Welcome back, Super Admin ${usernameInput}!` });
-      router.push('/');
-      return;
+    setIsLoading(true);
+    try {
+      // 1. Check primary hardcoded super admin (local fallback or initial admin)
+      if (usernameInput === 'admin' && passwordInput === 'password123') {
+        const userData: User = { username: usernameInput, isSuperAdmin: true };
+        setIsAuthenticated(true);
+        setUser(userData);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+        toast({ title: "Login Successful", description: `Welcome back, Super Admin ${usernameInput}!` });
+        router.push('/');
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Check additional super admin users from Firestore
+      const superAdminQuery = query(
+        collection(db, 'superAdminUsers'),
+        where('username', '==', usernameInput),
+        where('password', '==', passwordInput) // WARNING: Plain text password
+      );
+      const superAdminSnapshot = await getDocs(superAdminQuery);
+
+      if (!superAdminSnapshot.empty) {
+        const superAdminDoc = superAdminSnapshot.docs[0].data() as SuperAdminUser;
+        const userData: User = { username: superAdminDoc.username, isSuperAdmin: true };
+        setIsAuthenticated(true);
+        setUser(userData);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+        toast({ title: "Login Successful", description: `Welcome back, Super Admin ${superAdminDoc.username}!` });
+        router.push('/');
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Check managed client users from Firestore
+      const managedUserQuery = query(
+        collection(db, 'managedUsers'),
+        where('username', '==', usernameInput),
+        where('password', '==', passwordInput) // WARNING: Plain text password
+      );
+      const managedUserSnapshot = await getDocs(managedUserQuery);
+
+      if (!managedUserSnapshot.empty) {
+        const managedUserDocData = managedUserSnapshot.docs[0].data() as ManagedUser;
+        const userData: User = {
+          username: managedUserDocData.username,
+          clientId: managedUserDocData.clientId,
+          isSuperAdmin: false,
+          role: managedUserDocData.role,
+        };
+        setIsAuthenticated(true);
+        setUser(userData);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+        
+        // Fetch client name for toast
+        let clientName = 'your organization';
+        if (managedUserDocData.clientId) {
+            const clientQuery = query(collection(db, 'clients'), where('id', '==', managedUserDocData.clientId));
+            const clientSnapshot = await getDocs(clientQuery);
+            if (!clientSnapshot.empty) {
+                 clientName = (clientSnapshot.docs[0].data() as Client).name || clientName;
+            } else { // If client ID is present but client doc not found, try to get client by ID from Firestore
+                 const clientDocSnapshot = await getDocs(query(collection(db, "clients"), where("__name__", "==", managedUserDocData.clientId)));
+                 if(!clientDocSnapshot.empty){
+                    clientName = (clientDocSnapshot.docs[0].data() as Client).name || clientName;
+                 }
+            }
+        }
+
+        const roleName = managedUserDocData.role.charAt(0).toUpperCase() + managedUserDocData.role.slice(1);
+        toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${managedUserDocData.username} from ${clientName}!` });
+        router.push('/');
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no match
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({ variant: "destructive", title: "Login Error", description: "An unexpected error occurred during login." });
     }
-
-    // 2. Check managed client users
-    const matchedManagedUser = allManagedUsers.find(
-      (mu) => mu.username === usernameInput && mu.password === passwordInput
-    );
-
-    if (matchedManagedUser) {
-      const userData: User = {
-        username: matchedManagedUser.username,
-        clientId: matchedManagedUser.clientId,
-        isSuperAdmin: false,
-        role: matchedManagedUser.role,
-      };
-      setIsAuthenticated(true);
-      setUser(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
-      const clientName = allClients.find(c => c.id === matchedManagedUser.clientId)?.name || 'your organization';
-      const roleName = matchedManagedUser.role.charAt(0).toUpperCase() + matchedManagedUser.role.slice(1);
-      toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${usernameInput} from ${clientName}!` });
-      router.push('/');
-      return;
-    }
-
-    // 3. Check additional super admin users
-    const matchedSuperAdmin = allSuperAdminUsers.find(
-      (sa) => sa.username === usernameInput && sa.password === passwordInput
-    );
-
-    if (matchedSuperAdmin) {
-      const userData: User = { username: matchedSuperAdmin.username, isSuperAdmin: true };
-      setIsAuthenticated(true);
-      setUser(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
-      toast({ title: "Login Successful", description: `Welcome back, Super Admin ${usernameInput}!` });
-      router.push('/');
-      return;
-    }
-    
-    // If no match
-    toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
-
+    setIsLoading(false);
   }, [router, toast]);
 
   const logout = useCallback(() => {

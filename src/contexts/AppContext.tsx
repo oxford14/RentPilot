@@ -1,131 +1,93 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, AppState, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod } from '@/lib/types';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseCategories as definedExpenseCategories } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+} from 'firebase/firestore';
 
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export interface AppContextTypeWithRawData extends AppContextType {
-  rawManagedUsers: ManagedUser[];
-  rawExpenses: Expense[];
-}
-
-const AppContext = createContext<AppContextTypeWithRawData | undefined>(undefined);
-
-const initialClients: Client[] = [
-  { id: 'client-main-street', name: 'Main Street Properties', logoUrl: 'https://placehold.co/100x40.png?text=Main+St' },
-  { id: 'client-oak-view', name: 'Oak View Rentals' },
-];
-
-const initialManagedUsers: ManagedUser[] = [
-    { id: uuidv4(), username: 'clientAdminMain', email: 'main.admin@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'admin' },
-    { id: uuidv4(), username: 'clientStaffMain', email: 'main.staff@msp.com', clientId: initialClients[0].id, password: 'password123', role: 'user' },
-    { id: uuidv4(), username: 'clientAdminOak', email: 'oak.admin@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'admin' },
-    { id: uuidv4(), username: 'clientStaffOak', email: 'oak.staff@ovr.com', clientId: initialClients[1].id, password: 'password123', role: 'user' },
-];
-
-const initialSuperAdminUsers: SuperAdminUser[] = [];
-
-
-const initialTenantsRaw: Tenant[] = [
-  { id: uuidv4(), name: 'Alice Wonderland', email: 'alice@example.com', phone: '123-456-7890', monthlyRentalRate: 1200, status: 'active', joinDate: new Date(2023, 0, 15).toISOString(), clientId: initialClients[0].id },
-  { id: uuidv4(), name: 'Bob The Builder', email: 'bob@example.com', phone: '987-654-3210', monthlyRentalRate: 950, status: 'active', joinDate: new Date(2022, 5, 1).toISOString(), clientId: initialClients[1].id },
-  { id: uuidv4(), name: 'Charlie Brown', email: 'charlie@example.com', phone: '555-555-5555', monthlyRentalRate: 1500, status: 'inactive', joinDate: new Date(2023, 2, 10).toISOString(), clientId: initialClients[0].id },
-  { id: uuidv4(), name: 'Diana Prince (Global)', email: 'diana@example.com', phone: '111-222-3333', monthlyRentalRate: 1100, status: 'active', joinDate: new Date(2023, 4, 20).toISOString() },
-];
-
-const initialPaymentsRaw: Payment[] = [
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 0, 5).toISOString(), amount: 1200, paymentMethod: 'Bank Transfer', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[0].id, date: new Date(2024, 1, 5).toISOString(), amount: 1100, paymentMethod: 'Bank Transfer', discountApplied: 100, discountDescription: 'Early payment bonus', clientId: initialTenantsRaw[0].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 0, 1).toISOString(), amount: 950, paymentMethod: 'Credit Card', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[1].id, date: new Date(2024, 1, 3).toISOString(), amount: 500, paymentMethod: 'Credit Card', discountApplied: 0, discountDescription: '', clientId: initialTenantsRaw[1].clientId },
-  { id: uuidv4(), tenantId: initialTenantsRaw[3].id, date: new Date(2024, 0, 20).toISOString(), amount: 1100, paymentMethod: 'Cash', discountApplied: 0, discountDescription: '' },
-];
-
-const initialExpensesRaw: Expense[] = [
-    { id: uuidv4(), description: 'Office Supplies', amount: 75.50, date: new Date(2024, 0, 10).toISOString(), category: 'Supplies', clientId: initialClients[0].id },
-    { id: uuidv4(), description: 'Internet Bill', amount: 60.00, date: new Date(2024, 0, 15).toISOString(), category: 'Utilities', clientId: initialClients[0].id },
-    { id: uuidv4(), description: 'Unit 5A Plumbing Repair', amount: 250.00, date: new Date(2024, 1, 2).toISOString(), category: 'Repairs', clientId: initialClients[1].id },
-    { id: uuidv4(), description: 'Software Subscription (Global)', amount: 99.00, date: new Date(2024, 1, 5).toISOString(), category: 'Administrative' },
-    { id: uuidv4(), description: 'Landscaping Services (Oak View)', amount: 120.00, date: new Date(2024, 0, 20).toISOString(), category: 'Maintenance', clientId: initialClients[1].id },
-    { id: uuidv4(), description: 'Marketing Flyers (Global)', amount: 50.00, date: new Date(2024, 0, 25).toISOString(), category: 'Marketing' },
-];
-
-
-const LOCAL_STORAGE_KEY = 'tenantTrackerData';
+const LOCAL_STORAGE_TIMEZONE_KEY = 'rentPilotSystemTimezone';
 const DEFAULT_TIMEZONE = 'Etc/UTC';
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth();
+
+  // Raw data states from Firestore
+  const [rawClientsState, setRawClientsState] = useState<Client[]>([]);
   const [rawTenantsState, setRawTenantsState] = useState<Tenant[]>([]);
   const [rawPaymentsState, setRawPaymentsState] = useState<Payment[]>([]);
-  const [clientsState, setClientsState] = useState<Client[]>([]);
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
   const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
-  const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
-  const [systemTimezoneState, setSystemTimezoneState] = useState<string | null>(DEFAULT_TIMEZONE);
-  const [isLoaded, setIsLoaded] = useState(false);
 
+  const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
+  const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+
+  // Load systemTimezone from localStorage
   useEffect(() => {
-    const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (storedData) {
-      try {
-        const parsedData: AppState = JSON.parse(storedData);
-        setRawTenantsState(parsedData.rawTenants || initialTenantsRaw);
-        setRawPaymentsState((parsedData.rawPayments || initialPaymentsRaw).map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
-        setClientsState(parsedData.clients || initialClients);
-        const usersWithRoles = (parsedData.rawManagedUsers || initialManagedUsers).map(user => ({
-          ...user,
-          role: user.role || 'user' as ClientUserRole,
-          password: user.password || 'password123' 
-        }));
-        setRawManagedUsersState(usersWithRoles);
-        setRawSuperAdminUsersState(parsedData.rawSuperAdminUsers || initialSuperAdminUsers);
-        setRawExpensesState(parsedData.rawExpenses || initialExpensesRaw);
-        setViewingAsClientId(parsedData.viewingAsClientId || null);
-        setSystemTimezoneState(parsedData.systemTimezone || DEFAULT_TIMEZONE);
-      } catch (error) {
-        console.error("Failed to parse data from localStorage", error);
-        setRawTenantsState(initialTenantsRaw);
-        setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
-        setClientsState(initialClients);
-        setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
-        setRawSuperAdminUsersState(initialSuperAdminUsers);
-        setRawExpensesState(initialExpensesRaw);
-        setViewingAsClientId(null);
-        setSystemTimezoneState(DEFAULT_TIMEZONE);
-      }
-    } else {
-      setRawTenantsState(initialTenantsRaw);
-      setRawPaymentsState(initialPaymentsRaw.map(p => ({...p, discountApplied: p.discountApplied || 0, discountDescription: p.discountDescription || '', paymentMethod: p.paymentMethod })));
-      setClientsState(initialClients);
-      setRawManagedUsersState(initialManagedUsers.map(user => ({...user, role: user.role || 'user' as ClientUserRole, password: user.password || 'password123' })));
-      setRawSuperAdminUsersState(initialSuperAdminUsers);
-      setRawExpensesState(initialExpensesRaw);
-      setViewingAsClientId(null);
-      setSystemTimezoneState(DEFAULT_TIMEZONE);
-    }
-    setIsLoaded(true);
+    const storedTimezone = localStorage.getItem(LOCAL_STORAGE_TIMEZONE_KEY);
+    setSystemTimezoneState(storedTimezone || DEFAULT_TIMEZONE);
   }, []);
 
+  // Save systemTimezone to localStorage
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-        rawTenants: rawTenantsState,
-        rawPayments: rawPaymentsState,
-        clients: clientsState,
-        rawManagedUsers: rawManagedUsersState,
-        rawSuperAdminUsers: rawSuperAdminUsersState,
-        rawExpenses: rawExpensesState,
-        viewingAsClientId,
-        systemTimezone: systemTimezoneState,
-      }));
-    }
-  }, [rawTenantsState, rawPaymentsState, clientsState, rawManagedUsersState, rawSuperAdminUsersState, rawExpensesState, viewingAsClientId, systemTimezoneState, isLoaded]);
+    localStorage.setItem(LOCAL_STORAGE_TIMEZONE_KEY, systemTimezoneState);
+  }, [systemTimezoneState]);
+
+
+  // Firestore listeners
+  useEffect(() => {
+    setIsDataLoading(true);
+    const listeners: Array<() => void> = [];
+
+    const collectionsToListen = [
+      { name: 'clients', setter: setRawClientsState },
+      { name: 'tenants', setter: setRawTenantsState },
+      { name: 'payments', setter: setRawPaymentsState },
+      { name: 'managedUsers', setter: setRawManagedUsersState },
+      { name: 'superAdminUsers', setter: setRawSuperAdminUsersState },
+      { name: 'expenses', setter: setRawExpensesState },
+    ];
+
+    collectionsToListen.forEach(coll => {
+      const q = query(collection(db, coll.name));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+        coll.setter(items);
+      }, (error) => {
+        console.error(`Error fetching ${coll.name}: `, error);
+      });
+      listeners.push(unsubscribe);
+    });
+    
+    // Simulate data loading finished after initial fetch setup
+    // A more robust solution would track loading state for each collection
+    const timer = setTimeout(() => setIsDataLoading(false), 1500); // Adjust timing as needed
+    listeners.push(() => clearTimeout(timer));
+
+
+    return () => {
+      listeners.forEach(unsub => unsub());
+    };
+  }, []);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -135,127 +97,95 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSystemTimezoneState(timezone);
   };
 
+  // Filtered data based on auth user and view mode
   const tenants = useMemo(() => {
-    if (!isLoaded || !authIsAuthenticated) return [];
+    if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { 
-        return rawTenantsState.filter(t => !t.clientId); 
-      }
-      return rawTenantsState.filter(t => t.clientId === viewingAsClientId);
-    } else if (authUser?.clientId) {
-      return rawTenantsState.filter(t => t.clientId === authUser.clientId);
+      return viewingAsClientId === null
+        ? rawTenantsState.filter(t => !t.clientId) // Global tenants
+        : rawTenantsState.filter(t => t.clientId === viewingAsClientId);
     }
-    return [];
-  }, [rawTenantsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
+    return rawTenantsState.filter(t => t.clientId === authUser?.clientId);
+  }, [rawTenantsState, viewingAsClientId, authUser, authIsAuthenticated]);
 
   const payments = useMemo(() => {
-    if (!isLoaded || !authIsAuthenticated) return [];
+    if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { 
-         return rawPaymentsState.filter(p => !p.clientId); 
-      }
-      return rawPaymentsState.filter(p => p.clientId === viewingAsClientId);
-    } else if (authUser?.clientId) {
-      return rawPaymentsState.filter(p => p.clientId === authUser.clientId);
+      return viewingAsClientId === null
+        ? rawPaymentsState.filter(p => !p.clientId) // Global payments
+        : rawPaymentsState.filter(p => p.clientId === viewingAsClientId);
     }
-    return [];
-  }, [rawPaymentsState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
-
-  const expenses = useMemo(() => { 
-    if (!isLoaded || !authIsAuthenticated) return [];
+    return rawPaymentsState.filter(p => p.clientId === authUser?.clientId);
+  }, [rawPaymentsState, viewingAsClientId, authUser, authIsAuthenticated]);
+  
+  const expenses = useMemo(() => {
+    if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      if (viewingAsClientId === null) { 
-        return rawExpensesState.filter(e => !e.clientId); 
-      }
-      return rawExpensesState.filter(e => e.clientId === viewingAsClientId);
-    } else if (authUser?.clientId) {
-      return rawExpensesState.filter(e => e.clientId === authUser.clientId);
+      return viewingAsClientId === null
+        ? rawExpensesState.filter(e => !e.clientId) // Global expenses
+        : rawExpensesState.filter(e => e.clientId === viewingAsClientId);
     }
-    return [];
-  }, [rawExpensesState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
+    return rawExpensesState.filter(e => e.clientId === authUser?.clientId);
+  }, [rawExpensesState, viewingAsClientId, authUser, authIsAuthenticated]);
+
+  const managedUsers = useMemo(() => { // This list is for the current client context
+    if (!authIsAuthenticated) return [];
+    const currentContextClientId = authUser?.isSuperAdmin ? viewingAsClientId : authUser?.clientId;
+    if (!currentContextClientId) return []; // Super admin global view, no specific client users here
+    return rawManagedUsersState.filter(mu => mu.clientId === currentContextClientId);
+  }, [rawManagedUsersState, viewingAsClientId, authUser, authIsAuthenticated]);
 
 
-  const managedUsers = useMemo(() => {
-    if (!isLoaded || !authIsAuthenticated) return [];
-     if (authUser?.isSuperAdmin) {
-        if (viewingAsClientId === null) {
-            return []; 
-        }
-        return rawManagedUsersState.filter(mu => mu.clientId === viewingAsClientId);
-     } else if (authUser?.clientId) { 
-        return rawManagedUsersState.filter(mu => mu.clientId === authUser.clientId);
-     }
-    return [];
-  }, [rawManagedUsersState, viewingAsClientId, isLoaded, authUser, authIsAuthenticated]);
-
-
-  const addTenant = (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
+  // CRUD Operations
+  const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
     } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
       determinedClientId = authUser.clientId;
     }
-
-    const newTenant: Tenant = {
+    const newTenantData: Omit<Tenant, 'id'> = {
       ...tenantData,
-      id: uuidv4(),
       ...(determinedClientId && { clientId: determinedClientId })
     };
-    setRawTenantsState(prev => [...prev, newTenant]);
+    await addDoc(collection(db, 'tenants'), newTenantData);
   };
 
-  const updateTenant = (updatedTenant: Tenant) => {
-    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedTenant.clientId !== authUser.clientId && updatedTenant.clientId !== undefined) {
-      console.error("Permission denied: Client user cannot update tenants of other clients.");
-      return;
-    }
-     if(authUser?.isSuperAdmin && viewingAsClientId === null && updatedTenant.clientId !== undefined){
-        console.error("Super admin in global view cannot update client-specific tenants here.");
-        return;
-    }
-    setRawTenantsState(prev => prev.map(t => t.id === updatedTenant.id ? updatedTenant : t));
+  const updateTenant = async (updatedTenant: Tenant) => {
+    const { id, ...dataToUpdate } = updatedTenant;
+    await setDoc(doc(db, 'tenants', id), dataToUpdate, { merge: true });
   };
 
-  const attemptDeleteTenant = (tenantId: string): AttemptDeleteTenantResult => {
-    const tenantIndex = rawTenantsState.findIndex(t => t.id === tenantId);
-    if (tenantIndex === -1) {
+  const attemptDeleteTenant = async (tenantId: string): Promise<AttemptDeleteTenantResult> => {
+    const tenantDocRef = doc(db, 'tenants', tenantId);
+    const tenantSnapshot = await getDocs(query(collection(db, 'tenants'), where('id', '==', tenantId))); // Firestore does not return doc on ref
+     if (tenantSnapshot.empty) {
       return { success: false, message: 'Tenant not found.', action: 'not_found' };
     }
-    const tenantToDelete = rawTenantsState[tenantIndex];
+    const tenantData = {id: tenantSnapshot.docs[0].id, ...tenantSnapshot.docs[0].data()} as Tenant;
 
-    const isGlobalTenant = !tenantToDelete.clientId;
-    const canManageThisTenant = 
-      (authUser?.isSuperAdmin && (viewingAsClientId === tenantToDelete.clientId || (viewingAsClientId === null && isGlobalTenant))) ||
-      (!authUser?.isSuperAdmin && authUser?.clientId === tenantToDelete.clientId);
 
-    if (!canManageThisTenant) {
-      return { success: false, message: 'Permission denied to modify this tenant.', action: 'error' };
-    }
-
-    const hasPaymentHistory = rawPaymentsState.some(p => p.tenantId === tenantId);
+    const paymentsQuery = query(collection(db, 'payments'), where('tenantId', '==', tenantId));
+    const paymentDocs = await getDocs(paymentsQuery);
+    const hasPaymentHistory = !paymentDocs.empty;
 
     if (hasPaymentHistory) {
-      const updatedTenant = { ...tenantToDelete, status: 'inactive' as 'inactive' };
-      setRawTenantsState(prev => prev.map(t => t.id === tenantId ? updatedTenant : t));
-      return { success: true, message: `Tenant "${tenantToDelete.name}" marked as inactive due to payment history.`, action: 'inactivated' };
+      await updateDoc(tenantDocRef, { status: 'inactive' });
+      return { success: true, message: `Tenant "${tenantData.name}" marked as inactive due to payment history.`, action: 'inactivated' };
     } else {
-      setRawTenantsState(prev => prev.filter(t => t.id !== tenantId));
-      return { success: true, message: `Tenant "${tenantToDelete.name}" permanently deleted.`, action: 'deleted' };
+      await deleteDoc(tenantDocRef);
+      return { success: true, message: `Tenant "${tenantData.name}" permanently deleted.`, action: 'deleted' };
     }
   };
-
-
-  const addPayment = (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
-     let determinedClientId: string | undefined = undefined;
+  
+  const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
+    let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
     } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
       determinedClientId = authUser.clientId;
     }
-
-    const newPayment: Payment = {
-      id: uuidv4(),
+     const newPaymentData: Omit<Payment, 'id'> = {
       tenantId: paymentData.tenantId,
       date: paymentData.date,
       amount: paymentData.amount,
@@ -264,146 +194,105 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       discountDescription: paymentData.discountDescription || '',
       ...(determinedClientId && { clientId: determinedClientId })
      };
-    setRawPaymentsState(prev => [...prev, newPayment]);
+    await addDoc(collection(db, 'payments'), newPaymentData);
   };
 
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'clientId'>) => { 
+  const addExpense = async (expenseData: Omit<Expense, 'id' | 'clientId'>) => {
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
     } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
       determinedClientId = authUser.clientId;
     }
-    const newExpense: Expense = {
+    const newExpenseData: Omit<Expense, 'id'> = {
       ...expenseData,
-      id: uuidv4(),
       ...(determinedClientId && { clientId: determinedClientId })
     };
-    setRawExpensesState(prev => [...prev, newExpense]);
+    await addDoc(collection(db, 'expenses'), newExpenseData);
   };
 
-  const updateExpense = (updatedExpense: Expense) => { 
-    if (!authUser?.isSuperAdmin && authUser?.clientId && updatedExpense.clientId !== authUser.clientId && updatedExpense.clientId !== undefined) {
-      console.error("Permission denied: Client user cannot update expenses of other clients.");
-      return;
-    }
-    if(authUser?.isSuperAdmin && viewingAsClientId === null && updatedExpense.clientId !== undefined){
-        console.error("Super admin in global view cannot update client-specific expenses here.");
-        return;
-    }
-    setRawExpensesState(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+  const updateExpense = async (updatedExpense: Expense) => {
+    const { id, ...dataToUpdate } = updatedExpense;
+    await setDoc(doc(db, 'expenses', id), dataToUpdate, { merge: true });
   };
 
-  const deleteExpense = (expenseId: string) => { 
-    const expenseToDelete = rawExpensesState.find(e => e.id === expenseId);
-    if (!expenseToDelete) return;
-
-    if (!authUser?.isSuperAdmin && authUser?.clientId && expenseToDelete.clientId !== authUser.clientId && expenseToDelete.clientId !== undefined) {
-      console.error("Permission denied: Client user cannot delete expenses of other clients.");
-      return;
-    }
-     if(authUser?.isSuperAdmin && viewingAsClientId === null && expenseToDelete.clientId !== undefined){
-        console.error("Super admin in global view cannot delete client-specific expenses here.");
-        return;
-    }
-    setRawExpensesState(prev => prev.filter(e => e.id !== expenseId));
+  const deleteExpense = async (expenseId: string) => {
+    await deleteDoc(doc(db, 'expenses', expenseId));
   };
 
-
-  const addClient = (clientData: Omit<Client, 'id'>) => {
+  const addClient = async (clientData: Omit<Client, 'id'>) => {
     if (!authUser?.isSuperAdmin) return;
-    const newClient: Client = { 
-      id: uuidv4(), 
-      name: clientData.name,
-      logoUrl: clientData.logoUrl || undefined 
-    };
-    setClientsState(prev => [...prev, newClient]);
+    await addDoc(collection(db, 'clients'), clientData);
   };
 
-  const updateClient = (updatedClient: Client) => {
+  const updateClient = async (updatedClient: Client) => {
     if (!authUser?.isSuperAdmin) return;
-    setClientsState(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    const { id, ...dataToUpdate } = updatedClient;
+    await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
   };
 
-  const deleteClient = (clientId: string) => {
+  const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) return;
-    setClientsState(prev => prev.filter(c => c.id !== clientId));
-    setRawTenantsState(prev => prev.filter(t => t.clientId !== clientId));
-    setRawPaymentsState(prev => prev.filter(p => p.clientId !== clientId));
-    setRawManagedUsersState(prev => prev.filter(u => u.clientId !== clientId));
-    setRawExpensesState(prev => prev.filter(e => e.clientId !== clientId)); 
+    // Note: This is a simplified delete. In production, you'd want a transaction
+    // or a Cloud Function to delete associated tenants, payments, users, expenses.
+    const batch = writeBatch(db);
+
+    // Delete client
+    batch.delete(doc(db, 'clients', clientId));
+
+    // Query and delete associated data
+    const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses'];
+    for (const collName of collectionsToDelete) {
+      const q = query(collection(db, collName), where('clientId', '==', clientId));
+      const snapshot = await getDocs(q);
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    }
+    await batch.commit();
+  };
+  
+  const addManagedUser = async (userData: Omit<ManagedUser, 'id'>) => {
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== userData.clientId) return;
+    await addDoc(collection(db, 'managedUsers'), { ...userData, role: userData.role || 'user' });
   };
 
-  const addManagedUser = (userData: Omit<ManagedUser, 'id'>) => {
-    if (!userData.clientId) {
-        console.error("Cannot add managed user: clientId is missing from userData.");
-        return;
-    }
-    if (!authUser?.isSuperAdmin && authUser?.clientId && userData.clientId !== authUser.clientId) {
-      console.error("Permission denied: Client user cannot add users to other clients.");
-      return;
-    }
-    const newUserWithId: ManagedUser = { ...userData, id: uuidv4(), role: userData.role || 'user' };
-    setRawManagedUsersState(prev => [...prev, newUserWithId]);
+  const updateManagedUser = async (updatedUser: ManagedUser) => {
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== updatedUser.clientId) return;
+    const { id, ...dataToUpdate } = updatedUser;
+    await setDoc(doc(db, 'managedUsers', id), { ...dataToUpdate, role: updatedUser.role || 'user' }, { merge: true });
   };
 
-  const updateManagedUser = (updatedUser: ManagedUser) => {
-     if (!updatedUser.clientId) {
-        console.error("Cannot update managed user: clientId is missing.");
-        return;
-    }
-    if (!authUser?.isSuperAdmin && authUser?.clientId !== updatedUser.clientId) {
-      console.error("Permission denied: Client user cannot update users of other clients.");
-      return;
-    }
-    setRawManagedUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser, role: updatedUser.role || u.role || 'user' } : u));
-  };
-
-  const deleteManagedUser = (userId: string) => {
+  const deleteManagedUser = async (userId: string) => {
     const userToDelete = rawManagedUsersState.find(u => u.id === userId);
     if (!userToDelete) return;
-
-    if (!authUser?.isSuperAdmin && authUser?.clientId !== userToDelete.clientId) {
-      console.error("Permission denied: Client user cannot delete users of other clients.");
-      return;
-    }
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin' && authUser?.clientId === userToDelete.clientId && userToDelete.username === authUser.username) {
-       console.error("Client admins cannot delete their own account this way.");
-       return;
-    }
-    setRawManagedUsersState(prev => prev.filter(u => u.id !== userId));
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== userToDelete.clientId) return;
+    await deleteDoc(doc(db, 'managedUsers', userId));
   };
 
-  const addSuperAdminUser = (userData: Omit<SuperAdminUser, 'id'>) => {
-    if (!authUser?.isSuperAdmin) return; 
-    const newUser: SuperAdminUser = { ...userData, id: uuidv4() };
-    setRawSuperAdminUsersState(prev => [...prev, newUser]);
-  };
-
-  const updateSuperAdminUser = (updatedUser: SuperAdminUser) => {
+  const addSuperAdminUser = async (userData: Omit<SuperAdminUser, 'id'>) => {
     if (!authUser?.isSuperAdmin) return;
-    setRawSuperAdminUsersState(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+    await addDoc(collection(db, 'superAdminUsers'), userData);
   };
 
-  const deleteSuperAdminUser = (userId: string) => {
+  const updateSuperAdminUser = async (updatedUser: SuperAdminUser) => {
     if (!authUser?.isSuperAdmin) return;
-    const userToDelete = rawSuperAdminUsersState.find(u => u.id === userId);
-    if (userToDelete && authUser.username === userToDelete.username) {
-        console.error("Super admin cannot delete their own account through this interface.");
-        return;
-    }
-    setRawSuperAdminUsersState(prev => prev.filter(u => u.id !== userId));
+    const { id, ...dataToUpdate } = updatedUser;
+    await setDoc(doc(db, 'superAdminUsers', id), dataToUpdate, { merge: true });
+  };
+
+  const deleteSuperAdminUser = async (userId: string) => {
+    if (!authUser?.isSuperAdmin) return;
+    await deleteDoc(doc(db, 'superAdminUsers', userId));
   };
 
 
-  const contextValue: AppContextTypeWithRawData = {
+  const contextValue: AppContextType = {
     tenants,
     payments,
-    clients: clientsState,
-    managedUsers,
-    rawSuperAdminUsers: rawSuperAdminUsersState,
-    expenses, 
-    expenseCategories: definedExpenseCategories, 
+    clients: rawClientsState, // SuperAdmins see all clients
+    managedUsers, // Filtered for current client context or empty for SA global
+    rawSuperAdminUsers: rawSuperAdminUsersState, // SA needs full list
+    expenses,
+    expenseCategories: definedExpenseCategories,
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
 
@@ -423,18 +312,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addSuperAdminUser,
     updateSuperAdminUser,
     deleteSuperAdminUser,
-    addExpense, 
-    updateExpense, 
-    deleteExpense, 
-
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    
+    // For components that need all users (like SuperAdmin user management page)
+    // or for login check where filtering is done by AuthContext.
+    // If more "raw" lists are needed by components, they can be added here.
     rawManagedUsers: rawManagedUsersState,
-    rawExpenses: rawExpensesState, 
   };
 
-  if (!isLoaded) {
+  if (isDataLoading) {
     return (
-      <AppContext.Provider value={contextValue}>
-        <div>Loading context...</div>
+      <AppContext.Provider value={contextValue as AppContextType}> {/* Cast to avoid issues with potentially undefined fields during loading */}
+        <div className="flex h-screen w-full items-center justify-center">
+          Loading application data...
+        </div>
       </AppContext.Provider>
     );
   }
@@ -446,11 +339,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useAppContext = (): AppContextTypeWithRawData => {
+export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (context === undefined) {
     throw new Error('useAppContext must be used within an AppProvider');
   }
   return context;
 };
-

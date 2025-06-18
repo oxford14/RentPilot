@@ -4,52 +4,52 @@ export type ClientUserRole = 'admin' | 'user';
 export interface User { // For AuthContext user
   username: string;
   isSuperAdmin?: boolean;
-  clientId?: string;
+  clientId?: string; // Firestore document ID of the client
   role?: ClientUserRole; 
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
-  id: string;
+  id: string; // Firestore document ID
   username: string;
   email: string;
-  clientId: string;
-  password?: string;
+  clientId: string; // Firestore document ID of the client
+  password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
   role: ClientUserRole; 
 }
 
 export interface SuperAdminUser {
-  id: string;
+  id: string; // Firestore document ID
   username: string;
-  password?: string; // Optional because we might not always fetch/store it post-creation for security
+  password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
 }
 
 
 export interface Tenant {
-  id: string;
+  id: string; // Firestore document ID
   name: string;
   email: string;
   phone: string;
   monthlyRentalRate: number;
   status: 'active' | 'inactive';
-  joinDate: string;
-  clientId?: string;
+  joinDate: string; // ISO string
+  clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Other';
 
 export interface Payment {
-  id: string;
-  tenantId: string;
-  date: string;
+  id: string; // Firestore document ID
+  tenantId: string; // Firestore document ID of the tenant
+  date: string; // ISO string
   amount: number;
-  paymentMethod?: PaymentMethod; // Made optional
+  paymentMethod?: PaymentMethod;
   discountApplied?: number;
   discountDescription?: string; 
-  clientId?: string;
+  clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
 }
 
 export interface Client {
-  id: string;
+  id: string; // Firestore document ID
   name: string;
   logoUrl?: string;
 }
@@ -76,12 +76,12 @@ export const expenseCategories: ExpenseCategory[] = [
 ];
 
 export interface Expense {
-  id: string;
+  id: string; // Firestore document ID
   description: string;
   amount: number;
   date: string; // ISO string
   category: ExpenseCategory;
-  clientId?: string;
+  clientId?: string; // Firestore document ID of the client, or undefined/null for global expenses
 }
 
 // Navigation item types
@@ -89,7 +89,7 @@ interface AppNavSubItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  adminOnly?: boolean; // Keep for potential future use if needed in sub-items
+  adminOnly?: boolean;
   clientAdminOnly?: boolean;
   superAdminOnly?: boolean;
 }
@@ -97,7 +97,7 @@ interface AppNavSubItem {
 interface AppNavGroup {
   isGroup: true;
   label: string;
-  icon: React.ElementType; // Icon for the group itself
+  icon: React.ElementType;
   items: AppNavSubItem[];
   adminOnly?: boolean;
   clientAdminOnly?: boolean;
@@ -116,17 +116,9 @@ interface AppTopLevelNavItem {
 
 export type AppSidebarNavItem = AppTopLevelNavItem | AppNavGroup;
 
+// AppState is no longer used for localStorage persistence of main data
+// export interface AppState { ... }
 
-export interface AppState {
-  rawTenants: Tenant[];
-  rawPayments: Payment[];
-  clients: Client[];
-  rawManagedUsers: ManagedUser[];
-  rawSuperAdminUsers: SuperAdminUser[];
-  rawExpenses: Expense[];
-  viewingAsClientId: string | null;
-  systemTimezone: string | null;
-}
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -134,11 +126,8 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (
     usernameInput: string,
-    passwordInput: string,
-    allManagedUsers: ManagedUser[],
-    allClients: Client[],
-    allSuperAdminUsers: SuperAdminUser[]
-  ) => Promise<void>;
+    passwordInput: string
+  ) => Promise<void>; // Removed unused parameters
   logout: () => void;
 }
 
@@ -148,12 +137,13 @@ export type AttemptDeleteTenantResult = {
   action: 'deleted' | 'inactivated' | 'not_found' | 'error';
 };
 
+// AppContextType now reflects that CRUD operations are async (return Promise)
 export interface AppContextType {
   tenants: Tenant[];
   payments: Payment[];
   clients: Client[];
-  managedUsers: ManagedUser[];
-  rawSuperAdminUsers: SuperAdminUser[];
+  managedUsers: ManagedUser[]; // Filtered for current client context if applicable
+  rawSuperAdminUsers: SuperAdminUser[]; // Full list for super admins
   expenses: Expense[]; 
   expenseCategories: ExpenseCategory[];
   viewingAsClientId: string | null;
@@ -162,28 +152,27 @@ export interface AppContextType {
   setViewMode: (clientId: string | null) => void;
   updateSystemTimezone: (timezone: string) => void;
 
-  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => void;
-  updateTenant: (tenant: Tenant) => void;
-  attemptDeleteTenant: (tenantId: string) => AttemptDeleteTenantResult;
+  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => Promise<void>;
+  updateTenant: (tenant: Tenant) => Promise<void>;
+  attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
 
+  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
+  
+  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  updateClient: (client: Client) => Promise<void>;
+  deleteClient: (clientId: string) => Promise<void>;
 
-  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => void;
-  updateClient: (client: Client) => void;
-  deleteClient: (clientId: string) => void;
+  addManagedUser: (userData: Omit<ManagedUser, 'id'>) => Promise<void>;
+  updateManagedUser: (user: ManagedUser) => Promise<void>;
+  deleteManagedUser: (userId: string) => Promise<void>;
 
-  addManagedUser: (userData: Omit<ManagedUser, 'id'>) => void;
-  updateManagedUser: (user: ManagedUser) => void;
-  deleteManagedUser: (userId: string) => void;
+  addSuperAdminUser: (userData: Omit<SuperAdminUser, 'id'>) => Promise<void>;
+  updateSuperAdminUser: (user: SuperAdminUser) => Promise<void>;
+  deleteSuperAdminUser: (userId: string) => Promise<void>;
 
-  addSuperAdminUser: (userData: Omit<SuperAdminUser, 'id'>) => void;
-  updateSuperAdminUser: (user: SuperAdminUser) => void;
-  deleteSuperAdminUser: (userId: string) => void;
+  addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => Promise<void>; 
+  updateExpense: (expense: Expense) => Promise<void>; 
+  deleteExpense: (expenseId: string) => Promise<void>; 
 
-  addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => void; 
-  updateExpense: (expense: Expense) => void; 
-  deleteExpense: (expenseId: string) => void; 
-
-  rawManagedUsers: ManagedUser[];
-  rawExpenses: Expense[]; 
+  rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
 }
-

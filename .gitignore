@@ -1,3 +1,4 @@
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # Dependencies
@@ -8,67 +9,44 @@
 # Testing
 /coverage
 
-# Next.js
+# Next.js build output
 /.next/
 /out/
 
 # Production
 /build
 
-# Misc
-.DS_Store
-*.pem
-
-# Local Environment Variables
+# ENV files
 .env
 .env*.local
-.env.development.local
-.env.test.local
-.env.production.local
+!/.env.example
 
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Firebase
-.firebase
-firebase-debug.log
-database-debug.log
-hosting-debug.log
-
-# Genkit (if any local state or logs are generated, though typically flows are stateless)
-# Add specific genkit ignore patterns here if needed, e.g., *.genkit-log
-
-# Editor directories and files
+# VSCode settings
 .vscode/*
 !.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
 !.vscode/extensions.json
-*.sublime-workspace
 
-# System files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
+# macOS
+.DS_Store
+*.swp
 
-# IDE/Editor specific
-.idea
-*.project
-*.classpath
-*.cproject
-*.launch
-.settings/
-*.iml
-*.iws
-*.bak
-
-# Log files
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-# Output of 'firebase emulators:export'
-./firebase-export/
+# Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.cache
+*.editorconfig
+*.sublime-project
+*.sublime-workspace
+
+# Firebase
+.firebase
+firebase-debug.log
