@@ -1,5 +1,5 @@
 
-import type { Metadata, Viewport } from 'next'; // Import Viewport
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from '@/contexts/AppContext';
@@ -21,12 +21,10 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
-  // themeColor: '#6699CC', // Removed from here
+  themeColor: '#6699CC', // themeColor reverted to metadata object
 };
 
-export const viewport: Viewport = { // Added viewport export
-  themeColor: '#6699CC',
-};
+// Viewport export removed
 
 export default function RootLayout({
   children,
