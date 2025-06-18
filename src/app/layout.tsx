@@ -1,6 +1,6 @@
 
-import type {Metadata} from 'next';
-import { Inter } from 'next/font/google'; // Import Inter
+import type { Metadata, Viewport } from 'next'; // Import Viewport
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from '@/contexts/AppContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
+  // themeColor: '#6699CC', // Removed from here
+};
+
+export const viewport: Viewport = { // Added viewport export
   themeColor: '#6699CC',
 };
 
