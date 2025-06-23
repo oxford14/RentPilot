@@ -149,8 +149,12 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         toast({ title: "Client Added", description: `${data.name} has been added successfully.` });
       }
       onClose();
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to save client information." });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Could not save client. This is often due to Firebase Storage rules. Please ensure your storage rules are deployed and allow writes.",
+      });
       console.error("Form submission error:", error);
     }
   };
