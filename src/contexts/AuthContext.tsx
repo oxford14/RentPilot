@@ -57,11 +57,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else if (validatedUser.role === 'tenant') {
                 toastDescription = `Welcome back, ${validatedUser.username}!`;
             } else if (validatedUser.clientId) {
-                const clientDocRef = doc(db, "clients", validatedUser.clientId);
-                const clientDocSnap = await getDoc(clientDocRef);
-                const clientName = clientDocSnap.exists() ? (clientDocSnap.data() as Client).name : 'your organization';
-                const roleName = validatedUser.role ? validatedUser.role.charAt(0).toUpperCase() + validatedUser.role.slice(1) : 'User';
-                toastDescription = `Welcome, ${roleName} ${validatedUser.username} from ${clientName}!`;
+                try {
+                    const clientDocRef = doc(db, "clients", validatedUser.clientId);
+                    const clientDocSnap = await getDoc(clientDocRef);
+                    const clientName = clientDocSnap.exists() ? (clientDocSnap.data() as Client).name : 'your organization';
+                    const roleName = validatedUser.role ? validatedUser.role.charAt(0).toUpperCase() + validatedUser.role.slice(1) : 'User';
+                    toastDescription = `Welcome, ${roleName} ${validatedUser.username} from ${clientName}!`;
+                } catch (e) {
+                    // Could fail if client is deleted but user still exists. Fallback.
+                    console.error("Could not fetch client name for login toast:", e);
+                }
             }
 
             toast({ title: "Login Successful", description: toastDescription });

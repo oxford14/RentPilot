@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, setDoc, getDocs, query, where, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, getDocs, query, where, updateDoc, getDoc, DocumentReference } from 'firebase/firestore';
 import type { ManagedUser, SuperAdminUser, Tenant, User } from '@/lib/types';
 import bcrypt from 'bcryptjs';
 
@@ -10,6 +10,45 @@ const SALT_ROUNDS = 10;
 
 async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, SALT_ROUNDS);
+}
+
+// Helper for verifying password and migrating plaintext to hash if needed
+async function verifyPasswordAndMigrate(
+  docRef: DocumentReference,
+  passwordInput: string,
+  storedPassword?: string
+): Promise<boolean> {
+  if (!storedPassword) {
+    return false;
+  }
+  
+  let isMatch = false;
+  try {
+    // This will work for hashed passwords. It might throw an error for invalid formats (like plaintext).
+    isMatch = await bcrypt.compare(passwordInput, storedPassword);
+  } catch (e) {
+    // An error here likely means storedPassword is not a valid hash (e.g., plaintext).
+    // We can safely ignore it and proceed to the plaintext check.
+    console.warn("bcrypt comparison failed, attempting plaintext check for migration. This is expected for users with legacy passwords.");
+  }
+  
+  // If hash comparison failed (or threw an error), try a plaintext comparison.
+  // This allows users with old, unhashed passwords to log in once,
+  // during which their password will be securely updated.
+  if (!isMatch && passwordInput === storedPassword) {
+    isMatch = true;
+    // Password matches plaintext. Log the user in and update the password to a hash.
+    try {
+      const newHashedPassword = await hashPassword(passwordInput);
+      await updateDoc(docRef, { password: newHashedPassword });
+      console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
+    } catch(updateError) {
+      console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
+      // We still allow the login, but log the failure to update.
+    }
+  }
+  
+  return isMatch;
 }
 
 // Super Admin Actions
@@ -69,7 +108,9 @@ export async function serverChangeManagedUserPassword(
   }
 
   const userData = userSnapshot.data() as ManagedUser;
-  const isMatch = await bcrypt.compare(currentPasswordInput, userData.password || '');
+  
+  // Use the migration-aware verification function here as well
+  const isMatch = await verifyPasswordAndMigrate(userDocRef, currentPasswordInput, userData.password);
 
   if (!isMatch) {
     return { success: false, message: 'Incorrect current password.' };
@@ -123,7 +164,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
     if (!superAdminSnapshot.empty) {
         const superAdminDoc = superAdminSnapshot.docs[0];
         const superAdminData = superAdminDoc.data() as SuperAdminUser;
-        if (superAdminData.password && await bcrypt.compare(passwordInput, superAdminData.password)) {
+        if (await verifyPasswordAndMigrate(superAdminDoc.ref, passwordInput, superAdminData.password)) {
             return { username: superAdminData.username, isSuperAdmin: true };
         }
     }
@@ -134,9 +175,10 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
     if (!managedUserSnapshot.empty) {
         const managedUserDoc = managedUserSnapshot.docs[0];
         const managedUserData = managedUserDoc.data() as ManagedUser;
-        if (managedUserData.password && await bcrypt.compare(passwordInput, managedUserData.password)) {
+        if (await verifyPasswordAndMigrate(managedUserDoc.ref, passwordInput, managedUserData.password)) {
             return {
                 username: managedUserData.username,
+                email: managedUserData.email,
                 clientId: managedUserData.clientId,
                 isSuperAdmin: false,
                 role: managedUserData.role,
@@ -155,7 +197,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
             return null; // Don't allow login if account not activated
         }
         
-        if (tenantData.password && await bcrypt.compare(passwordInput, tenantData.password)) {
+        if (await verifyPasswordAndMigrate(tenantDoc.ref, passwordInput, tenantData.password)) {
              return {
                 username: tenantData.name,
                 email: tenantData.email,
