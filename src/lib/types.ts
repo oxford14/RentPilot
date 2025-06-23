@@ -21,7 +21,6 @@ export interface SuperAdminUser {
   id: string; // Firestore document ID
   username: string;
   password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
-  lastActive?: string; // ISO string for the last active timestamp
 }
 
 
