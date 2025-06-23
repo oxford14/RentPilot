@@ -165,7 +165,7 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
             <Separator className="mb-4" />
 
             <FormLabel>Breakdown Rules</FormLabel>
-            <ScrollArea className="flex-grow pr-4 -mr-6 -ml-6 px-6 my-2">
+            <ScrollArea className="flex-grow min-h-0 pr-4 -mr-6 -ml-6 px-6 my-2">
                 <div className="space-y-4">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
