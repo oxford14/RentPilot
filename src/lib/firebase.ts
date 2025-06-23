@@ -19,7 +19,7 @@ const firebaseConfig: FirebaseOptions = {
   apiKey: "AIzaSyDQQTAoi87lLlDW59SkhWjv9FatQ6bVN3I",
   authDomain: "tenanttracker-u4wuw.firebaseapp.com",
   projectId: "tenanttracker-u4wuw",
-  storageBucket: "tenanttracker-u4wuw.firebasestorage.app", // Corrected storage bucket name based on your gs:// link.
+  storageBucket: "tenanttracker-u4wuw.appspot.com",
   messagingSenderId: "239178627658",
   appId: "1:239178627658:web:fd0ff48875cdff217fc4b3"
 };
