@@ -3,7 +3,7 @@
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-// import { getAuth } from "firebase/auth"; // Keep for future Firebase Auth integration
+import { getAuth } from "firebase/auth"; // Keep for future Firebase Auth integration
 
 // =================================================================================
 // This configuration MUST be from your Firebase project settings.
@@ -35,6 +35,6 @@ if (!getApps().length) {
 
 const db = getFirestore(app);
 const storage = getStorage(app);
-// const auth = getAuth(app); // Uncomment when Firebase Auth is integrated
+const auth = getAuth(app); // Uncomment when Firebase Auth is integrated
 
-export { app, db, storage /*, auth */ };
+export { app, db, storage, auth };

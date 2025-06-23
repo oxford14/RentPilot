@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useMe
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseCategories as definedExpenseCategories } from '@/lib/types';
-import { db, storage } from '@/lib/firebase';
+import { db, storage, auth } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -24,6 +24,7 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { signInAnonymously } from "firebase/auth";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverCompleteTenantSignup, serverUpdateManagedUser, serverUpdateSuperAdminUser } from '@/actions/user-actions';
@@ -374,6 +375,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       let logoUrl: string | null = null;
       if (logoFile) {
+        if (auth.currentUser === null) {
+          await signInAnonymously(auth);
+        }
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
@@ -409,6 +413,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const dataToUpdate: Partial<Client> = { ...clientData };
 
       if (logoFile) {
+        if (auth.currentUser === null) {
+          await signInAnonymously(auth);
+        }
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
