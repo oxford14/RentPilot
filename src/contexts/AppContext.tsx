@@ -614,21 +614,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   
     const { backupType, data } = backupFileContent;
-    const collectionsToProcess: { name: keyof typeof data; data: any[] }[] = [];
-  
-    const allPossibleCollections = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers'];
-  
-    for (const collName of allPossibleCollections) {
-      if (data[collName] && Array.isArray(data[collName])) {
-        if (backupType === 'All Client Data Backup' && collName === 'superAdminUsers') {
-          continue;
-        }
-        collectionsToProcess.push({ name: collName as keyof typeof data, data: data[collName] });
-      }
+    let collectionsToClear: string[];
+    
+    // Determine which collections to clear from Firestore based on the backup type. This is a safety measure.
+    if (backupType === 'Full System Backup') {
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers'];
+    } else if (backupType === 'All Client Data Backup') {
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers']; // Note: superAdminUsers is NOT cleared
+    } else {
+        return { success: false, message: `Unknown backup type: "${backupType}". Restore aborted.` };
     }
-  
-    if (collectionsToProcess.length === 0) {
-      return { success: false, message: "No valid data arrays found in the backup file." };
+
+    const collectionsToRestore = collectionsToClear.filter(
+        collName => data[collName] && Array.isArray(data[collName])
+    ).map(collName => ({
+        name: collName,
+        data: data[collName],
+    }));
+
+    if (collectionsToRestore.length === 0) {
+      return { success: false, message: "No valid data arrays matching the backup type were found in the file." };
     }
   
     try {
@@ -636,7 +641,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       let operationCount = 0;
       const commitLimit = 490;
   
-      for (const { name: collName } of collectionsToProcess) {
+      // Phase 1: Clear existing data from the determined collections
+      for (const collName of collectionsToClear) {
         const collRef = collection(db, collName);
         const snapshot = await getDocs(query(collRef));
         for (const docSnapshot of snapshot.docs) {
@@ -655,7 +661,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         operationCount = 0;
       }
   
-      for (const { name: collName, data: collData } of collectionsToProcess) {
+      // Phase 2: Write new data from the backup file
+      for (const { name: collName, data: collData } of collectionsToRestore) {
         for (const item of collData) {
           if (!item.id) continue;
           const { id, ...itemData } = item;
@@ -673,7 +680,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         await batch.commit();
       }
       
-      const successMsg = "Data has been successfully restored from the backup file.";
+      const successMsg = `Data successfully restored using '${backupType}'.`;
       toast({ title: "Restore Successful", description: successMsg });
       return { success: true, message: successMsg };
   
