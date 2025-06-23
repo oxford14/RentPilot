@@ -43,7 +43,7 @@ export default function ProfilePage() {
       <Card className="shadow-xl">
         <CardHeader className="items-center text-center border-b pb-6">
           <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2">
-            <AvatarImage src="https://placehold.co/100x100.png" alt={`${authUser.username}'s avatar`} data-ai-hint="user avatar large"/>
+            <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299" alt={`${authUser.username}'s avatar`} data-ai-hint="user avatar large"/>
             <AvatarFallback className="text-3xl">{userInitials}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl font-headline">{authUser.username}</CardTitle>
@@ -77,3 +77,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

@@ -85,7 +85,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   }
 ];
 
-const MAIN_APP_LOGO_URL = "/rentpilot-logo.png";
+const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
@@ -410,7 +410,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar Placeholder" data-ai-hint="user avatar placeholder"/>
+                    <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299" alt="User Avatar" data-ai-hint="user avatar"/>
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -472,5 +472,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
 
     
