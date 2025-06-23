@@ -104,16 +104,17 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Settings className="w-6 h-6"/> Configuration for {business.name}</DialogTitle>
           <DialogDescription>
             Define the income tracking frequency and the rules for the breakdown. Rules are applied sequentially.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow overflow-y-hidden flex flex-col">
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow flex flex-col min-h-0">
+            {/* Non-scrolling top part */}
+            <div className="flex-shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                 <FormField
                     control={form.control}
                     name="trackingFrequency"
@@ -160,89 +161,91 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                         )}
                     />
                 )}
+              </div>
+              <Separator className="mb-4" />
+              <FormLabel className="font-semibold">Breakdown Rules</FormLabel>
             </div>
             
-            <Separator className="mb-4" />
-
-            <FormLabel>Breakdown Rules</FormLabel>
-            <ScrollArea className="flex-grow min-h-0 pr-4 -mr-6 -ml-6 px-6 my-2">
-                <div className="space-y-4">
+            {/* Scrolling middle part */}
+            <ScrollArea className="flex-grow my-2">
+                <div className="space-y-4 pr-3">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
                     return (
                         <div key={field.id} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/50 relative">
-                        <div className="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <FormField
-                                control={form.control}
-                                name={`breakdownConfig.${index}.name`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Rule Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g., ROI, Tithes" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`breakdownConfig.${index}.type`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                        <SelectItem value="percentage">Percentage (%)</SelectItem>
-                                        <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
-                                        <SelectItem value="manual_input">Manual Input</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`breakdownConfig.${index}.value`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Value</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 50 or 1000" {...field} disabled={ruleType === 'manual_input'} />
-                                    </FormControl>
-                                    {ruleType === 'manual_input' ? (
-                                        <FormDescription className="text-xs">Value is ignored for Manual Input.</FormDescription>
-                                    ) : (
-                                        <FormMessage />
-                                    )}
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1 pt-7">
-                            <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleMove(index, index - 1)} disabled={index === 0}>
-                                <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleMove(index, index + 1)} disabled={index === fields.length - 1}>
-                                <ArrowDown className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <div className="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <FormField
+                                  control={form.control}
+                                  name={`breakdownConfig.${index}.name`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                      <FormLabel className="text-xs">Rule Name</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="e.g., ROI, Tithes" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={form.control}
+                                  name={`breakdownConfig.${index}.type`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                      <FormLabel className="text-xs">Type</FormLabel>
+                                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                          <FormControl>
+                                          <SelectTrigger>
+                                              <SelectValue placeholder="Select type" />
+                                          </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                          <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
+                                          <SelectItem value="manual_input">Manual Input</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={form.control}
+                                  name={`breakdownConfig.${index}.value`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                      <FormLabel className="text-xs">Value</FormLabel>
+                                      <FormControl>
+                                          <Input type="number" placeholder="e.g., 50 or 1000" {...field} disabled={ruleType === 'manual_input'} />
+                                      </FormControl>
+                                      {ruleType === 'manual_input' ? (
+                                          <FormDescription className="text-xs">Value is ignored.</FormDescription>
+                                      ) : (
+                                          <FormMessage />
+                                      )}
+                                      </FormItem>
+                                  )}
+                              />
+                          </div>
+                          <div className="flex flex-col gap-1 pt-6">
+                              <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleMove(index, index - 1)} disabled={index === 0}>
+                                  <ArrowUp className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => handleMove(index, index + 1)} disabled={index === fields.length - 1}>
+                                  <ArrowDown className="h-4 w-4" />
+                              </Button>
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => remove(index)}>
+                              <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                     );
                 })}
                 </div>
             </ScrollArea>
             
-            <div className="flex-shrink-0 pt-4 border-t mt-auto">
+            {/* Non-scrolling bottom part */}
+            <div className="flex-shrink-0 pt-4 mt-2 border-t">
                 <Button
                 type="button"
                 variant="outline"
@@ -251,7 +254,6 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                 >
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Rule
                 </Button>
-
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                     <Button type="submit">Save Configuration</Button>
