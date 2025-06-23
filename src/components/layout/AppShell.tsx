@@ -85,7 +85,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   }
 ];
 
-const MAIN_APP_LOGO_URL = "https://placehold.co/100x32.png";
+const MAIN_APP_LOGO_URL = "/rentpilot-logo.png";
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
@@ -271,7 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
                 <Image 
                   src={MAIN_APP_LOGO_URL}
-                  alt="RentPilot Logo" 
+                  alt="RentPilot app logo" 
                   width={28} 
                   height={28} 
                   className="h-7 w-7 object-contain" 
@@ -392,7 +392,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               ) : !isAdminSection ? (
                   <Image
                     src={MAIN_APP_LOGO_URL} 
-                    alt="RentPilot Logo"
+                    alt="RentPilot app logo"
                     width={32}
                     height={32}
                     className="h-8 w-8 object-contain rounded"
@@ -472,3 +472,5 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

@@ -18,10 +18,7 @@ export const metadata: Metadata = {
   title: 'RentPilot - Rental Management',
   description: 'Manage tenants, payments, and reports efficiently.',
   manifest: '/manifest.json',
-  icons: {
-    icon: '/favicon.ico',
-  },
-  themeColor: '#6699CC', // themeColor reverted to metadata object
+  themeColor: '#6699CC',
 };
 
 // Viewport export removed
@@ -46,3 +43,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
