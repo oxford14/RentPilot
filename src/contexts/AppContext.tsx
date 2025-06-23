@@ -554,6 +554,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return { success: true, message: 'Account created successfully! You can now log in.' };
   };
 
+  const cleanClientData = async (clientId: string): Promise<{ success: boolean; message: string; }> => {
+    if (!authUser?.isSuperAdmin) {
+      const msg = "You do not have permission to clean client data.";
+      toast({ variant: "destructive", title: "Unauthorized", description: msg });
+      return { success: false, message: msg };
+    }
+
+    try {
+        const batch = writeBatch(db);
+
+        // Find tenants for the client
+        const tenantsQuery = query(collection(db, 'tenants'), where('clientId', '==', clientId));
+        const tenantsSnapshot = await getDocs(tenantsQuery);
+        const tenantIds = tenantsSnapshot.docs.map(d => d.id);
+
+        if (tenantIds.length > 0) {
+            // Firestore 'in' query limit is 30
+            for (let i = 0; i < tenantIds.length; i += 30) {
+                const tenantIdChunk = tenantIds.slice(i, i + 30);
+                
+                // Find and delete payments for this chunk of tenants
+                const paymentsQuery = query(collection(db, 'payments'), where('tenantId', 'in', tenantIdChunk));
+                const paymentsSnapshot = await getDocs(paymentsQuery);
+                paymentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+            }
+
+            // Delete tenants
+            tenantsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+
+        // Delete expenses for the client
+        const expensesQuery = query(collection(db, 'expenses'), where('clientId', '==', clientId));
+        const expensesSnapshot = await getDocs(expensesQuery);
+        expensesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+        await batch.commit();
+        
+        const successMsg = "All tenants, payments, and expenses for the client have been deleted.";
+        toast({ title: "Cleanup Successful", description: successMsg });
+        return { success: true, message: successMsg };
+
+    } catch (error: any) {
+        console.error("Error cleaning client data:", error);
+        toast({ variant: "destructive", title: "Cleanup Failed", description: error.message });
+        return { success: false, message: `Cleanup failed: ${error.message}` };
+    }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -588,6 +636,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawManagedUsers: rawManagedUsersState,
     generateTenantInvitation,
     completeTenantSignup,
+    cleanClientData,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {

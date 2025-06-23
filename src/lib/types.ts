@@ -186,4 +186,5 @@ export interface AppContextType {
   // Tenant Portal
   generateTenantInvitation: (tenantId: string) => Promise<string>;
   completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
+  cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
 }

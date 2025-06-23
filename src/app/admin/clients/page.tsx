@@ -1,13 +1,14 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Eye, ImageOff } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser } from 'lucide-react';
 import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,13 +22,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 export default function AdminClientsPage() {
-  const { clients, deleteClient, setViewMode } = useAppContext();
+  const { clients, deleteClient, setViewMode, cleanClientData } = useAppContext();
   const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [clientToClean, setClientToClean] = useState<Client | null>(null);
   const { toast } = useToast();
 
   const handleOpenForm = (client?: Client) => {
@@ -55,6 +58,18 @@ export default function AdminClientsPage() {
       deleteClient(clientToDelete.id);
       toast({ title: "Client Deleted", description: `${clientToDelete.name} has been deleted.`});
       setClientToDelete(null); 
+    }
+  };
+
+  const confirmCleanClient = (client: Client) => {
+    setClientToClean(client);
+  };
+
+  const handleCleanClient = async () => {
+    if (clientToClean) {
+      await cleanClientData(clientToClean.id);
+      // The toast is handled within the context function now
+      setClientToClean(null);
     }
   };
 
@@ -92,14 +107,14 @@ export default function AdminClientsPage() {
                           <Image 
                             src={client.logoUrl} 
                             alt={`${client.name} logo`} 
-                            width={120} 
-                            height={45} 
+                            width={240} 
+                            height={90} 
                             className="object-contain rounded"
-                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/120x45.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/240x90.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
                             data-ai-hint="client logo"
                           />
                         ) : (
-                          <div className="w-[120px] h-[45px] flex items-center justify-center bg-muted rounded text-muted-foreground">
+                          <div className="w-[240px] h-[90px] flex items-center justify-center bg-muted rounded text-muted-foreground">
                             <ImageOff className="h-8 w-8" />
                           </div>
                         )}
@@ -111,6 +126,9 @@ export default function AdminClientsPage() {
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)} title="Edit Client">
                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => confirmCleanClient(client)} title="Clean Client Data">
+                           <Eraser className="h-4 w-4" />
                         </Button>
                         <Button variant="destructive" size="sm" onClick={() => confirmDeleteClient(client)} title="Delete Client">
                            <Trash2 className="h-4 w-4" />
@@ -145,12 +163,33 @@ export default function AdminClientsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the client "{clientToDelete.name}".
+                This action cannot be undone. This will permanently delete the client "{clientToDelete.name}" and all associated data (tenants, payments, users, etc.).
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteClient}>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDeleteClient} className={cn(buttonVariants({ variant: "destructive" }))}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
+      <AlertDialog open={!!clientToClean} onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setClientToClean(null);
+        }
+      }}>
+        {clientToClean && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete ALL tenants, payments, and expenses associated with the client "{clientToClean.name}". The client entry itself will NOT be deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCleanClient} className={cn(buttonVariants({ variant: "destructive" }))}>Clean Data</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         )}
