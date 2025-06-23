@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useMe
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseCategories as definedExpenseCategories } from '@/lib/types';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -23,6 +23,7 @@ import {
   DocumentData,
   getDoc,
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { Loader2 } from 'lucide-react';
 
@@ -108,7 +109,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }, (error) => {
         if (!isMounted) return;
         console.error(`Error fetching ${coll.name}: `, error);
-        toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: `Missing or insufficient permissions. Please check Firestore rules.` });
+        if (error.code === 'permission-denied') {
+          toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: `Missing or insufficient permissions. Please deploy Firestore rules.` });
+        } else {
+          toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: error.message });
+        }
         setIsDataLoading(false); 
       });
       listeners.push(unsubscribe);
@@ -169,6 +174,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -181,7 +190,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     try {
       await addDoc(collection(db, 'tenants'), newTenantData);
-      toast({ title: "Success", description: "Tenant added successfully." });
     } catch (error: any) {
       console.error("Error adding tenant to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add tenant: ${error.message}` });
@@ -189,10 +197,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateTenant = async (updatedTenant: Tenant) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     const { id, ...dataToUpdate } = updatedTenant;
     try {
       await setDoc(doc(db, 'tenants', id), dataToUpdate, { merge: true });
-      toast({ title: "Success", description: "Tenant updated successfully." });
     } catch (error: any) {
       console.error("Error updating tenant in Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update tenant: ${error.message}` });
@@ -200,6 +211,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const attemptDeleteTenant = async (tenantId: string): Promise<AttemptDeleteTenantResult> => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return { success: false, message: 'Unauthorized.', action: 'error' };
+    }
     const tenantDocRef = doc(db, 'tenants', tenantId);
     try {
       const tenantSnapshot = await getDoc(tenantDocRef);
@@ -228,6 +243,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -245,7 +264,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
      };
     try {
       await addDoc(collection(db, 'payments'), newPaymentData);
-      toast({ title: "Success", description: "Payment added successfully." });
     } catch (error: any) {
       console.error("Error adding payment to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add payment: ${error.message}` });
@@ -253,6 +271,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'clientId'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     let determinedClientId: string | undefined = undefined;
     if (authUser?.isSuperAdmin && viewingAsClientId) {
       determinedClientId = viewingAsClientId;
@@ -265,7 +287,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     try {
       await addDoc(collection(db, 'expenses'), newExpenseData);
-      toast({ title: "Success", description: "Expense added successfully." });
     } catch (error: any) {
       console.error("Error adding expense to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${error.message}` });
@@ -273,10 +294,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateExpense = async (updatedExpense: Expense) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     const { id, ...dataToUpdate } = updatedExpense;
     try {
       await setDoc(doc(db, 'expenses', id), dataToUpdate, { merge: true });
-      toast({ title: "Success", description: "Expense updated successfully." });
     } catch (error: any) {
       console.error("Error updating expense in Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${error.message}` });
@@ -284,48 +308,67 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteExpense = async (expenseId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
     try {
       await deleteDoc(doc(db, 'expenses', expenseId));
-      toast({ title: "Success", description: "Expense deleted successfully." });
     } catch (error: any) {
       console.error("Error deleting expense from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
     }
   };
 
-  const addClient = async (clientData: Omit<Client, 'id'>) => {
+  const addClient = async (clientData: { name: string }, logoFile?: File | null) => {
     if (!authUser?.isSuperAdmin) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to add clients." });
       return;
     }
     try {
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        const uniqueFileName = `${uuidv4()}-${logoFile.name}`;
+        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
+        const uploadResult = await uploadBytes(storageRef, logoFile);
+        logoUrl = await getDownloadURL(uploadResult.ref);
+      }
+
       const dataToSave = {
-        ...clientData,
-        logoUrl: clientData.logoUrl || null,
+        name: clientData.name,
+        logoUrl: logoUrl,
       };
+
       await addDoc(collection(db, 'clients'), dataToSave);
-      toast({ title: "Success", description: "Client added successfully." });
     } catch (error: any) {
-      console.error("Error adding client to Firestore:", error);
+      console.error("Error adding client:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add client: ${error.message}` });
     }
   };
 
-  const updateClient = async (updatedClient: Client) => {
+  const updateClient = async (client: Client, logoFile?: File | null) => {
     if (!authUser?.isSuperAdmin) {
        toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to update clients." });
        return;
     }
-    const { id, ...dataToUpdate } = updatedClient;
+    const { id } = client;
     try {
-      const dataToSave = {
-        ...dataToUpdate,
-        logoUrl: dataToUpdate.logoUrl || null,
+      const dataToUpdate: { name: string; logoUrl: string | null } = {
+        name: client.name,
+        logoUrl: client.logoUrl || null,
       };
-      await setDoc(doc(db, 'clients', id), dataToSave, { merge: true });
-      toast({ title: "Success", description: "Client updated successfully." });
+
+      if (logoFile) {
+        const uniqueFileName = `${uuidv4()}-${logoFile.name}`;
+        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
+        const uploadResult = await uploadBytes(storageRef, logoFile);
+        dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);
+        // In a production app, you might want to delete the old logo from storage here.
+      }
+      
+      await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
     } catch (error: any) {
-      console.error("Error updating client in Firestore:", error);
+      console.error("Error updating client:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update client: ${error.message}` });
     }
   };
@@ -345,7 +388,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         snapshot.docs.forEach(doc => batch.delete(doc.ref));
       }
       await batch.commit();
-      toast({ title: "Success", description: "Client and associated data deleted successfully." });
     } catch (error: any) {
       console.error("Error deleting client and associated data from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete client: ${error.message}` });
@@ -359,7 +401,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await addDoc(collection(db, 'managedUsers'), { ...userData, role: userData.role || 'user' });
-      toast({ title: "Success", description: "User added successfully." });
     } catch (error: any) {
       console.error("Error adding managed user to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add user: ${error.message}` });
@@ -374,7 +415,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...dataToUpdate } = updatedUser;
     try {
       await setDoc(doc(db, 'managedUsers', id), { ...dataToUpdate, role: updatedUser.role || 'user' }, { merge: true });
-      toast({ title: "Success", description: "User updated successfully." });
     } catch (error: any) {
       console.error("Error updating managed user in Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update user: ${error.message}` });
@@ -393,7 +433,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await deleteDoc(doc(db, 'managedUsers', userId));
-      toast({ title: "Success", description: "User deleted successfully." });
     } catch (error: any) {
       console.error("Error deleting managed user from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete user: ${error.message}` });
@@ -407,7 +446,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await addDoc(collection(db, 'superAdminUsers'), userData);
-      toast({ title: "Success", description: "Super admin added successfully." });
     } catch (error: any) {
       console.error("Error adding super admin user to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add super admin: ${error.message}` });
@@ -422,7 +460,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...dataToUpdate } = updatedUser;
     try {
       await setDoc(doc(db, 'superAdminUsers', id), dataToUpdate, { merge: true });
-      toast({ title: "Success", description: "Super admin updated successfully." });
     } catch (error: any) {
       console.error("Error updating super admin user in Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update super admin: ${error.message}` });
@@ -436,7 +473,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await deleteDoc(doc(db, 'superAdminUsers', userId));
-      toast({ title: "Success", description: "Super admin deleted successfully." });
     } catch (error: any) {
       console.error("Error deleting super admin user from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete super admin: ${error.message}` });

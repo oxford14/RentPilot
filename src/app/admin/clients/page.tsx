@@ -97,7 +97,6 @@ export default function AdminClientsPage() {
                             width={80} 
                             height={30} 
                             className="object-contain rounded"
-                            unoptimized // Add this if logos are from various non-whitelisted domains
                             onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/80x30.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
                             data-ai-hint="client logo"
                           />
