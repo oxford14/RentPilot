@@ -318,8 +318,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addClient = async (clientData: { name: string }, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to add clients." });
-      return;
+      throw new Error("You do not have permission to add clients.");
     }
     try {
       let logoUrl: string | null = null;
@@ -346,8 +345,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateClient = async (client: Client, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
-       toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to update clients." });
-       return;
+       throw new Error("You do not have permission to update clients.");
     }
     const { id } = client;
     try {
