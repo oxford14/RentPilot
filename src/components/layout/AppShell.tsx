@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -19,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -67,7 +68,7 @@ const appNavItems: AppSidebarNavItem[] = [
     icon: BarChart3,
     items: [
       { href: '/reports', label: 'Financial Summary', icon: FileText },
-      { href: '/reports/earnings', label: 'Earnings Report', icon: AreaChart },
+      { href: '/reports/earnings', label: 'Earnings Report', icon: TrendingUp },
     ]
   },
   { isGroup: false, href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
@@ -563,3 +564,5 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

@@ -1,11 +1,10 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, CreditCard, AlertTriangle, DollarSign, BarChart3, Loader2 } from "lucide-react";
+import { Users, CreditCard, AlertTriangle, DollarSign, BarChart, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TenantDashboard } from '@/components/tenants/TenantDashboard';
@@ -118,7 +117,7 @@ function AdminClientDashboard() {
           </Link>
            <Link href="/reports" passHref>
             <Button className="w-full" variant="default">
-              <BarChart3 className="mr-2 h-4 w-4" /> Generate Reports
+              <BarChart className="mr-2 h-4 w-4" /> Generate Reports
             </Button>
           </Link>
         </CardContent>
