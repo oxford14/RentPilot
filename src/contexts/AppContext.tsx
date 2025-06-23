@@ -375,9 +375,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       let logoUrl: string | null = null;
       if (logoFile) {
-        if (auth.currentUser === null) {
-          await signInAnonymously(auth);
-        }
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
@@ -413,9 +410,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const dataToUpdate: Partial<Client> = { ...clientData };
 
       if (logoFile) {
-        if (auth.currentUser === null) {
-          await signInAnonymously(auth);
-        }
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
