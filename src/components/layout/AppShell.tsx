@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
@@ -97,13 +98,14 @@ const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttra
 const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
 
 // Helper component for grouped app navigation items
-const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
+const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
   const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
   const showTooltip = sidebarState === 'collapsed' && !sidebarIsMobile;
 
   const trigger = (
     <AccordionTrigger
+      disabled={disabled}
       className={cn(
         "flex w-full items-center rounded-md p-2 text-left text-sm font-medium outline-none ring-sidebar-ring transition-colors hover:no-underline focus-visible:ring-2",
         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -140,6 +142,7 @@ const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: st
                 size="sm"
                 isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
                 className="justify-start w-full"
+                disabled={disabled}
               >
                 <Link href={subItem.href}>
                   <subItem.icon className="h-4 w-4" />
@@ -389,7 +392,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
                     return (
                        <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}-${index}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
-                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} />
+                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} />
                       </Accordion>
                     );
                   } else { 
@@ -400,6 +403,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
+                          disabled={subscriptionExpired}
                         >
                           <Link href={item.href}>
                             <item.icon className="h-5 w-5" />
@@ -420,6 +424,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
                         className="justify-start"
                         onClick={handleSidebarFooterSettingsClick}
+                        disabled={subscriptionExpired}
                         >
                         <UserCircle className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">My Profile</span>
@@ -497,11 +502,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                <DropdownMenuItem onClick={() => router.push('/profile')} disabled={subscriptionExpired}>
                     <UserCircle className="mr-2 h-4 w-4" />
                     Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleUserDropdownSettingsClick}>
+                <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                 </DropdownMenuItem>
@@ -519,17 +524,29 @@ export function AppShell({ children }: { children: ReactNode }) {
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          {subscriptionExpired && (
-            <Alert variant="destructive" className="m-4 rounded-lg">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Subscription Expired</AlertTitle>
-              <AlertDescription>
-                Your organization's subscription has expired. Please contact support to renew your plan.
-              </AlertDescription>
-            </Alert>
-          )}
-          <main className={cn("flex-1 overflow-y-auto p-6", subscriptionExpired && "pt-2")}>
-            {children}
+          <main className="flex-1 overflow-y-auto p-6">
+            {subscriptionExpired ? (
+              <div className="flex h-full items-center justify-center">
+                <Card className="w-full max-w-lg text-center shadow-2xl">
+                  <CardHeader>
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20">
+                        <AlertCircle className="h-8 w-8 text-destructive" />
+                    </div>
+                    <CardTitle className="mt-4 text-2xl text-destructive font-headline">Subscription Expired</CardTitle>
+                    <CardDescription>
+                        Your organization's subscription has ended. Access to most features has been disabled.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <p className="text-muted-foreground">
+                          Please contact your administrator or RentPilot support to renew your plan and restore full access to your account and data.
+                      </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              children
+            )}
           </main>
         </SidebarInset>
       </div>
