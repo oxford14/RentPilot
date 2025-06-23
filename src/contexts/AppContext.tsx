@@ -24,6 +24,7 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast'; 
+import { Loader2 } from 'lucide-react';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -76,7 +77,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setIsDataLoading(true);
-    setInitialLoadComplete(false);
+    let isMounted = true;
     let loadedCollectionsCount = 0;
     const totalCollectionsToLoad = 6; 
 
@@ -94,16 +95,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     collectionsToListen.forEach(coll => {
       const q = query(collection(db, coll.name));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        if (!isMounted) return;
         const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         coll.setter(items);
-        if (!initialLoadComplete) {
-          loadedCollectionsCount++;
-          if (loadedCollectionsCount >= totalCollectionsToLoad) {
-            setIsDataLoading(false);
-            setInitialLoadComplete(true);
-          }
+        
+        loadedCollectionsCount++;
+        if (loadedCollectionsCount >= totalCollectionsToLoad) {
+          setIsDataLoading(false);
+          setInitialLoadComplete(true);
         }
+        
       }, (error) => {
+        if (!isMounted) return;
         console.error(`Error fetching ${coll.name}: `, error);
         toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: `Missing or insufficient permissions. Please check Firestore rules.` });
         setIsDataLoading(false); 
@@ -112,9 +115,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
     
     return () => {
+      isMounted = false;
       listeners.forEach(unsub => unsub());
     };
-  }, [authIsAuthenticated, toast, initialLoadComplete]);
+  }, [authIsAuthenticated, toast]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -475,11 +479,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) { 
     return (
-      <AppContext.Provider value={contextValue as AppContextType}>
-        <div className="flex h-screen w-full items-center justify-center">
-          Loading application data...
-        </div>
-      </AppContext.Provider>
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-3 text-lg text-muted-foreground">Loading application data...</p>
+      </div>
     );
   }
 
