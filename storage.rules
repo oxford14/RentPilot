@@ -1,15 +1,8 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read access to all files
     match /{allPaths=**} {
-      allow read;
-    }
-
-    // Allow authenticated users to write only to the client_logos directory
-    match /client_logos/{image} {
-      allow write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
