@@ -184,6 +184,9 @@ export interface AppContextType {
   deleteExpense: (expenseId: string) => Promise<void>; 
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
+  rawTenants: Tenant[];
+  rawPayments: Payment[];
+  rawExpenses: Expense[];
   
   // Tenant Portal
   generateTenantInvitation: (tenantId: string) => Promise<string>;

@@ -613,6 +613,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     expenseCategories: definedExpenseCategories,
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
+    
+    rawManagedUsers: rawManagedUsersState,
+    rawTenants: rawTenantsState,
+    rawPayments: rawPaymentsState,
+    rawExpenses: rawExpensesState,
 
     setViewMode,
     updateSystemTimezone,
@@ -633,7 +638,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addExpense,
     updateExpense,
     deleteExpense,
-    rawManagedUsers: rawManagedUsersState,
     generateTenantInvitation,
     completeTenantSignup,
     cleanClientData,

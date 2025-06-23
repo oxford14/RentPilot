@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin, AlertCircle, Award } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin, AlertCircle, Award, Wrench, DatabaseBackup } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -91,6 +91,14 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
     items: [
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
       { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck },
+    ]
+  },
+  {
+    isGroup: true,
+    groupLabel: 'Maintenance',
+    groupIcon: Wrench,
+    items: [
+      { href: '/admin/maintenance/backups', label: 'Backups', icon: DatabaseBackup },
     ]
   }
 ];
@@ -220,6 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
+    else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
   } else {
       let baseNavItems: AppSidebarNavItem[];
       if(isTenantSection) {
