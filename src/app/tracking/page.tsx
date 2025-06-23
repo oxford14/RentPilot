@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Briefcase, PlusCircle, CalendarIcon, Edit, Trash2, Settings, List, Wallet } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, lastDayOfMonth, getDate } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { WeeklyIncome, Business, BreakdownRule } from '@/lib/types';
 import {
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BusinessConfigForm } from '@/components/tracking/BusinessConfigForm';
 import { ManualInputDialog } from '@/components/tracking/ManualInputDialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function TrackingPage() {
   const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome, deleteWeeklyIncome } = useAppContext();
@@ -232,16 +231,32 @@ export default function TrackingPage() {
   const frequencyLabel = useMemo(() => {
     if (!selectedBusiness) return 'Income';
     const freq = selectedBusiness.trackingFrequency || 'weekly';
+    if (freq === 'bi-monthly') return 'Bi-monthly';
     return freq.charAt(0).toUpperCase() + freq.slice(1);
   }, [selectedBusiness]);
 
   const isDateDisabled = (date: Date): boolean => {
     if (!selectedBusiness) return false;
-    const { trackingFrequency, weeklyDay } = selectedBusiness;
+    const { trackingFrequency, weeklyDay, dayOfMonth } = selectedBusiness;
+    
     if (trackingFrequency === 'weekly') {
-      const targetDay = weeklyDay ?? 5; // Default to Friday if not set
+      const targetDay = weeklyDay ?? 5;
       return date.getDay() !== targetDay;
     }
+    
+    if (trackingFrequency === 'monthly') {
+        const targetDate = dayOfMonth ?? 1;
+        const lastDayInMonth = getDate(lastDayOfMonth(date));
+        const effectiveTargetDate = Math.min(targetDate, lastDayInMonth);
+        return getDate(date) !== effectiveTargetDate;
+    }
+
+    if (trackingFrequency === 'bi-monthly') {
+        const day = getDate(date);
+        const lastDay = getDate(lastDayOfMonth(date));
+        return day !== 15 && day !== lastDay;
+    }
+
     return false;
   };
 
@@ -253,7 +268,7 @@ export default function TrackingPage() {
             <Briefcase className="mr-3 h-8 w-8 text-primary" />
             Business Tracker
           </h1>
-          <p className="text-muted-foreground">Track weekly income and expense allocations for your businesses.</p>
+          <p className="text-muted-foreground">Track income and expense allocations for your businesses.</p>
         </div>
         <Button onClick={() => setIsBusinessFormOpen(true)} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
           <PlusCircle className="mr-2 h-5 w-5" /> Add New Business
@@ -263,7 +278,7 @@ export default function TrackingPage() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle>Select Business</CardTitle>
-          <CardDescription>Choose a business to manage its weekly income and configuration.</CardDescription>
+          <CardDescription>Choose a business to manage its income and configuration.</CardDescription>
           <div className="flex flex-col sm:flex-row gap-2 mt-2 items-center">
             <Select onValueChange={handleSelectBusiness} value={selectedBusinessId || ''}>
                 <SelectTrigger className="w-full">
@@ -501,16 +516,4 @@ export default function TrackingPage() {
 
     </div>
   );
-}
-
-function BreakdownItem({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: string, color: string }) {
-  return (
-    <div className="p-3 rounded-lg bg-background flex items-center gap-3">
-      <Icon className={cn("h-7 w-7", color)} />
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-semibold text-lg">{value}</p>
-      </div>
-    </div>
-  )
 }

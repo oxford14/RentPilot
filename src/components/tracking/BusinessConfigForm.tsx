@@ -2,20 +2,18 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import type { Business, BreakdownRule } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowUp, ArrowDown, PlusCircle, Trash2, Settings } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
 
@@ -28,8 +26,9 @@ const breakdownRuleSchema = z.object({
 
 const formSchema = z.object({
   breakdownConfig: z.array(breakdownRuleSchema),
-  trackingFrequency: z.enum(['daily', 'weekly', 'monthly']),
+  trackingFrequency: z.enum(['daily', 'weekly', 'monthly', 'bi-monthly']),
   weeklyDay: z.coerce.number().optional(),
+  dayOfMonth: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -59,7 +58,8 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
     defaultValues: {
       breakdownConfig: business.breakdownConfig || [],
       trackingFrequency: business.trackingFrequency || 'weekly',
-      weeklyDay: business.weeklyDay ?? 5, // Default to Friday
+      weeklyDay: business.weeklyDay ?? 5,
+      dayOfMonth: business.dayOfMonth ?? 1,
     },
   });
   
@@ -76,19 +76,26 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
         breakdownConfig: business.breakdownConfig || [],
         trackingFrequency: business.trackingFrequency || 'weekly',
         weeklyDay: business.weeklyDay ?? 5,
+        dayOfMonth: business.dayOfMonth ?? 1,
       });
     }
   }, [business, isOpen, form]);
   
   const onSubmit = (data: FormValues) => {
-    const updatedBusinessData = { 
+    const updatedBusinessData: Business = { 
         ...business, 
         breakdownConfig: data.breakdownConfig,
         trackingFrequency: data.trackingFrequency,
-        weeklyDay: data.weeklyDay,
     };
-    if (data.trackingFrequency !== 'weekly') {
-        delete updatedBusinessData.weeklyDay;
+    if (data.trackingFrequency === 'weekly') {
+        updatedBusinessData.weeklyDay = data.weeklyDay;
+        delete (updatedBusinessData as Partial<Business>).dayOfMonth;
+    } else if (data.trackingFrequency === 'monthly') {
+        updatedBusinessData.dayOfMonth = data.dayOfMonth;
+        delete (updatedBusinessData as Partial<Business>).weeklyDay;
+    } else {
+        delete (updatedBusinessData as Partial<Business>).weeklyDay;
+        delete (updatedBusinessData as Partial<Business>).dayOfMonth;
     }
     onSave(updatedBusinessData);
     toast({ title: "Configuration Saved", description: `Configuration for ${business.name} has been updated.` });
@@ -112,7 +119,6 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-            {/* Non-scrolling top part */}
             <div className="flex-shrink-0 pr-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                 <FormField
@@ -131,6 +137,7 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                             <SelectItem value="daily">Daily</SelectItem>
                             <SelectItem value="weekly">Weekly</SelectItem>
                             <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="bi-monthly">Bi-monthly (15th & Last Day)</SelectItem>
                             </SelectContent>
                         </Select>
                         <FormMessage />
@@ -161,14 +168,37 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                         )}
                     />
                 )}
+                {watchFrequency === 'monthly' && (
+                    <FormField
+                        control={form.control}
+                        name="dayOfMonth"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Day of the Month</FormLabel>
+                                <Select onValueChange={(val) => field.onChange(Number(val))} defaultValue={String(field.value)}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select day" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                            <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
               </div>
               <Separator className="mb-4" />
               <FormLabel className="font-semibold text-lg">Breakdown Rules</FormLabel>
               <FormDescription className="text-sm text-muted-foreground">Rules are applied in order from top to bottom.</FormDescription>
             </div>
             
-            {/* Scrolling middle part */}
-            <ScrollArea className="flex-1 my-4">
+            <ScrollArea className="flex-1 my-4 min-h-0">
                 <div className="space-y-4 pr-6">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
@@ -245,7 +275,6 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                 </div>
             </ScrollArea>
             
-            {/* Non-scrolling bottom part */}
             <div className="flex-shrink-0 pt-4 mt-2 border-t">
                 <Button
                 type="button"

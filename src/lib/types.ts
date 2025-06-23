@@ -105,8 +105,9 @@ export interface Business {
   name: string;
   clientId: string;
   breakdownConfig?: BreakdownRule[];
-  trackingFrequency?: 'daily' | 'weekly' | 'monthly';
+  trackingFrequency?: 'daily' | 'weekly' | 'monthly' | 'bi-monthly';
   weeklyDay?: number; // 0 for Sunday, 6 for Saturday
+  dayOfMonth?: number; // 1-31
 }
 
 export interface WeeklyIncome {
