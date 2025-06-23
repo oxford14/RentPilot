@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState } from 'react';
@@ -94,15 +93,15 @@ export default function AdminClientsPage() {
                           <Image 
                             src={client.logoUrl} 
                             alt={`${client.name} logo`} 
-                            width={80} 
-                            height={30} 
+                            width={120} 
+                            height={45} 
                             className="object-contain rounded"
-                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/80x30.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/120x45.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
                             data-ai-hint="client logo"
                           />
                         ) : (
-                          <div className="w-[80px] h-[30px] flex items-center justify-center bg-muted rounded text-muted-foreground">
-                            <ImageOff className="h-5 w-5" />
+                          <div className="w-[120px] h-[45px] flex items-center justify-center bg-muted rounded text-muted-foreground">
+                            <ImageOff className="h-6 w-6" />
                           </div>
                         )}
                       </TableCell>
