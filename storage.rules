@@ -1,14 +1,15 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read access to all files, which is necessary for displaying logos.
+    // Allow public read access to all files
     match /{allPaths=**} {
-      allow read: if true;
+      allow read;
     }
 
-    // Only allow uploads (write operations) inside the 'client_logos' folder.
+    // Allow authenticated users to write only to the client_logos directory
     match /client_logos/{image} {
-      allow write: if true;
+      allow write: if request.auth != null;
     }
   }
 }
