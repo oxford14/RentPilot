@@ -405,7 +405,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired}
+                          disabled={subscriptionExpired && item.href !== '/subscription'}
                         >
                           <Link href={item.href}>
                             <item.icon className="h-5 w-5" />
@@ -527,7 +527,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <main className="flex-1 overflow-y-auto p-6">
-            {subscriptionExpired ? (
+            {subscriptionExpired && pathname !== '/subscription' ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">
                   <CardHeader>
