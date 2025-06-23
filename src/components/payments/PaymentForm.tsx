@@ -296,7 +296,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <FormControl>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} />
+                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-8" />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -312,7 +312,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
                     <FormControl>
                        <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground">₱</span>
-                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} />
+                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} className="pl-8" />
                        </div>
                     </FormControl>
                     <FormMessage />
@@ -452,4 +452,3 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     </Dialog>
   );
 }
-
