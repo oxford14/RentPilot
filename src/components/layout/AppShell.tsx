@@ -259,12 +259,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             label: 'Tracking',
             icon: MapPin,
         };
-        const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
-        if (expensesIndex !== -1) {
-            baseNavItems.splice(expensesIndex + 1, 0, trackingItem);
-        } else {
-            baseNavItems.push(trackingItem); // fallback
-        }
+        baseNavItems.push(trackingItem);
       }
 
       currentAppNavItems = baseNavItems;
@@ -420,7 +415,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && item.href !== '/subscription'}
+                          disabled={subscriptionExpired && item.href !== '/subscription' && item.href !== '/tracking'}
                         >
                           <Link href={item.href}>
                             <item.icon className="h-5 w-5" />
@@ -542,7 +537,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <main className="flex-1 overflow-y-auto p-6">
-            {subscriptionExpired && pathname !== '/subscription' ? (
+            {subscriptionExpired && pathname !== '/subscription' && pathname !== '/tracking' ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">
                   <CardHeader>
