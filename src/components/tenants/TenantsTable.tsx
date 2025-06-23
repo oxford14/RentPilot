@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link as LinkIcon } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +36,7 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, updateTenant, attemptDeleteTenant } = useAppContext();
+  const { tenants, updateTenant, attemptDeleteTenant, generateTenantInvitation } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   
@@ -66,6 +66,23 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         });
       }
       setTenantToDelete(null);
+    }
+  };
+
+  const handleGenerateInvite = async (tenant: Tenant) => {
+    try {
+      const link = await generateTenantInvitation(tenant.id);
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Invitation Link Generated & Copied",
+        description: `An invite link for ${tenant.name} has been copied to your clipboard.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to Generate Link",
+        description: error.message || "An unknown error occurred.",
+      });
     }
   };
   
@@ -126,6 +143,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
+                        {!tenant.hasAccount && (
+                          <DropdownMenuItem onClick={() => handleGenerateInvite(tenant)}>
+                            <LinkIcon className="mr-2 h-4 w-4" /> Generate Invite
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
                           {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                           Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}

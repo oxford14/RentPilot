@@ -5,9 +5,9 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import type { User, ManagedUser, Client, AuthContextType, SuperAdminUser } from '@/lib/types';
+import type { User, ManagedUser, Client, AuthContextType, SuperAdminUser, Tenant } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'; // Added doc, getDoc
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -38,12 +38,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = useCallback(async (
-    usernameInput: string,
+    usernameInput: string, // Can be username or email
     passwordInput: string,
   ) => {
     setIsLoading(true);
     try {
-      // 1. Check primary hardcoded super admin (local fallback or initial admin)
+      // 1. Check primary hardcoded super admin
       if (usernameInput === 'admin' && passwordInput === 'password123') {
         const userData: User = { username: usernameInput, isSuperAdmin: true };
         setIsAuthenticated(true);
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 2. Check additional super admin users from Firestore
+      // 2. Check additional super admin users
       const superAdminQuery = query(
         collection(db, 'superAdminUsers'),
         where('username', '==', usernameInput),
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 3. Check managed client users from Firestore
+      // 3. Check managed client users
       const managedUserQuery = query(
         collection(db, 'managedUsers'),
         where('username', '==', usernameInput),
@@ -98,28 +98,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         let clientNameForToast = 'your organization';
         if (managedUserDocData.clientId) {
-          try {
-            const clientDocRef = doc(db, "clients", managedUserDocData.clientId);
-            const clientDocSnap = await getDoc(clientDocRef);
-            if (clientDocSnap.exists()) {
-              clientNameForToast = (clientDocSnap.data() as Client).name || clientNameForToast;
-            } else {
-              console.warn(`Client document for toast not found using ID: ${managedUserDocData.clientId}`);
-            }
-          } catch (e) {
-            console.error("Error fetching client name for toast:", e);
+          const clientDocRef = doc(db, "clients", managedUserDocData.clientId);
+          const clientDocSnap = await getDoc(clientDocRef);
+          if (clientDocSnap.exists()) {
+            clientNameForToast = (clientDocSnap.data() as Client).name || clientNameForToast;
           }
         }
         
         const roleName = managedUserDocData.role.charAt(0).toUpperCase() + managedUserDocData.role.slice(1);
-        toast({ title: "Login Successful", description: `Welcome back, ${roleName} ${managedUserDocData.username} from ${clientNameForToast}!` });
+        toast({ title: "Login Successful", description: `Welcome, ${roleName} ${managedUserDocData.username} from ${clientNameForToast}!` });
         
         router.push('/');
         setIsLoading(false);
         return;
       }
+
+      // 4. Check tenants (using email as username)
+      const tenantQuery = query(
+        collection(db, 'tenants'),
+        where('email', '==', usernameInput),
+        where('password', '==', passwordInput)
+      );
+      const tenantSnapshot = await getDocs(tenantQuery);
+
+      if (!tenantSnapshot.empty) {
+        const tenantDoc = tenantSnapshot.docs[0];
+        const tenantData = tenantDoc.data() as Tenant;
+
+        if (!tenantData.hasAccount) {
+          toast({ variant: "destructive", title: "Login Failed", description: "Account not activated. Please use the invitation link." });
+          setIsLoading(false);
+          return;
+        }
+
+        const userData: User = {
+          username: tenantData.name,
+          email: tenantData.email,
+          tenantId: tenantDoc.id,
+          isSuperAdmin: false,
+          role: 'tenant',
+          clientId: tenantData.clientId,
+        };
+
+        setIsAuthenticated(true);
+        setUser(userData);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: userData }));
+        toast({ title: "Login Successful", description: `Welcome back, ${tenantData.name}!` });
+        router.push('/');
+        setIsLoading(false);
+        return;
+      }
       
-      toast({ variant: "destructive", title: "Login Failed", description: "Invalid username or password." });
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid username/email or password." });
     } catch (error) {
       console.error("Login error:", error);
       toast({ variant: "destructive", title: "Login Error", description: "An unexpected error occurred during login." });

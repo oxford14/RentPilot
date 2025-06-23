@@ -208,6 +208,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const newTenantData: Omit<Tenant, 'id'> = {
       ...tenantData,
+      hasAccount: false, // Initialize tenant-specific fields
       ...(determinedClientId && { clientId: determinedClientId })
     };
     try {
@@ -509,6 +510,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete super admin: ${error.message}` });
     }
   };
+  
+  const generateTenantInvitation = async (tenantId: string): Promise<string> => {
+    if (!authIsAuthenticated) {
+      throw new Error("You must be logged in to generate an invitation.");
+    }
+
+    const token = uuidv4();
+    const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+    const tenantRef = doc(db, 'tenants', tenantId);
+    await updateDoc(tenantRef, {
+      invitationToken: token,
+      invitationTokenExpires: expires,
+    });
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/tenant-signup?token=${token}`;
+  };
+
+  const completeTenantSignup = async (token: string, password: string): Promise<{ success: boolean, message: string }> => {
+    const q = query(collection(db, 'tenants'), where('invitationToken', '==', token));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return { success: false, message: 'Invalid or expired invitation link.' };
+    }
+
+    const tenantDoc = snapshot.docs[0];
+    const tenant = tenantDoc.data() as Tenant;
+
+    if (tenant.invitationTokenExpires && tenant.invitationTokenExpires < Date.now()) {
+      return { success: false, message: 'This invitation link has expired. Please request a new one.' };
+    }
+
+    await updateDoc(tenantDoc.ref, {
+      password: password,
+      hasAccount: true,
+      invitationToken: null,
+      invitationTokenExpires: null,
+    });
+    
+    return { success: true, message: 'Account created successfully! You can now log in.' };
+  };
 
 
   const contextValue: AppContextType = {
@@ -542,6 +586,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateExpense,
     deleteExpense,
     rawManagedUsers: rawManagedUsersState,
+    generateTenantInvitation,
+    completeTenantSignup,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {

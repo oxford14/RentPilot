@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -68,6 +69,12 @@ const appNavItems: AppSidebarNavItem[] = [
   },
   { isGroup: false, href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
 ];
+
+const tenantNavItems: AppSidebarNavItem[] = [
+  { isGroup: false, href: '/', label: 'My Dashboard', icon: LayoutDashboard },
+  { isGroup: false, href: '/profile', label: 'My Profile', icon: UserCircle },
+];
+
 
 const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
@@ -153,6 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
 
   const isAdminSection = pathname.startsWith('/admin');
+  const isTenantSection = authUser?.role === 'tenant';
 
   let currentAppNavItems: AppSidebarNavItem[] = [];
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
@@ -184,18 +192,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
-
-
-  } else { 
-    currentAppNavItems = appNavItems.filter(item => {
-      if (item.clientAdminOnly) {
-        return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
+  } else {
+      if(isTenantSection) {
+        currentAppNavItems = tenantNavItems;
+      } else {
+        currentAppNavItems = appNavItems.filter(item => {
+        if (item.clientAdminOnly) {
+          return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
+        }
+        if (item.superAdminOnly) { 
+            return !!authUser?.isSuperAdmin;
+        }
+        return true; 
+        });
       }
-      if (item.superAdminOnly) { 
-          return !!authUser?.isSuperAdmin;
-      }
-      return true; 
-    });
 
     let activeItemFound = false;
     for (const item of currentAppNavItems) {
@@ -245,17 +255,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
   
   const handleSidebarFooterSettingsClick = () => {
-    if (authUser?.isSuperAdmin) {
-      router.push('/admin/settings'); 
-    } else {
-      router.push('/profile'); 
-    }
+    router.push('/profile');
   };
 
   const getAccountLabel = () => {
     if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
     if (loggedInClient && !authUser?.isSuperAdmin) {
+        if(authUser?.role === 'tenant') return `${authUser.username} (Tenant at ${loggedInClient.name})`;
       const roleLabel = authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User';
       return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
     }
@@ -370,12 +377,12 @@ export function AppShell({ children }: { children: ReactNode }) {
              <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton
-                        tooltip={{ children: "Global Settings", side: "right", className: "ml-2" }}
+                        tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
                         className="justify-start"
                         onClick={handleSidebarFooterSettingsClick}
                         >
-                        <Settings className="h-5 w-5" />
-                        <span className="group-data-[collapsible=icon]:hidden">Global Settings</span>
+                        <UserCircle className="h-5 w-5" />
+                        <span className="group-data-[collapsible=icon]:hidden">My Profile</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
              </SidebarMenu>
@@ -390,7 +397,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Image
                     src={activeClientForDisplay.logoUrl}
                     alt={`${activeClientForDisplay.name} Logo`}
-                    width={120} 
+                    width={160} 
                     height={45}
                     className="h-12 w-auto object-contain rounded" 
                     data-ai-hint="client logo small"

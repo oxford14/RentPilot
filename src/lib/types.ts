@@ -1,11 +1,14 @@
 
 export type ClientUserRole = 'admin' | 'user';
+export type UserRole = ClientUserRole | 'tenant';
 
 export interface User { // For AuthContext user
   username: string;
   isSuperAdmin?: boolean;
   clientId?: string; // Firestore document ID of the client
-  role?: ClientUserRole; 
+  role?: UserRole; 
+  tenantId?: string; // Firestore document ID of the tenant if user is a tenant
+  email?: string; // Add email to user object
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
@@ -33,6 +36,10 @@ export interface Tenant {
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
   clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants
+  password?: string; // For tenant login
+  hasAccount?: boolean; // To track if tenant has created a login
+  invitationToken?: string; // For signup link
+  invitationTokenExpires?: number; // Timestamp for token expiry
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Other';
@@ -175,4 +182,8 @@ export interface AppContextType {
   deleteExpense: (expenseId: string) => Promise<void>; 
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
+  
+  // Tenant Portal
+  generateTenantInvitation: (tenantId: string) => Promise<string>;
+  completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
 }

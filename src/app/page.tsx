@@ -4,11 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAppContext } from "@/contexts/AppContext";
-import { Users, CreditCard, AlertTriangle, DollarSign, BarChart3 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Users, CreditCard, AlertTriangle, DollarSign, BarChart3, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TenantDashboard } from '@/components/tenants/TenantDashboard';
 
-export default function DashboardPage() {
+function AdminClientDashboard() {
   const { tenants, payments } = useAppContext();
   const [activeTenantsCount, setActiveTenantsCount] = useState(0);
   const [currentMonthPaymentsTotal, setCurrentMonthPaymentsTotal] = useState(0);
@@ -121,7 +123,25 @@ export default function DashboardPage() {
           </Link>
         </CardContent>
       </Card>
-
     </div>
   );
+}
+
+
+export default function DashboardPage() {
+    const { user, isLoading } = useAuth();
+    
+    if (isLoading) {
+        return (
+            <div className="flex h-full w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+    
+    if (user?.role === 'tenant') {
+        return <TenantDashboard />;
+    }
+    
+    return <AdminClientDashboard />;
 }

@@ -19,32 +19,69 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const isAdminRoute = pathname.startsWith('/admin');
-    const isClientUserManagementRoute = pathname === '/users';
-    const isClientSettingsRoute = pathname === '/settings'; // New client settings route
+    const publicRoutes = ['/login', '/forgot-password', '/tenant-signup'];
+    const isPublicRoute = publicRoutes.includes(pathname);
 
-    if (!isAuthenticated && pathname !== '/login') {
+    // If not authenticated and not on a public route, redirect to login
+    if (!isAuthenticated && !isPublicRoute) {
       router.push('/login');
-    } else if (isAuthenticated && pathname === '/login') {
-      router.push('/');
-    } else if (isAuthenticated && isAdminRoute && !user?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this admin page." });
-      router.push('/');
-    } else if (isAuthenticated && isClientUserManagementRoute) {
-      if (user?.isSuperAdmin) { 
-        toast({ variant: "destructive", title: "Access Denied", description: "Super admins should manage users via /admin/users." });
-        router.push('/admin/users');
-      } else if (!user?.clientId || user?.role !== 'admin') { 
-        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to manage users." });
-        router.push('/');
-      }
-    } else if (isAuthenticated && isClientSettingsRoute && user?.isSuperAdmin) {
-      // If a super admin tries to go to /settings, redirect them to /admin/settings
-      toast({ variant: "default", title: "Redirecting", description: "Super admins use /admin/settings for system-wide configurations." });
-      router.push('/admin/settings');
+      return;
     }
 
+    // If authenticated...
+    if (isAuthenticated) {
+      if (pathname === '/login' || pathname === '/tenant-signup') {
+        router.push('/');
+        return;
+      }
+      
+      const isSuperAdmin = user?.isSuperAdmin;
+      const isClientAdmin = user?.role === 'admin';
+      const isTenant = user?.role === 'tenant';
 
+      const isClientAdminRoute = pathname === '/users';
+      const isClientSettingsRoute = pathname === '/settings';
+      const isAdminRoute = pathname.startsWith('/admin');
+      
+      // Super Admin Checks
+      if (isSuperAdmin) {
+        if (isClientAdminRoute) {
+          toast({ variant: "destructive", title: "Access Denied", description: "Super admins should manage users via /admin/users." });
+          router.push('/admin/users');
+        } else if (isClientSettingsRoute) {
+          toast({ variant: "default", title: "Redirecting", description: "Super admins use /admin/settings for system-wide configurations." });
+          router.push('/admin/settings');
+        }
+      }
+      
+      // Client Admin Checks
+      if (isClientAdmin) {
+        if (isAdminRoute) {
+          toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
+          router.push('/');
+        }
+      }
+
+      // Tenant Checks
+      if (isTenant) {
+        const allowedTenantRoutes = ['/', '/profile', '/settings'];
+        if (!allowedTenantRoutes.includes(pathname)) {
+          toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+          router.push('/');
+        }
+      }
+
+      // General user type checks for specific routes
+      if (!isSuperAdmin && isAdminRoute) {
+        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
+        router.push('/');
+      }
+
+      if (!isClientAdmin && isClientAdminRoute) {
+        toast({ variant: "destructive", title: "Access Denied", description: "You must be a client administrator to manage users." });
+        router.push('/');
+      }
+    }
   }, [isAuthenticated, isLoading, pathname, router, user]);
 
   if (isLoading) {
@@ -56,51 +93,22 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAuthenticated && pathname !== '/login') {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-         <p className="ml-3 text-md text-muted-foreground">Redirecting to login...</p>
-      </div>
-    );
-  }
-
-  if (pathname.startsWith('/admin') && isAuthenticated && !user?.isSuperAdmin) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3 text-md text-muted-foreground">Checking permissions...</p>
-        </div>
-    );
-  }
-
-  if (pathname === '/users' && isAuthenticated && user && !user.isSuperAdmin && user.role !== 'admin') {
-     return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3 text-md text-muted-foreground">Verifying user role...</p>
-        </div>
-    );
-  }
-  
-  if (pathname === '/settings' && isAuthenticated && user?.isSuperAdmin) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-3 text-md text-muted-foreground">Redirecting admin...</p>
-        </div>
-    );
-  }
-
-
-  if (pathname === '/login') {
+  // If page is public, render it without the shell
+  const isPublicRoute = ['/login', '/forgot-password', '/tenant-signup'].includes(pathname);
+  if (isPublicRoute) {
     return <>{children}</>;
   }
 
+  // If authenticated, render with the AppShell
   if (isAuthenticated) {
     return <AppShell>{children}</AppShell>;
   }
 
-  return null;
+  // Fallback for unauthenticated users on protected routes (shows loading while redirecting)
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+       <p className="ml-3 text-md text-muted-foreground">Redirecting...</p>
+    </div>
+  );
 }
-
