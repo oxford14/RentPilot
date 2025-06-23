@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Expense } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Filter, ListX, Wallet } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Filter, ListX, ReceiptText } from 'lucide-react';
 import { DateRangeSelector } from '@/components/reports/DateRangeSelector'; 
 import { ExpenseForm } from '@/components/expenses/ExpenseForm';
 import { useToast } from '@/hooks/use-toast';
@@ -93,8 +93,8 @@ export default function ExpensesPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center">
-            <Wallet className="mr-3 h-8 w-8 text-primary" />
-            Manage Expenses
+            <ReceiptText className="mr-3 h-8 w-8 text-primary" />
+            Expenses Tracker
           </h1>
           <p className="text-muted-foreground">Track and manage all your operational expenses.</p>
         </div>
