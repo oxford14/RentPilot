@@ -31,7 +31,11 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     // If authenticated...
     if (isAuthenticated) {
       if (pathname === '/login' || pathname === '/tenant-signup') {
-        router.push('/');
+        if (user?.isSuperAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
         return;
       }
       
@@ -64,7 +68,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
       // Tenant Checks
       if (isTenant) {
-        const allowedTenantRoutes = ['/', '/profile', '/settings'];
+        const allowedTenantRoutes = ['/', '/profile'];
         if (!allowedTenantRoutes.includes(pathname)) {
           toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
           router.push('/');

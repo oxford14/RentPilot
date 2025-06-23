@@ -70,7 +70,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             toast({ title: "Login Successful", description: toastDescription });
-            router.push('/');
+            
+            if (validatedUser.isSuperAdmin) {
+                router.push('/admin');
+            } else {
+                router.push('/');
+            }
         } else {
             toast({ variant: "destructive", title: "Login Failed", description: "Invalid username/email or password." });
         }

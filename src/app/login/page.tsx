@@ -36,12 +36,6 @@ export default function LoginPage() {
     },
   });
 
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.push('/'); 
-    }
-  }, [isAuthenticated, isLoading, router]);
-
   const onSubmit = async (data: LoginFormValues) => {
     await authLogin(data.username, data.password); 
   };
