@@ -274,8 +274,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Image 
                   src={MAIN_APP_LOGO_URL}
                   alt="RentPilot app logo" 
-                  width={140}
-                  height={40}
+                  width={160} 
+                  height={45}
                   className="object-contain group-data-[collapsible=icon]:hidden"
                   data-ai-hint="app logo"
                   unoptimized
