@@ -192,4 +192,5 @@ export interface AppContextType {
   generateTenantInvitation: (tenantId: string) => Promise<string>;
   completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
+  restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
 }

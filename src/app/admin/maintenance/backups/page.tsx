@@ -1,13 +1,26 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2 } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
 
 export default function AdminBackupsPage() {
   const {
@@ -17,10 +30,15 @@ export default function AdminBackupsPage() {
     rawExpenses,
     rawManagedUsers,
     rawSuperAdminUsers,
+    restoreDataFromBackup,
   } = useAppContext();
   const { toast } = useToast();
   const [isSystemBackupLoading, setIsSystemBackupLoading] = useState(false);
   const [isClientDataBackupLoading, setIsClientDataBackupLoading] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadJson = (data: object, filename: string) => {
     try {
@@ -84,6 +102,73 @@ export default function AdminBackupsPage() {
     handleDownloadJson(clientData, `rentpilot_all-client-data-backup_${timestamp}.json`);
     setIsClientDataBackupLoading(false);
   };
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type === 'application/json') {
+        setRestoreFile(file);
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid File Type',
+          description: 'Please select a valid .json backup file.',
+        });
+        setRestoreFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!restoreFile) {
+      toast({
+        variant: 'destructive',
+        title: 'No File Selected',
+        description: 'Please select a backup file to restore.',
+      });
+      return;
+    }
+
+    setIsRestoring(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error('Failed to read file content.');
+        }
+        const backupData = JSON.parse(text);
+        const result = await restoreDataFromBackup(backupData);
+
+        if (result.success) {
+          setRestoreFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Restore Failed',
+          description: error.message || 'The selected file is not a valid JSON backup.',
+        });
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    reader.onerror = () => {
+      toast({
+        variant: 'destructive',
+        title: 'File Read Error',
+        description: 'Could not read the selected file.',
+      });
+      setIsRestoring(false);
+    };
+    reader.readAsText(restoreFile);
+  };
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -145,15 +230,61 @@ export default function AdminBackupsPage() {
               {isClientDataBackupLoading ? 'Generating...' : 'Download Client Data'}
             </Button>
           </div>
-
-          <div className="mt-8 p-4 border-l-4 border-yellow-400 bg-yellow-500/10 rounded-r-lg">
-              <h4 className="font-semibold text-yellow-800">Important Note on Restoring Data</h4>
-              <p className="text-sm text-yellow-700 mt-1">
-                Restoring from a backup is a manual process and is not currently available through this interface. Please contact system support for assistance with data restoration from a backup file.
-              </p>
-          </div>
         </CardContent>
       </Card>
+      
+      <Card className="shadow-lg border-destructive/50">
+        <CardHeader>
+          <CardTitle>Restore from Backup</CardTitle>
+          <CardDescription>
+            Upload a JSON backup file to restore your system data. This action is irreversible and will overwrite existing data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="backup-file">Backup File (.json)</Label>
+            <Input 
+              id="backup-file" 
+              type="file" 
+              accept=".json"
+              onChange={handleFileSelect}
+              ref={fileInputRef}
+              disabled={isRestoring}
+              className="file:text-primary file:font-semibold"
+            />
+          </div>
+          <Button
+            onClick={() => setIsRestoreConfirmOpen(true)}
+            disabled={!restoreFile || isRestoring}
+            variant="destructive"
+          >
+            {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            {isRestoring ? 'Restoring...' : 'Restore from Backup'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently ERASE all current data (clients, users, tenants, payments, etc.) and replace it with the data from the backup file: <strong className="text-foreground">{restoreFile?.name}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setIsRestoreConfirmOpen(false);
+                handleRestore();
+              }} 
+              className={cn(buttonVariants({ variant: "destructive" }))}>
+                Yes, Overwrite and Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

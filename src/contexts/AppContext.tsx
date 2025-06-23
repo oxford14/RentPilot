@@ -602,6 +602,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const restoreDataFromBackup = async (backupFileContent: any): Promise<{ success: boolean; message: string; }> => {
+    if (!authUser?.isSuperAdmin) {
+      const msg = "You do not have permission to restore data.";
+      toast({ variant: "destructive", title: "Unauthorized", description: msg });
+      return { success: false, message: msg };
+    }
+  
+    if (!backupFileContent || typeof backupFileContent !== 'object' || !backupFileContent.data || !backupFileContent.backupType) {
+      return { success: false, message: "Invalid backup file format. Missing 'data' or 'backupType' property." };
+    }
+  
+    const { backupType, data } = backupFileContent;
+    const collectionsToProcess: { name: keyof typeof data; data: any[] }[] = [];
+  
+    const allPossibleCollections = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers'];
+  
+    for (const collName of allPossibleCollections) {
+      if (data[collName] && Array.isArray(data[collName])) {
+        if (backupType === 'All Client Data Backup' && collName === 'superAdminUsers') {
+          continue;
+        }
+        collectionsToProcess.push({ name: collName as keyof typeof data, data: data[collName] });
+      }
+    }
+  
+    if (collectionsToProcess.length === 0) {
+      return { success: false, message: "No valid data arrays found in the backup file." };
+    }
+  
+    try {
+      let batch = writeBatch(db);
+      let operationCount = 0;
+      const commitLimit = 490;
+  
+      for (const { name: collName } of collectionsToProcess) {
+        const collRef = collection(db, collName);
+        const snapshot = await getDocs(query(collRef));
+        for (const docSnapshot of snapshot.docs) {
+          batch.delete(docSnapshot.ref);
+          operationCount++;
+          if (operationCount >= commitLimit) {
+            await batch.commit();
+            batch = writeBatch(db);
+            operationCount = 0;
+          }
+        }
+      }
+      if (operationCount > 0) {
+        await batch.commit();
+        batch = writeBatch(db);
+        operationCount = 0;
+      }
+  
+      for (const { name: collName, data: collData } of collectionsToProcess) {
+        for (const item of collData) {
+          if (!item.id) continue;
+          const { id, ...itemData } = item;
+          const docRef = doc(db, collName, id);
+          batch.set(docRef, itemData);
+          operationCount++;
+          if (operationCount >= commitLimit) {
+            await batch.commit();
+            batch = writeBatch(db);
+            operationCount = 0;
+          }
+        }
+      }
+      if (operationCount > 0) {
+        await batch.commit();
+      }
+      
+      const successMsg = "Data has been successfully restored from the backup file.";
+      toast({ title: "Restore Successful", description: successMsg });
+      return { success: true, message: successMsg };
+  
+    } catch (error: any) {
+      console.error("Error restoring data from backup:", error);
+      toast({ variant: "destructive", title: "Restore Failed", description: error.message });
+      return { success: false, message: `Restore failed: ${error.message}` };
+    }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -641,6 +723,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     generateTenantInvitation,
     completeTenantSignup,
     cleanClientData,
+    restoreDataFromBackup,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {
