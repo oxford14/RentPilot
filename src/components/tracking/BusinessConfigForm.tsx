@@ -103,7 +103,7 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
+      <DialogContent className="max-w-2xl flex flex-col h-full max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Settings className="w-6 h-6"/> Configuration for {business.name}</DialogTitle>
           <DialogDescription>
@@ -111,9 +111,9 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow flex flex-col min-h-0">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
             {/* Non-scrolling top part */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 pr-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
                 <FormField
                     control={form.control}
@@ -163,12 +163,13 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                 )}
               </div>
               <Separator className="mb-4" />
-              <FormLabel className="font-semibold">Breakdown Rules</FormLabel>
+              <FormLabel className="font-semibold text-lg">Breakdown Rules</FormLabel>
+              <FormDescription className="text-sm text-muted-foreground">Rules are applied in order from top to bottom.</FormDescription>
             </div>
             
             {/* Scrolling middle part */}
-            <ScrollArea className="flex-grow my-2">
-                <div className="space-y-4 pr-3">
+            <ScrollArea className="flex-1 my-4">
+                <div className="space-y-4 pr-6">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
                     return (
