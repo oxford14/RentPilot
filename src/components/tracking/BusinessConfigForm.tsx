@@ -54,12 +54,12 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
   });
 
   useEffect(() => {
-    if (business) {
+    if (business && isOpen) {
       form.reset({
         breakdownConfig: business.breakdownConfig || [],
       });
     }
-  }, [business, form]);
+  }, [business, isOpen, form]);
   
   const onSubmit = (data: FormValues) => {
     const updatedBusiness = { ...business, breakdownConfig: data.breakdownConfig };
@@ -76,16 +76,17 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2"><Settings className="w-6 h-6"/> Breakdown Configuration for {business.name}</DialogTitle>
           <DialogDescription>
             Define the rules for the weekly income breakdown. Rules are applied sequentially.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <ScrollArea className="max-h-[50vh] pr-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow overflow-y-hidden flex flex-col">
+            
+            <ScrollArea className="flex-grow pr-4 -mr-6 -ml-6 px-6 my-4">
                 <div className="space-y-4">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
@@ -161,20 +162,22 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                 })}
                 </div>
             </ScrollArea>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => append({ id: uuidv4(), name: '', type: 'percentage', value: 0 })}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" /> Add New Rule
-            </Button>
             
-            <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                <Button type="submit">Save Configuration</Button>
-            </DialogFooter>
+            <div className="flex-shrink-0 pt-4 border-t">
+                <Button
+                type="button"
+                variant="outline"
+                className="w-full mb-4"
+                onClick={() => append({ id: uuidv4(), name: '', type: 'percentage', value: 0 })}
+                >
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New Rule
+                </Button>
+
+                <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                    <Button type="submit">Save Configuration</Button>
+                </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>
