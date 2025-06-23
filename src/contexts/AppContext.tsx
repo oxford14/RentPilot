@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
+import { addDays } from 'date-fns';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -343,7 +344,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addClient = async (clientData: { name: string }, logoFile?: File | Blob | null) => {
+  const addClient = async (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
       throw new Error("You do not have permission to add clients.");
     }
@@ -361,9 +362,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         logoUrl = await withTimeout(downloadURLPromise, 10000, new Error('Could not get download URL. Please check your Storage Rules.'));
       }
 
-      const dataToSave = {
+      const dataToSave: Partial<Client> = {
         name: clientData.name,
         logoUrl: logoUrl,
+        subscriptionStatus: clientData.subscriptionStatus || 'active',
+        subscriptionEndDate: clientData.subscriptionEndDate || addDays(new Date(), 30).toISOString(),
       };
 
       await addDoc(collection(db, 'clients'), dataToSave);
@@ -378,12 +381,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authUser?.isSuperAdmin) {
        throw new Error("You do not have permission to update clients.");
     }
-    const { id } = client;
+    const { id, ...clientData } = client;
     try {
-      const dataToUpdate: { name: string; logoUrl: string | null } = {
-        name: client.name,
-        logoUrl: client.logoUrl || null,
-      };
+      const dataToUpdate: Partial<Client> = { ...clientData };
 
       if (logoFile) {
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';

@@ -6,9 +6,10 @@ import Image from 'next/image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser, CheckCircle2, XCircle } from 'lucide-react';
 import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 export default function AdminClientsPage() {
   const { clients, deleteClient, setViewMode, cleanClientData } = useAppContext();
@@ -96,6 +98,8 @@ export default function AdminClientsPage() {
                   <TableRow>
                     <TableHead>Logo</TableHead>
                     <TableHead>Client Name</TableHead>
+                    <TableHead>Subscription Status</TableHead>
+                    <TableHead>Sub. End Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -120,6 +124,15 @@ export default function AdminClientsPage() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={client.subscriptionStatus === 'active' ? 'default' : 'secondary'} className={client.subscriptionStatus === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-red-500/20 text-red-700 border-red-400'}>
+                          {client.subscriptionStatus === 'active' ? <CheckCircle2 className="mr-1 h-3 w-3" /> : <XCircle className="mr-1 h-3 w-3" />}
+                          {client.subscriptionStatus ? client.subscriptionStatus.charAt(0).toUpperCase() + client.subscriptionStatus.slice(1) : 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {client.subscriptionEndDate ? format(new Date(client.subscriptionEndDate), 'PP') : 'N/A'}
+                      </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client)} title="View as Client">
                            <Eye className="h-4 w-4" />

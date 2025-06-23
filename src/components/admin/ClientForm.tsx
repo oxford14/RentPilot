@@ -10,15 +10,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import type { Client } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
-  logoFile: z.any().optional(), // File input is now just a trigger
+  logoFile: z.any().optional(),
+  subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
+  subscriptionEndDate: z.date().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -84,12 +92,22 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: { name: client?.name || '', logoFile: undefined },
+    defaultValues: {
+      name: client?.name || '',
+      logoFile: undefined,
+      subscriptionStatus: client?.subscriptionStatus || 'active',
+      subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+    },
   });
 
   useEffect(() => {
     if (isOpen) {
-      form.reset({ name: client?.name || '', logoFile: undefined });
+      form.reset({
+        name: client?.name || '',
+        logoFile: undefined,
+        subscriptionStatus: client?.subscriptionStatus || 'active',
+        subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+      });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
       setImgSrc('');
@@ -143,12 +161,18 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   const onSubmit = async (data: ClientFormValues) => {
     setIsSubmitting(true);
+    const clientPayload = {
+      name: data.name,
+      subscriptionStatus: data.subscriptionStatus,
+      subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
+    };
+
     try {
       if (client) { // Editing existing client
-        await updateClient({ ...client, name: data.name }, croppedImageBlob);
+        await updateClient({ ...client, ...clientPayload }, croppedImageBlob);
         toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
       } else { // Adding new client
-        await addClient({ name: data.name }, croppedImageBlob);
+        await addClient(clientPayload, croppedImageBlob);
         toast({ title: "Client Added", description: `${data.name} has been added successfully.` });
       }
       onClose();
@@ -180,12 +204,12 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[480px] bg-card shadow-xl rounded-lg">
+        <DialogContent className="sm:max-w-[525px] bg-card shadow-xl rounded-lg">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2 max-h-[80vh] overflow-y-auto">
               <FormField
                 control={form.control}
                 name="name"
@@ -199,6 +223,62 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="subscriptionStatus"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Subscription Status</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex space-x-4 pt-2"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="active" /></FormControl>
+                            <FormLabel className="font-normal">Active</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="inactive" /></FormControl>
+                            <FormLabel className="font-normal">Inactive</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="subscriptionEndDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Subscription End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                            >
+                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormItem>
                 <FormLabel>Client Logo</FormLabel>
                 <FormControl>

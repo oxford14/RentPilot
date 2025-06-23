@@ -58,7 +58,9 @@ export interface Payment {
 export interface Client {
   id: string; // Firestore document ID
   name: string;
-  logoUrl?: string | null; // Allowed to be string, null, or undefined (if property is absent)
+  logoUrl?: string | null;
+  subscriptionStatus?: 'active' | 'inactive';
+  subscriptionEndDate?: string; // ISO string
 }
 
 export type ExpenseCategory = 
@@ -165,7 +167,7 @@ export interface AppContextType {
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   
-  addClient: (clientData: { name: string }, logoFile?: File | Blob | null) => Promise<void>;
+  addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
 

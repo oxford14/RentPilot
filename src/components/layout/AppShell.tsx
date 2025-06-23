@@ -20,15 +20,17 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin, AlertCircle } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; 
 import { cn } from '@/lib/utils';
+import { startOfDay } from 'date-fns';
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -158,6 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
+  const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
 
   const isAdminSection = pathname.startsWith('/admin');
   const isTenantSection = authUser?.role === 'tenant';
@@ -170,6 +173,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
   const activeClientForDisplay = viewingClient || loggedInClient;
+
+  React.useEffect(() => {
+    if (loggedInClient && !authUser?.isSuperAdmin) {
+      if (loggedInClient.subscriptionStatus === 'inactive') {
+        setSubscriptionExpired(true);
+      } else if (loggedInClient.subscriptionEndDate) {
+        const endDate = startOfDay(new Date(loggedInClient.subscriptionEndDate));
+        const today = startOfDay(new Date());
+        setSubscriptionExpired(today > endDate);
+      } else {
+        setSubscriptionExpired(false);
+      }
+    } else {
+      setSubscriptionExpired(false);
+    }
+  }, [loggedInClient, authUser]);
 
 
   if (isAdminSection) {
@@ -500,7 +519,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          <main className="flex-1 overflow-y-auto p-6">
+          {subscriptionExpired && (
+            <Alert variant="destructive" className="m-4 rounded-lg">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Subscription Expired</AlertTitle>
+              <AlertDescription>
+                Your organization's subscription has expired. Please contact support to renew your plan.
+              </AlertDescription>
+            </Alert>
+          )}
+          <main className={cn("flex-1 overflow-y-auto p-6", subscriptionExpired && "pt-2")}>
             {children}
           </main>
         </SidebarInset>
