@@ -68,7 +68,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawTenantsState([]);
       setRawPaymentsState([]);
       setRawManagedUsersState([]);
-      // setRawSuperAdminUsersState([]); // Keep super admin users if needed for some views, or clear if strict
+      setRawSuperAdminUsersState([]);
       setRawExpensesState([]);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
@@ -83,12 +83,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const listeners: Array<() => void> = [];
 
     const collectionsToListen = [
-      { name: 'clients', setter: setRawClientsState },
-      { name: 'tenants', setter: setRawTenantsState },
-      { name: 'payments', setter: setRawPaymentsState },
-      { name: 'managedUsers', setter: setRawManagedUsersState },
-      { name: 'superAdminUsers', setter: setRawSuperAdminUsersState },
-      { name: 'expenses', setter: setRawExpensesState },
+      { name: 'clients', setter: setRawClientsState, label: 'clients' },
+      { name: 'tenants', setter: setRawTenantsState, label: 'tenants' },
+      { name: 'payments', setter: setRawPaymentsState, label: 'payments' },
+      { name: 'managedUsers', setter: setRawManagedUsersState, label: 'managed users' },
+      { name: 'superAdminUsers', setter: setRawSuperAdminUsersState, label: 'super admin users' },
+      { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
     ];
 
     collectionsToListen.forEach(coll => {
@@ -105,7 +105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
       }, (error) => {
         console.error(`Error fetching ${coll.name}: `, error);
-        toast({ variant: "destructive", title: `Error loading ${coll.name}`, description: `Firestore Error: ${error.message}. Check security rules and network connection.` });
+        toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: `Missing or insufficient permissions. Please check Firestore rules.` });
         setIsDataLoading(false); 
       });
       listeners.push(unsubscribe);
