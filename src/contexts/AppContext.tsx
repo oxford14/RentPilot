@@ -105,7 +105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
       }, (error) => {
         console.error(`Error fetching ${coll.name}: `, error);
-        toast({ variant: "destructive", title: `Error loading ${coll.name}`, description: error.message });
+        toast({ variant: "destructive", title: `Error loading ${coll.name}`, description: `Firestore Error: ${error.message}. Check security rules and network connection.` });
         setIsDataLoading(false); 
       });
       listeners.push(unsubscribe);
@@ -295,7 +295,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      // Firestore does not allow 'undefined' values. Ensure logoUrl is null if not provided or empty.
       const dataToSave = {
         ...clientData,
         logoUrl: clientData.logoUrl || null,
@@ -315,7 +314,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const { id, ...dataToUpdate } = updatedClient;
     try {
-      // Ensure logoUrl is null if not provided or empty before saving
       const dataToSave = {
         ...dataToUpdate,
         logoUrl: dataToUpdate.logoUrl || null,
@@ -499,8 +497,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-
-    
-
-    
