@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/contexts/AuthContext';
+import { differenceInMinutes } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function SuperAdminUsersPage() {
   const { rawSuperAdminUsers, deleteSuperAdminUser } = useAppContext();
@@ -30,6 +32,23 @@ export default function SuperAdminUsersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SuperAdminUser | null>(null);
   const [userToDelete, setUserToDelete] = useState<SuperAdminUser | null>(null);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    // This timer will force the component to re-render every 30 seconds,
+    // which in turn updates the relative "Online/Offline" status.
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isUserOnline = (lastActive?: string): boolean => {
+    if (!lastActive) return false;
+    const lastActiveDate = new Date(lastActive);
+    // Consider online if active within the last 5 minutes
+    return differenceInMinutes(now, lastActiveDate) < 5;
+  };
 
   const handleOpenForm = (user?: SuperAdminUser) => {
     setEditingUser(user || null);
@@ -92,29 +111,44 @@ export default function SuperAdminUsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Username</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rawSuperAdminUsers.map((user) => (
-                    <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleOpenForm(user)} title="Edit Super Admin">
-                           <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          onClick={() => confirmDeleteUser(user)} 
-                          title="Delete Super Admin"
-                          disabled={authUser?.username === user.username}
-                        >
-                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {rawSuperAdminUsers.map((user) => {
+                    const online = isUserOnline(user.lastActive);
+                    return (
+                      <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-medium">{user.username}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "h-2.5 w-2.5 rounded-full",
+                              online ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                            )} />
+                            <span className={cn(online ? "text-green-600" : "text-muted-foreground")}>
+                              {online ? 'Online' : 'Offline'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => handleOpenForm(user)} title="Edit Super Admin">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            onClick={() => confirmDeleteUser(user)} 
+                            title="Delete Super Admin"
+                            disabled={authUser?.username === user.username}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

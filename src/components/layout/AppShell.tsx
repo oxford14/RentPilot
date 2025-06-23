@@ -29,6 +29,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; 
 import { cn } from '@/lib/utils';
+import { db } from '@/lib/firebase';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -250,6 +252,44 @@ export function AppShell({ children }: { children: ReactNode }) {
       router.push('/profile'); 
     }
   };
+
+  React.useEffect(() => {
+    if (!authUser?.isSuperAdmin || authUser.username === 'admin') { // Don't track hardcoded admin
+      return;
+    }
+
+    let intervalId: NodeJS.Timeout | undefined;
+
+    const setupUserActivityTracker = async () => {
+        const q = query(collection(db, 'superAdminUsers'), where('username', '==', authUser.username));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const userDocRef = querySnapshot.docs[0].ref;
+
+            const updateLastActive = async () => {
+                try {
+                    await updateDoc(userDocRef, {
+                        lastActive: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.error("Error updating lastActive status:", error);
+                }
+            };
+            
+            updateLastActive();
+            intervalId = setInterval(updateLastActive, 60 * 1000); // Update every minute
+        }
+    };
+    
+    setupUserActivityTracker();
+
+    return () => {
+        if (intervalId) {
+            clearInterval(intervalId);
+        }
+    };
+  }, [authUser]);
 
   const getAccountLabel = () => {
     if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
