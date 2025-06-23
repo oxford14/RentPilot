@@ -25,7 +25,6 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
-import { Loader2 } from 'lucide-react';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -514,10 +513,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawManagedUsers: rawManagedUsersState,
   };
 
-  if (isDataLoading && authIsAuthenticated && !initialLoadComplete) { 
+  if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <div className="loader"></div>
       </div>
     );
   }
