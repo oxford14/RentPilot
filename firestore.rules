@@ -1,12 +1,16 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are wide open for development.
-    // Secure your database before deploying to production!
-    // You should implement proper authentication and authorization checks.
-    // Example: match /{document=**} { allow read, write: if request.auth != null; }
+    // WARNING: INSECURE - FOR DEVELOPMENT ONLY
+    // These rules allow anyone on the internet to read, write, and delete
+    // data in your Firestore database. This is necessary for now because the
+    // application uses a custom login system that Firestore's security rules
+    // cannot verify.
+    //
+    // BEFORE going to production or handling any real user data, you MUST
+    // either implement Firebase Authentication and write secure rules based on
+    // user UIDs and claims, or implement another server-side authorization mechanism.
     match /{document=**} {
       allow read, write: if true;
     }
