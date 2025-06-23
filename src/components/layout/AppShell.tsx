@@ -392,9 +392,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Image
                     src={activeClientForDisplay.logoUrl}
                     alt={`${activeClientForDisplay.name} Logo`}
-                    width={32} 
-                    height={32}
-                    className="h-8 w-8 object-contain rounded" 
+                    width={120} 
+                    height={45}
+                    className="h-12 w-auto object-contain rounded" 
                     data-ai-hint="client logo small"
                     unoptimized
                   />
@@ -481,3 +481,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+
+    
