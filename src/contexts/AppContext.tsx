@@ -701,6 +701,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateBusiness = async (updatedBusiness: Business) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const { id, ...dataToUpdate } = updatedBusiness;
+    try {
+        await setDoc(doc(db, 'businesses', id), dataToUpdate, { merge: true });
+        toast({ title: "Business Updated", description: `${updatedBusiness.name} has been updated.`});
+    } catch (error: any) {
+        console.error("Error updating business:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to update business: ${error.message}` });
+    }
+  };
+
+  const deleteBusiness = async (businessId: string) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    try {
+        const batch = writeBatch(db);
+        
+        // Delete the business document
+        const businessRef = doc(db, 'businesses', businessId);
+        batch.delete(businessRef);
+
+        // Find and delete all associated weekly incomes
+        const incomesQuery = query(collection(db, 'weeklyIncomes'), where('businessId', '==', businessId));
+        const incomesSnapshot = await getDocs(incomesQuery);
+        incomesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        await batch.commit();
+        toast({ title: "Business Deleted", description: "The business and all its income history have been deleted."});
+    } catch (error: any) {
+        console.error("Error deleting business:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete business: ${error.message}` });
+    }
+  };
+
   const addWeeklyIncome = async (businessId: string, income: number, weekOf: Date) => {
       if (!authIsAuthenticated) {
           toast({ variant: "destructive", title: "Unauthorized" });
@@ -777,6 +817,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteExpense,
     
     addBusiness,
+    updateBusiness,
+    deleteBusiness,
     addWeeklyIncome,
 
     rawManagedUsers: rawManagedUsersState,

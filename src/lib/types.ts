@@ -209,15 +209,17 @@ export interface AppContextType {
   addExpense: (expenseData: Omit<Expense, 'id' | 'clientId'>) => Promise<void>; 
   updateExpense: (expense: Expense) => Promise<void>; 
   deleteExpense: (expenseId: string) => Promise<void>; 
+  
+  addBusiness: (businessName: string) => Promise<void>;
+  updateBusiness: (business: Business) => Promise<void>;
+  deleteBusiness: (businessId: string) => Promise<void>;
+  addWeeklyIncome: (businessId: string, income: number, weekOf: Date) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
   rawPayments: Payment[];
   rawExpenses: Expense[];
   
-  addBusiness: (businessName: string) => Promise<void>;
-  addWeeklyIncome: (businessId: string, income: number, weekOf: Date) => Promise<void>;
-
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];
 
