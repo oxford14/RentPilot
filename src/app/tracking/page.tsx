@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Briefcase, PlusCircle, CalendarIcon, Edit, Trash2, Settings, List, Wallet } from 'lucide-react';
-import { format, previousFriday } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { WeeklyIncome, Business, BreakdownRule } from '@/lib/types';
 import {
@@ -40,10 +40,7 @@ export default function TrackingPage() {
   const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
   
   const [weeklyIncomeInput, setWeeklyIncomeInput] = useState<string>('');
-  const [selectedWeek, setSelectedWeek] = useState<Date | undefined>(() => {
-    const today = new Date();
-    return today.getDay() === 5 ? today : previousFriday(today);
-  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
   const [latestBreakdown, setLatestBreakdown] = useState<Omit<WeeklyIncome, 'id'|'clientId'> | null>(null);
 
@@ -142,14 +139,14 @@ export default function TrackingPage() {
       toast({ variant: 'destructive', title: 'No Business Selected', description: 'Please select a business first.' });
       return;
     }
-    if (!selectedWeek) {
-      toast({ variant: 'destructive', title: 'No Week Selected', description: 'Please select a week (Friday).' });
+    if (!selectedDate) {
+      toast({ variant: 'destructive', title: 'No Date Selected', description: 'Please select a date for the income entry.' });
       return;
     }
     
-    const existingEntry = incomeHistory.find(entry => format(new Date(entry.weekOf), 'yyyy-MM-dd') === format(selectedWeek, 'yyyy-MM-dd'));
+    const existingEntry = incomeHistory.find(entry => format(new Date(entry.weekOf), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'));
     if (existingEntry) {
-        toast({ variant: 'destructive', title: 'Entry Exists', description: `An income entry for this business on ${format(selectedWeek, 'PPP')} already exists.`});
+        toast({ variant: 'destructive', title: 'Entry Exists', description: `An income entry for this business on ${format(selectedDate, 'PPP')} already exists.`});
         return;
     }
 
@@ -159,12 +156,12 @@ export default function TrackingPage() {
       setManualInputData({
         rules: manualRules,
         totalIncome: income,
-        week: selectedWeek,
+        week: selectedDate,
         business: selectedBusiness,
       });
       setIsManualInputDialogOpen(true);
     } else {
-      await performFullCalculation(income, selectedBusiness, selectedWeek, {});
+      await performFullCalculation(income, selectedBusiness, selectedDate, {});
     }
   };
 
@@ -232,6 +229,22 @@ export default function TrackingPage() {
     setIncomeToDelete(null);
   };
 
+  const frequencyLabel = useMemo(() => {
+    if (!selectedBusiness) return 'Income';
+    const freq = selectedBusiness.trackingFrequency || 'weekly';
+    return freq.charAt(0).toUpperCase() + freq.slice(1);
+  }, [selectedBusiness]);
+
+  const isDateDisabled = (date: Date): boolean => {
+    if (!selectedBusiness) return false;
+    const { trackingFrequency, weeklyDay } = selectedBusiness;
+    if (trackingFrequency === 'weekly') {
+      const targetDay = weeklyDay ?? 5; // Default to Friday if not set
+      return date.getDay() !== targetDay;
+    }
+    return false;
+  };
+
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -282,25 +295,25 @@ export default function TrackingPage() {
           <CardContent className="space-y-6 border-t pt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Enter Weekly Income for {selectedBusiness.name}</CardTitle>
-                <CardDescription>Enter the total income for the selected week (Friday).</CardDescription>
+                <CardTitle>Enter {frequencyLabel} Income for {selectedBusiness.name}</CardTitle>
+                <CardDescription>Enter the total income for the selected date.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="w-full md:w-auto flex-grow">
-                  <Label htmlFor="weekly-income">Total Income (Friday)</Label>
+                  <Label htmlFor="weekly-income">Total Income</Label>
                   <Input id="weekly-income" type="number" placeholder="Enter total income" value={weeklyIncomeInput} onChange={e => setWeeklyIncomeInput(e.target.value)} />
                 </div>
                 <div className="w-full md:w-auto">
-                  <Label>Week Of (Friday)</Label>
+                  <Label>Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !selectedWeek && "text-muted-foreground")}>
+                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedWeek ? format(selectedWeek, "PPP") : <span>Pick a Friday</span>}
+                        {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={selectedWeek} onSelect={setSelectedWeek} disabled={(date) => date.getDay() !== 5} initialFocus />
+                      <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
                     </PopoverContent>
                   </Popover>
                 </div>
@@ -343,7 +356,7 @@ export default function TrackingPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Week Of (Friday)</TableHead>
+                      <TableHead>Entry Date</TableHead>
                       <TableHead className="text-right">Total Income</TableHead>
                       <TableHead className="text-right">Remaining Money</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -367,7 +380,7 @@ export default function TrackingPage() {
                                         <div className="space-y-2">
                                             <h4 className="font-medium leading-none">Breakdown Details</h4>
                                             <p className="text-sm text-muted-foreground">
-                                               For week of {format(new Date(entry.weekOf), 'PPP')}
+                                               For entry date {format(new Date(entry.weekOf), 'PPP')}
                                             </p>
                                         </div>
                                         <div className="grid gap-2 text-sm">
@@ -475,7 +488,7 @@ export default function TrackingPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete the income entry for {selectedBusiness?.name} from the week of {format(new Date(incomeToDelete.weekOf), 'PPP')}. This allows you to re-calculate for that week.
+                This will permanently delete the income entry for {selectedBusiness?.name} from {format(new Date(incomeToDelete.weekOf), 'PPP')}. This allows you to re-calculate for that date.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowUp, ArrowDown, PlusCircle, Trash2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
 
 const breakdownRuleSchema = z.object({
     id: z.string(),
@@ -27,6 +28,8 @@ const breakdownRuleSchema = z.object({
 
 const formSchema = z.object({
   breakdownConfig: z.array(breakdownRuleSchema),
+  trackingFrequency: z.enum(['daily', 'weekly', 'monthly']),
+  weeklyDay: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,6 +41,16 @@ interface BusinessConfigFormProps {
   onSave: (updatedBusiness: Business) => void;
 }
 
+const weekDays = [
+    { label: 'Sunday', value: 0 },
+    { label: 'Monday', value: 1 },
+    { label: 'Tuesday', value: 2 },
+    { label: 'Wednesday', value: 3 },
+    { label: 'Thursday', value: 4 },
+    { label: 'Friday', value: 5 },
+    { label: 'Saturday', value: 6 },
+];
+
 export function BusinessConfigForm({ isOpen, onClose, business, onSave }: BusinessConfigFormProps) {
   const { toast } = useToast();
 
@@ -45,6 +58,8 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
     resolver: zodResolver(formSchema),
     defaultValues: {
       breakdownConfig: business.breakdownConfig || [],
+      trackingFrequency: business.trackingFrequency || 'weekly',
+      weeklyDay: business.weeklyDay ?? 5, // Default to Friday
     },
   });
   
@@ -53,18 +68,30 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
     name: "breakdownConfig",
   });
 
+  const watchFrequency = form.watch('trackingFrequency');
+
   useEffect(() => {
     if (business && isOpen) {
       form.reset({
         breakdownConfig: business.breakdownConfig || [],
+        trackingFrequency: business.trackingFrequency || 'weekly',
+        weeklyDay: business.weeklyDay ?? 5,
       });
     }
   }, [business, isOpen, form]);
   
   const onSubmit = (data: FormValues) => {
-    const updatedBusiness = { ...business, breakdownConfig: data.breakdownConfig };
-    onSave(updatedBusiness);
-    toast({ title: "Configuration Saved", description: `Breakdown rules for ${business.name} have been updated.` });
+    const updatedBusinessData = { 
+        ...business, 
+        breakdownConfig: data.breakdownConfig,
+        trackingFrequency: data.trackingFrequency,
+        weeklyDay: data.weeklyDay,
+    };
+    if (data.trackingFrequency !== 'weekly') {
+        delete updatedBusinessData.weeklyDay;
+    }
+    onSave(updatedBusinessData);
+    toast({ title: "Configuration Saved", description: `Configuration for ${business.name} has been updated.` });
     onClose();
   };
   
@@ -78,15 +105,67 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[90vh]">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2"><Settings className="w-6 h-6"/> Breakdown Configuration for {business.name}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Settings className="w-6 h-6"/> Configuration for {business.name}</DialogTitle>
           <DialogDescription>
-            Define the rules for the weekly income breakdown. Rules are applied sequentially.
+            Define the income tracking frequency and the rules for the breakdown. Rules are applied sequentially.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow overflow-y-hidden flex flex-col">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+                <FormField
+                    control={form.control}
+                    name="trackingFrequency"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Income Frequency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                {watchFrequency === 'weekly' && (
+                    <FormField
+                        control={form.control}
+                        name="weeklyDay"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Day of the Week</FormLabel>
+                                <Select onValueChange={(val) => field.onChange(Number(val))} defaultValue={String(field.value)}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select day" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {weekDays.map(day => (
+                                            <SelectItem key={day.value} value={String(day.value)}>{day.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+            </div>
             
-            <ScrollArea className="flex-grow pr-4 -mr-6 -ml-6 px-6 my-4">
+            <Separator className="mb-4" />
+
+            <FormLabel>Breakdown Rules</FormLabel>
+            <ScrollArea className="flex-grow pr-4 -mr-6 -ml-6 px-6 my-2">
                 <div className="space-y-4">
                 {fields.map((field, index) => {
                     const ruleType = form.watch(`breakdownConfig.${index}.type`);
@@ -163,7 +242,7 @@ export function BusinessConfigForm({ isOpen, onClose, business, onSave }: Busine
                 </div>
             </ScrollArea>
             
-            <div className="flex-shrink-0 pt-4 border-t">
+            <div className="flex-shrink-0 pt-4 border-t mt-auto">
                 <Button
                 type="button"
                 variant="outline"
