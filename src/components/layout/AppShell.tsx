@@ -152,7 +152,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
 
-  const userInitials = authUser?.username ? authUser.username.substring(0, 2).toUpperCase() : 'RP';
   const isAdminSection = pathname.startsWith('/admin');
 
   let currentAppNavItems: AppSidebarNavItem[] = [];
@@ -418,7 +417,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Avatar>
-                    <AvatarFallback>{userInitials}</AvatarFallback>
+                    <AvatarFallback>
+                      <UserCircle className="h-6 w-6" />
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>

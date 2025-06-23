@@ -19,7 +19,6 @@ export default function ProfilePage() {
     );
   }
 
-  const userInitials = authUser.username ? authUser.username.substring(0, 2).toUpperCase() : 'U';
   const client = authUser.clientId ? clients.find(c => c.id === authUser.clientId) : null;
 
   const getRoleInfo = () => {
@@ -48,7 +47,9 @@ export default function ProfilePage() {
       <Card className="shadow-xl">
         <CardHeader className="items-center text-center border-b pb-6">
           <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2">
-            <AvatarFallback className="text-3xl">{userInitials}</AvatarFallback>
+            <AvatarFallback>
+              <UserCircle className="h-20 w-20 text-muted-foreground" />
+            </AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl font-headline">{authUser.username}</CardTitle>
           <CardDescription className="flex items-center gap-1">
