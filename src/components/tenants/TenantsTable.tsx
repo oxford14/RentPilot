@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, UserCheck, UserX, Edit, Trash2 } from 'lucide-react';
@@ -166,11 +166,3 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     </>
   );
 }
-
-// Helper for buttonVariants in AlertDialogAction if not directly available
-const buttonVariants = (options: { variant: string }) => {
-  if (options.variant === "destructive") {
-    return "bg-destructive text-destructive-foreground hover:bg-destructive/90";
-  }
-  return "";
-};
