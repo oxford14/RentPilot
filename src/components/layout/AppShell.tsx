@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -167,6 +167,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   let currentActivePageLabel = 'RentPilot';
 
 
+  const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
+  const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
+  const activeClientForDisplay = viewingClient || loggedInClient;
+
+
   if (isAdminSection) {
     if (authUser?.isSuperAdmin) {
       currentAdminConfigItems = adminSidebarConfig;
@@ -193,19 +198,39 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
   } else {
+      let baseNavItems: AppSidebarNavItem[];
       if(isTenantSection) {
-        currentAppNavItems = tenantNavItems;
+        baseNavItems = [...tenantNavItems];
       } else {
-        currentAppNavItems = appNavItems.filter(item => {
-        if (item.clientAdminOnly) {
-          return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
-        }
-        if (item.superAdminOnly) { 
-            return !!authUser?.isSuperAdmin;
-        }
-        return true; 
+        baseNavItems = [...appNavItems].filter(item => {
+          if (item.clientAdminOnly) {
+            return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
+          }
+          if (item.superAdminOnly) { 
+              return !!authUser?.isSuperAdmin;
+          }
+          return true; 
         });
       }
+
+      // Conditionally add the Tracking menu item
+      if (activeClientForDisplay && activeClientForDisplay.name === "D' First Hub") {
+        const trackingItem: AppSidebarNavItem = {
+            isGroup: false,
+            href: '/tracking',
+            label: 'Tracking',
+            icon: MapPin,
+        };
+        const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+        if (expensesIndex !== -1) {
+            baseNavItems.splice(expensesIndex + 1, 0, trackingItem);
+        } else {
+            baseNavItems.push(trackingItem); // fallback
+        }
+      }
+
+      currentAppNavItems = baseNavItems;
+
 
     let activeItemFound = false;
     for (const item of currentAppNavItems) {
@@ -228,13 +253,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
      if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
      else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
+     else if (!activeItemFound && pathname === '/tracking') currentActivePageLabel = 'Tracking';
      else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
-
-  const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
-  const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
-  const activeClientForDisplay = viewingClient || loggedInClient;
-
 
   const handleReturnToAdminView = () => {
     setViewMode(null);
