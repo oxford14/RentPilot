@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Briefcase, PlusCircle, CalendarIcon, Edit, Trash2, Settings, List, Wallet } from 'lucide-react';
 import { format, previousFriday } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { WeeklyIncome, Business } from '@/lib/types';
+import type { WeeklyIncome, Business, BreakdownRule } from '@/lib/types';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { BusinessConfigForm } from '@/components/tracking/BusinessConfigForm';
+import { ManualInputDialog } from '@/components/tracking/ManualInputDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function TrackingPage() {
@@ -57,6 +58,14 @@ export default function TrackingPage() {
   const [editedBusinessName, setEditedBusinessName] = useState('');
   
   const [isConfigFormOpen, setIsConfigFormOpen] = useState(false);
+  
+  const [isManualInputDialogOpen, setIsManualInputDialogOpen] = useState(false);
+  const [manualInputData, setManualInputData] = useState<{
+    rules: BreakdownRule[];
+    totalIncome: number;
+    week: Date;
+    business: Business;
+  } | null>(null);
 
 
   const selectedBusiness = useMemo(() => {
@@ -87,6 +96,42 @@ export default function TrackingPage() {
     setWeeklyIncomeInput('');
   }
 
+  const performFullCalculation = async (totalIncome: number, business: Business, week: Date, manualValues: Record<string, number>) => {
+    let remainingAmount = totalIncome;
+    const breakdown: { [key: string]: number } = {};
+    const config = business.breakdownConfig || [];
+
+    for (const rule of config) {
+      if (remainingAmount <= 0) break;
+      let deduction = 0;
+      if (rule.type === 'percentage') {
+        deduction = remainingAmount * (rule.value / 100);
+      } else if (rule.type === 'fixed') {
+        deduction = rule.value;
+      } else if (rule.type === 'manual_input') {
+        deduction = manualValues[rule.name] || 0;
+      }
+      
+      deduction = Math.min(deduction, remainingAmount);
+      
+      breakdown[rule.name] = (breakdown[rule.name] || 0) + deduction;
+      remainingAmount -= deduction;
+    }
+
+    const incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'> = {
+      businessId: business.id,
+      weekOf: week.toISOString(),
+      income: totalIncome,
+      breakdown,
+      remainingMoney: remainingAmount,
+    };
+    
+    await addWeeklyIncome(incomeEntry);
+    
+    setLatestBreakdown(incomeEntry);
+    setWeeklyIncomeInput('');
+  };
+
   const handleCalculate = async () => {
     const income = parseFloat(weeklyIncomeInput);
     if (isNaN(income) || income <= 0) {
@@ -107,39 +152,34 @@ export default function TrackingPage() {
         toast({ variant: 'destructive', title: 'Entry Exists', description: `An income entry for this business on ${format(selectedWeek, 'PPP')} already exists.`});
         return;
     }
-    
-    // New calculation logic
-    let remainingAmount = income;
-    const breakdown: { [key: string]: number } = {};
-    const config = selectedBusiness.breakdownConfig || [];
 
-    for (const rule of config) {
-      if (remainingAmount <= 0) break;
-      let deduction = 0;
-      if (rule.type === 'percentage') {
-        deduction = remainingAmount * (rule.value / 100);
-      } else { // fixed
-        deduction = rule.value;
-      }
-      
-      deduction = Math.min(deduction, remainingAmount); // Cannot deduct more than what's left
-      
-      breakdown[rule.name] = (breakdown[rule.name] || 0) + deduction;
-      remainingAmount -= deduction;
+    const manualRules = selectedBusiness.breakdownConfig?.filter(r => r.type === 'manual_input') || [];
+
+    if (manualRules.length > 0) {
+      setManualInputData({
+        rules: manualRules,
+        totalIncome: income,
+        week: selectedWeek,
+        business: selectedBusiness,
+      });
+      setIsManualInputDialogOpen(true);
+    } else {
+      await performFullCalculation(income, selectedBusiness, selectedWeek, {});
     }
+  };
 
-    const incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'> = {
-      businessId: selectedBusiness.id,
-      weekOf: selectedWeek.toISOString(),
-      income,
-      breakdown,
-      remainingMoney: remainingAmount,
-    };
+  const handleManualInputSubmit = async (manualValues: Record<string, number>) => {
+    if (!manualInputData) return;
     
-    await addWeeklyIncome(incomeEntry);
+    await performFullCalculation(
+      manualInputData.totalIncome,
+      manualInputData.business,
+      manualInputData.week,
+      manualValues
+    );
     
-    setLatestBreakdown(incomeEntry);
-    setWeeklyIncomeInput('');
+    setIsManualInputDialogOpen(false);
+    setManualInputData(null);
   };
   
   const formatCurrency = (amount: number) => {
@@ -364,6 +404,16 @@ export default function TrackingPage() {
           onClose={() => setIsConfigFormOpen(false)}
           business={selectedBusiness}
           onSave={handleUpdateBusinessConfig}
+        />
+      )}
+      
+      {isManualInputDialogOpen && manualInputData && (
+        <ManualInputDialog
+          isOpen={isManualInputDialogOpen}
+          onClose={() => setIsManualInputDialogOpen(false)}
+          rules={manualInputData.rules}
+          totalIncome={manualInputData.totalIncome}
+          onSubmit={handleManualInputSubmit}
         />
       )}
 

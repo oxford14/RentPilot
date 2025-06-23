@@ -96,7 +96,7 @@ export interface Expense {
 export interface BreakdownRule {
   id: string; // uuid for local state management
   name: string;
-  type: 'percentage' | 'fixed';
+  type: 'percentage' | 'fixed' | 'manual_input';
   value: number;
 }
 
