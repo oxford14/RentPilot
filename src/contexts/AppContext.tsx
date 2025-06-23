@@ -26,6 +26,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays } from 'date-fns';
+import { serverAddManagedUser, serverAddSuperAdminUser, serverCompleteTenantSignup, serverUpdateManagedUser, serverUpdateSuperAdminUser } from '@/actions/user-actions';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -432,10 +433,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      await addDoc(collection(db, 'managedUsers'), { ...userData, role: userData.role || 'user' });
+      await serverAddManagedUser(userData);
     } catch (error: any) {
-      console.error("Error adding managed user to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add user: ${error.message}` });
+      console.error("Error adding managed user:", error);
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to add user: ${error.message}` });
     }
   };
 
@@ -446,10 +447,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const { id, ...dataToUpdate } = updatedUser;
     try {
-      await setDoc(doc(db, 'managedUsers', id), { ...dataToUpdate, role: updatedUser.role || 'user' }, { merge: true });
+      await serverUpdateManagedUser(id, dataToUpdate);
     } catch (error: any) {
-      console.error("Error updating managed user in Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update user: ${error.message}` });
+      console.error("Error updating managed user:", error);
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to update user: ${error.message}` });
     }
   };
 
@@ -477,10 +478,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      await addDoc(collection(db, 'superAdminUsers'), userData);
+      await serverAddSuperAdminUser(userData);
     } catch (error: any) {
-      console.error("Error adding super admin user to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add super admin: ${error.message}` });
+      console.error("Error adding super admin user:", error);
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to add super admin: ${error.message}` });
     }
   };
 
@@ -491,10 +492,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const { id, ...dataToUpdate } = updatedUser;
     try {
-      await setDoc(doc(db, 'superAdminUsers', id), dataToUpdate, { merge: true });
+      await serverUpdateSuperAdminUser(id, dataToUpdate);
     } catch (error: any) {
-      console.error("Error updating super admin user in Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update super admin: ${error.message}` });
+      console.error("Error updating super admin user:", error);
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to update super admin: ${error.message}` });
     }
   };
 
@@ -530,28 +531,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const completeTenantSignup = async (token: string, password: string): Promise<{ success: boolean, message: string }> => {
-    const q = query(collection(db, 'tenants'), where('invitationToken', '==', token));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-      return { success: false, message: 'Invalid or expired invitation link.' };
+    try {
+      return await serverCompleteTenantSignup(token, password);
+    } catch(error: any) {
+        console.error("Error completing tenant signup:", error);
+        return { success: false, message: `An unexpected server error occurred: ${error.message}` };
     }
-
-    const tenantDoc = snapshot.docs[0];
-    const tenant = tenantDoc.data() as Tenant;
-
-    if (tenant.invitationTokenExpires && tenant.invitationTokenExpires < Date.now()) {
-      return { success: false, message: 'This invitation link has expired. Please request a new one.' };
-    }
-
-    await updateDoc(tenantDoc.ref, {
-      password: password,
-      hasAccount: true,
-      invitationToken: null,
-      invitationTokenExpires: null,
-    });
-    
-    return { success: true, message: 'Account created successfully! You can now log in.' };
   };
 
   const cleanClientData = async (clientId: string): Promise<{ success: boolean; message: string; }> => {

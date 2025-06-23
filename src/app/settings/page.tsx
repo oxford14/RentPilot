@@ -14,6 +14,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { KeyRound, UserCog, Eye, EyeOff } from 'lucide-react';
+import { serverChangeManagedUserPassword } from '@/actions/user-actions';
 
 const passwordChangeFormSchema = z.object({
   currentPassword: z.string().min(1, { message: "Current password is required." }),
@@ -28,7 +29,7 @@ type PasswordChangeFormValues = z.infer<typeof passwordChangeFormSchema>;
 
 export default function UserAccountSettingsPage() {
   const { user: authUser } = useAuth();
-  const { rawManagedUsers, updateManagedUser } = useAppContext();
+  const { rawManagedUsers } = useAppContext();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -46,16 +47,14 @@ export default function UserAccountSettingsPage() {
   });
 
   if (!authUser || authUser.isSuperAdmin) {
-    // Super admins manage their passwords elsewhere or it's hardcoded
-    // This page is for ManagedUsers (client users/admins)
-    if (typeof window !== 'undefined') { // Ensure router.push runs client-side
+    if (typeof window !== 'undefined') {
         toast({variant: "destructive", title: "Access Denied", description: "This page is for client user account settings."});
         router.push('/');
     }
     return <div className="container mx-auto py-2"><p>Redirecting...</p></div>;
   }
 
-  const onSubmit = (data: PasswordChangeFormValues) => {
+  const onSubmit = async (data: PasswordChangeFormValues) => {
     const currentUserInAppContext = rawManagedUsers.find(
       mu => mu.username === authUser.username && mu.clientId === authUser.clientId
     );
@@ -65,18 +64,20 @@ export default function UserAccountSettingsPage() {
       return;
     }
 
-    if (currentUserInAppContext.password !== data.currentPassword) {
-      form.setError("currentPassword", { type: "manual", message: "Incorrect current password." });
-      toast({ variant: "destructive", title: "Validation Error", description: "Incorrect current password." });
-      return;
-    }
-
     try {
-      updateManagedUser({ ...currentUserInAppContext, password: data.newPassword });
-      toast({ title: "Password Changed", description: "Your password has been updated successfully." });
-      form.reset();
-      // Optionally, you might want to log the user out or redirect them.
-      // For now, just reset the form.
+      const result = await serverChangeManagedUserPassword(
+        currentUserInAppContext.id,
+        data.currentPassword,
+        data.newPassword
+      );
+
+      if (result.success) {
+        toast({ title: "Password Changed", description: "Your password has been updated successfully." });
+        form.reset();
+      } else {
+        form.setError("currentPassword", { type: "manual", message: result.message });
+        toast({ variant: "destructive", title: "Validation Error", description: result.message });
+      }
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to change password." });
       console.error("Password change error:", error);
