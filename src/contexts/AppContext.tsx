@@ -320,7 +320,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addClient = async (clientData: { name: string }, logoFile?: File | null) => {
+  const addClient = async (clientData: { name: string }, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to add clients." });
       return;
@@ -328,7 +328,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       let logoUrl: string | null = null;
       if (logoFile) {
-        const uniqueFileName = `${uuidv4()}-${logoFile.name}`;
+        const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
+        const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
         logoUrl = await getDownloadURL(uploadResult.ref);
@@ -346,7 +347,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateClient = async (client: Client, logoFile?: File | null) => {
+  const updateClient = async (client: Client, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
        toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to update clients." });
        return;
@@ -359,7 +360,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
 
       if (logoFile) {
-        const uniqueFileName = `${uuidv4()}-${logoFile.name}`;
+        const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
+        const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
         dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);

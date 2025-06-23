@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,19 +13,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { Client } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+import ReactCrop, { centerCrop, makeAspectCrop, type Crop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
-  logoFile: z
-    .any()
-    .refine((files) => !files || files.length === 0 || files?.[0]?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
-    .refine(
-      (files) => !files || files.length === 0 || ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
-      "Only .jpg, .jpeg, .png and .gif formats are supported."
-    ),
+  logoFile: z.any().optional(), // File input is now just a trigger
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -33,38 +26,126 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 interface ClientFormProps {
   isOpen: boolean;
   onClose: () => void;
-  client?: Client | null; // For editing
+  client?: Client | null;
+}
+
+// Helper to get the cropped image as a blob
+function getCroppedImg(image: HTMLImageElement, crop: Crop): Promise<Blob | null> {
+  const canvas = document.createElement('canvas');
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    return Promise.resolve(null);
+  }
+  
+  const pixelRatio = window.devicePixelRatio || 1;
+  canvas.width = crop.width * pixelRatio;
+  canvas.height = crop.height * pixelRatio;
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+
+  ctx.drawImage(
+    image,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob);
+    }, 'image/png', 1);
+  });
 }
 
 export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   const { addClient, updateClient } = useAppContext();
   const { toast } = useToast();
+  
+  // State for image cropping
   const [preview, setPreview] = useState<string | null>(null);
+  const [imgSrc, setImgSrc] = useState('');
+  const [crop, setCrop] = useState<Crop>();
+  const [croppedImageBlob, setCroppedImageBlob] = useState<Blob | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
-    defaultValues: {
-      name: client?.name || '',
-      logoFile: undefined,
-    },
+    defaultValues: { name: client?.name || '', logoFile: undefined },
   });
 
   useEffect(() => {
     if (isOpen) {
       form.reset({ name: client?.name || '', logoFile: undefined });
       setPreview(client?.logoUrl || null);
+      setCroppedImageBlob(null);
+      setImgSrc('');
+      setCrop(undefined);
     }
   }, [client, isOpen, form]);
 
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) {
+        toast({ variant: 'destructive', title: 'Invalid File', description: 'Please select an image file.' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImgSrc(reader.result?.toString() || '');
+        setIsCropModalOpen(true);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''; // Reset file input
+        }
+      });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    imgRef.current = e.currentTarget;
+    const { width, height } = e.currentTarget;
+    // Set a default centered crop
+    const newCrop = centerCrop(
+      makeAspectCrop({ unit: '%', width: 90 }, 16 / 9, width, height),
+      width,
+      height
+    );
+    setCrop(newCrop);
+  };
+  
+  const handleCropComplete = async () => {
+    if (imgRef.current && crop?.width && crop?.height) {
+        const blob = await getCroppedImg(imgRef.current, crop);
+        setCroppedImageBlob(blob);
+        if (blob) {
+            setPreview(URL.createObjectURL(blob));
+        }
+        setIsCropModalOpen(false);
+        setImgSrc('');
+    }
+  };
+
   const onSubmit = async (data: ClientFormValues) => {
     try {
-      const logoFile = data.logoFile?.[0];
-
       if (client) { // Editing existing client
-        await updateClient({ ...client, name: data.name }, logoFile);
+        await updateClient({ ...client, name: data.name }, croppedImageBlob);
         toast({ title: "Client Updated", description: `${data.name} has been updated successfully.` });
       } else { // Adding new client
-        await addClient({ name: data.name }, logoFile);
+        await addClient({ name: data.name }, croppedImageBlob);
         toast({ title: "Client Added", description: `${data.name} has been added successfully.` });
       }
       onClose();
@@ -75,77 +156,94 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px] bg-card shadow-xl rounded-lg">
-        <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Acme Corp Rentals" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="logoFile"
-              render={({ field: { onChange, value, ...rest } }) => (
-                <FormItem>
-                  <FormLabel>Client Logo</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept={ACCEPTED_IMAGE_TYPES.join(', ')}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        onChange(e.target.files);
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setPreview(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        } else {
-                          setPreview(client?.logoUrl || null);
-                        }
-                      }}
-                      {...rest}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[480px] bg-card shadow-xl rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Client Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Acme Corp Rentals" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormItem>
+                <FormLabel>Client Logo</FormLabel>
+                <FormControl>
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={onFileChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
 
-            {preview && (
-              <div className="space-y-2">
-                <FormLabel>Logo Preview</FormLabel>
-                <div className="flex items-center justify-center p-4 border rounded-md bg-muted">
-                    <Image src={preview} alt="Logo preview" width={120} height={45} className="object-contain" />
+              {preview && (
+                <div className="space-y-2">
+                  <FormLabel>Logo Preview</FormLabel>
+                  <div className="flex items-center justify-center p-4 border rounded-md bg-muted">
+                      <Image src={preview} alt="Logo preview" width={120} height={45} className="object-contain" />
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-              </DialogClose>
-              <Button type="submit" variant="default" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Saving...' : (client ? 'Save Changes' : 'Add Client')}
-                </Button>
+              <DialogFooter className="pt-4">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                </DialogClose>
+                <Button type="submit" variant="default" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Saving...' : (client ? 'Save Changes' : 'Add Client')}
+                  </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cropping Modal */}
+      <Dialog open={isCropModalOpen} onOpenChange={setIsCropModalOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Crop Your Logo</DialogTitle>
+            </DialogHeader>
+            <div className="flex justify-center items-center">
+             {imgSrc && (
+                <ReactCrop
+                    crop={crop}
+                    onChange={c => setCrop(c)}
+                    aspect={16 / 9}
+                    minWidth={100}
+                >
+                    <Image
+                        ref={imgRef}
+                        src={imgSrc}
+                        alt="Crop preview"
+                        onLoad={onImageLoad}
+                        width={400}
+                        height={400}
+                        className="max-h-[60vh] object-contain"
+                    />
+                </ReactCrop>
+            )}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCropModalOpen(false)}>Cancel</Button>
+                <Button onClick={handleCropComplete}>Crop & Use Image</Button>
             </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

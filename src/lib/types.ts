@@ -158,8 +158,8 @@ export interface AppContextType {
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   
-  addClient: (clientData: { name: string }, logoFile?: File | null) => Promise<void>;
-  updateClient: (client: Client, logoFile?: File | null) => Promise<void>;
+  addClient: (clientData: { name: string }, logoFile?: File | Blob | null) => Promise<void>;
+  updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
 
   addManagedUser: (userData: Omit<ManagedUser, 'id'>) => Promise<void>;
