@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import { UserCircle, Shield, Building, Mail } from 'lucide-react';
+import { User, UserCircle, Shield, ShieldCheck, Building, Mail } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user: authUser } = useAuth();
@@ -23,18 +23,24 @@ export default function ProfilePage() {
   const userInitials = authUser.username ? authUser.username.substring(0, 2).toUpperCase() : 'U';
   const client = authUser.clientId ? clients.find(c => c.id === authUser.clientId) : null;
 
-  const getRoleDisplay = () => {
-    if (authUser.isSuperAdmin) return "Super Administrator";
-    if (authUser.role === 'admin') return "Client Administrator";
-    if (authUser.role === 'user') return "Client User";
-    return "User";
+  const getRoleInfo = () => {
+    if (authUser.isSuperAdmin) {
+      return { text: "Super Administrator", Icon: ShieldCheck };
+    }
+    if (authUser.role === 'admin') {
+      return { text: "Client Administrator", Icon: Shield };
+    }
+    return { text: "Client User", Icon: User };
   };
+
+  const { text: roleText, Icon: RoleIcon } = getRoleInfo();
+  const PageIcon = authUser.isSuperAdmin || authUser.role === 'admin' ? ShieldCheck : UserCircle;
 
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline flex items-center">
-          <UserCircle className="mr-3 h-8 w-8 text-primary" />
+          <PageIcon className="mr-3 h-8 w-8 text-primary" />
           User Profile
         </h1>
         <p className="text-muted-foreground">View and manage your profile information.</p>
@@ -48,7 +54,7 @@ export default function ProfilePage() {
           </Avatar>
           <CardTitle className="text-2xl font-headline">{authUser.username}</CardTitle>
           <CardDescription className="flex items-center gap-1">
-            <Shield className="h-4 w-4 text-muted-foreground" /> {getRoleDisplay()}
+            <RoleIcon className="h-4 w-4 text-muted-foreground" /> {roleText}
           </CardDescription>
           {client && (
             <CardDescription className="flex items-center gap-1 mt-1">
@@ -77,5 +83,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
