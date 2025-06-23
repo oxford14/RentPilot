@@ -86,6 +86,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 ];
 
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
+const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname }: { item: AppNavGroup; pathname: string }) => {
@@ -267,20 +268,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     <SidebarProvider defaultOpen>
       <div className="flex min-h-screen w-full">
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
-          <SidebarHeader className="p-4 flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-primary">
+          <SidebarHeader className="p-4 flex items-center justify-center">
+            <Link href="/" className="flex items-center justify-center">
+                {/* Expanded Logo */}
                 <Image 
                   src={MAIN_APP_LOGO_URL}
                   alt="RentPilot app logo" 
-                  width={28} 
-                  height={28} 
-                  className="h-7 w-7 object-contain" 
+                  width={140}
+                  height={40}
+                  className="object-contain group-data-[collapsible=icon]:hidden"
                   data-ai-hint="app logo"
                   unoptimized
                 />
-                <span className="group-data-[collapsible=icon]:hidden font-headline">
-                  {isAdminSection && !viewingClient ? 'RentPilot' : activeClientForDisplay?.name || 'RentPilot'}
-                </span>
+                {/* Collapsed Icon */}
+                <Image 
+                  src={MAIN_APP_FAVICON_URL}
+                  alt="RentPilot icon" 
+                  width={32}
+                  height={32}
+                  className="object-contain hidden group-data-[collapsible=icon]:block"
+                  data-ai-hint="app icon"
+                  unoptimized
+                />
             </Link>
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
@@ -391,8 +400,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   />
               ) : !isAdminSection ? (
                   <Image
-                    src={MAIN_APP_LOGO_URL} 
-                    alt="RentPilot app logo"
+                    src={MAIN_APP_FAVICON_URL} 
+                    alt="RentPilot app icon"
                     width={32}
                     height={32}
                     className="h-8 w-8 object-contain rounded"
@@ -472,7 +481,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
-
-    
