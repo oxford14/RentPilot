@@ -42,7 +42,7 @@ export interface Tenant {
   invitationTokenExpires?: number; // Timestamp for token expiry
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Other';
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID

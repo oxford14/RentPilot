@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -20,7 +21,7 @@ import { format, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { calculateTenantBalance } from '@/lib/utils';
 
-const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Other'];
+const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Other'];
 
 const paymentFormSchema = z.object({
   tenantId: z.string().min(1, { message: "Please select a tenant." }),

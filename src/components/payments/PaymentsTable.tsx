@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
@@ -25,6 +25,7 @@ const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
     case 'Credit Card': return <CreditCard className="h-4 w-4 text-primary" />;
     case 'Bank Transfer': return <Landmark className="h-4 w-4 text-green-500" />;
     case 'Cash': return <DollarSign className="h-4 w-4 text-yellow-600" />;
+    case 'Gcash': return <Wallet className="h-4 w-4 text-blue-500" />;
     default: return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
   }
 };
@@ -139,4 +140,3 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
     </TooltipProvider>
   );
 }
-
