@@ -93,10 +93,18 @@ export interface Expense {
   clientId?: string; // Firestore document ID of the client, or undefined/null for global expenses
 }
 
+export interface BreakdownRule {
+  id: string; // uuid for local state management
+  name: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+}
+
 export interface Business {
   id: string; // Firestore document ID
   name: string;
   clientId: string;
+  breakdownConfig?: BreakdownRule[];
 }
 
 export interface WeeklyIncome {
@@ -105,13 +113,8 @@ export interface WeeklyIncome {
   clientId: string;
   weekOf: string; // ISO string for the Friday of that week
   income: number;
-  breakdown: {
-    roi: number;
-    remainingForExpenses: number;
-    tithes: number;
-    savings: number;
-    remainingMoney: number;
-  };
+  breakdown: { [key: string]: number };
+  remainingMoney: number;
 }
 
 
@@ -213,7 +216,7 @@ export interface AppContextType {
   addBusiness: (businessName: string) => Promise<void>;
   updateBusiness: (business: Business) => Promise<void>;
   deleteBusiness: (businessId: string) => Promise<void>;
-  addWeeklyIncome: (businessId: string, income: number, weekOf: Date) => Promise<void>;
+  addWeeklyIncome: (incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'>) => Promise<void>;
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage

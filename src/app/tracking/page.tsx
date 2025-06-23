@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { Briefcase, PlusCircle, CalendarIcon, TrendingUp, PiggyBank, HandCoins, ArrowDownRight, Wallet, Edit, Trash2 } from 'lucide-react';
+import { Briefcase, PlusCircle, CalendarIcon, Edit, Trash2, Settings, List, Wallet } from 'lucide-react';
 import { format, previousFriday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { WeeklyIncome, Business } from '@/lib/types';
@@ -27,6 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { BusinessConfigForm } from '@/components/tracking/BusinessConfigForm';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function TrackingPage() {
   const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome, deleteWeeklyIncome } = useAppContext();
@@ -42,7 +44,7 @@ export default function TrackingPage() {
     return today.getDay() === 5 ? today : previousFriday(today);
   });
   
-  const [latestBreakdown, setLatestBreakdown] = useState<WeeklyIncome | null>(null);
+  const [latestBreakdown, setLatestBreakdown] = useState<Omit<WeeklyIncome, 'id'|'clientId'> | null>(null);
 
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [businessToEdit, setBusinessToEdit] = useState<Business | null>(null);
@@ -53,6 +55,9 @@ export default function TrackingPage() {
   const [incomeToDelete, setIncomeToDelete] = useState<WeeklyIncome | null>(null);
 
   const [editedBusinessName, setEditedBusinessName] = useState('');
+  
+  const [isConfigFormOpen, setIsConfigFormOpen] = useState(false);
+
 
   const selectedBusiness = useMemo(() => {
     if (!selectedBusinessId) return null;
@@ -88,7 +93,7 @@ export default function TrackingPage() {
       toast({ variant: 'destructive', title: 'Invalid Income', description: 'Please enter a valid positive income amount.' });
       return;
     }
-    if (!selectedBusinessId) {
+    if (!selectedBusiness) {
       toast({ variant: 'destructive', title: 'No Business Selected', description: 'Please select a business first.' });
       return;
     }
@@ -102,23 +107,38 @@ export default function TrackingPage() {
         toast({ variant: 'destructive', title: 'Entry Exists', description: `An income entry for this business on ${format(selectedWeek, 'PPP')} already exists.`});
         return;
     }
+    
+    // New calculation logic
+    let remainingAmount = income;
+    const breakdown: { [key: string]: number } = {};
+    const config = selectedBusiness.breakdownConfig || [];
 
-    await addWeeklyIncome(selectedBusinessId, income, selectedWeek);
+    for (const rule of config) {
+      if (remainingAmount <= 0) break;
+      let deduction = 0;
+      if (rule.type === 'percentage') {
+        deduction = remainingAmount * (rule.value / 100);
+      } else { // fixed
+        deduction = rule.value;
+      }
+      
+      deduction = Math.min(deduction, remainingAmount); // Cannot deduct more than what's left
+      
+      breakdown[rule.name] = (breakdown[rule.name] || 0) + deduction;
+      remainingAmount -= deduction;
+    }
+
+    const incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'> = {
+      businessId: selectedBusiness.id,
+      weekOf: selectedWeek.toISOString(),
+      income,
+      breakdown,
+      remainingMoney: remainingAmount,
+    };
     
-    const roi = income * 0.5;
-    const remainingForExpenses = income - roi;
-    const tithes = remainingForExpenses * 0.1;
-    const savings = remainingForExpenses * 0.2;
-    const remainingMoney = remainingForExpenses - tithes - savings;
+    await addWeeklyIncome(incomeEntry);
     
-    setLatestBreakdown({
-        id: 'temp',
-        businessId: selectedBusinessId,
-        clientId: '', 
-        weekOf: selectedWeek.toISOString(),
-        income: income,
-        breakdown: { roi, remainingForExpenses, tithes, savings, remainingMoney }
-    });
+    setLatestBreakdown(incomeEntry);
     setWeeklyIncomeInput('');
   };
   
@@ -141,6 +161,10 @@ export default function TrackingPage() {
     setIsEditFormOpen(false);
     setBusinessToEdit(null);
   };
+  
+  const handleUpdateBusinessConfig = (updatedBusiness: Business) => {
+    updateBusiness(updatedBusiness);
+  }
 
   const handleOpenDeleteConfirm = (business: Business) => {
     setBusinessToDelete(business);
@@ -183,7 +207,7 @@ export default function TrackingPage() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle>Select Business</CardTitle>
-          <CardDescription>Choose a business to manage its weekly income.</CardDescription>
+          <CardDescription>Choose a business to manage its weekly income and configuration.</CardDescription>
           <div className="flex flex-col sm:flex-row gap-2 mt-2 items-center">
             <Select onValueChange={handleSelectBusiness} value={selectedBusinessId || ''}>
                 <SelectTrigger className="w-full">
@@ -196,6 +220,10 @@ export default function TrackingPage() {
                 </SelectContent>
             </Select>
             <div className="flex gap-2 w-full sm:w-auto">
+                <Button variant="outline" size="icon" onClick={() => selectedBusiness && setIsConfigFormOpen(true)} disabled={!selectedBusinessId} className="w-full sm:w-auto">
+                    <Settings className="h-4 w-4"/>
+                    <span className="sr-only">Configure Business</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={() => selectedBusiness && handleOpenEditForm(selectedBusiness)} disabled={!selectedBusinessId} className="w-full sm:w-auto">
                     <Edit className="h-4 w-4"/>
                     <span className="sr-only">Edit Business</span>
@@ -243,12 +271,23 @@ export default function TrackingPage() {
                   <CardTitle>Breakdown for {format(new Date(latestBreakdown.weekOf), 'PPP')}</CardTitle>
                   <CardDescription>Based on a total income of {formatCurrency(latestBreakdown.income)}</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  <BreakdownItem icon={TrendingUp} label="ROI (50%)" value={formatCurrency(latestBreakdown.breakdown.roi)} color="text-blue-500" />
-                  <BreakdownItem icon={Wallet} label="For Expenses" value={formatCurrency(latestBreakdown.breakdown.remainingForExpenses)} color="text-orange-500" />
-                  <BreakdownItem icon={HandCoins} label="Tithes (10%)" value={formatCurrency(latestBreakdown.breakdown.tithes)} color="text-green-500" />
-                  <BreakdownItem icon={PiggyBank} label="Savings (20%)" value={formatCurrency(latestBreakdown.breakdown.savings)} color="text-purple-500" />
-                  <BreakdownItem icon={ArrowDownRight} label="Remaining" value={formatCurrency(latestBreakdown.breakdown.remainingMoney)} color="text-red-500" />
+                <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(latestBreakdown.breakdown).map(([name, amount]) => (
+                    <div key={name} className="p-3 rounded-lg bg-background flex items-center gap-3">
+                        <Wallet className="h-6 w-6 text-primary"/>
+                        <div>
+                            <p className="text-sm text-muted-foreground">{name}</p>
+                            <p className="font-semibold text-lg">{formatCurrency(amount)}</p>
+                        </div>
+                    </div>
+                  ))}
+                   <div className="p-3 rounded-lg bg-background flex items-center gap-3">
+                        <Wallet className="h-6 w-6 text-green-500"/>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Remaining</p>
+                            <p className="font-semibold text-lg">{formatCurrency(latestBreakdown.remainingMoney)}</p>
+                        </div>
+                    </div>
                 </CardContent>
               </Card>
             )}
@@ -263,10 +302,7 @@ export default function TrackingPage() {
                     <TableRow>
                       <TableHead>Week Of (Friday)</TableHead>
                       <TableHead className="text-right">Total Income</TableHead>
-                      <TableHead className="text-right">ROI</TableHead>
-                      <TableHead className="text-right">Tithes</TableHead>
-                      <TableHead className="text-right">Savings</TableHead>
-                      <TableHead className="text-right">Remaining</TableHead>
+                      <TableHead className="text-right">Remaining Money</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -275,18 +311,41 @@ export default function TrackingPage() {
                       <TableRow key={entry.id}>
                         <TableCell>{format(new Date(entry.weekOf), 'PPP')}</TableCell>
                         <TableCell className="text-right">{formatCurrency(entry.income)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(entry.breakdown.roi)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(entry.breakdown.tithes)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(entry.breakdown.savings)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(entry.breakdown.remainingMoney)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right">{formatCurrency(entry.remainingMoney)}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="icon" className="h-8 w-8">
+                                        <List className="h-4 w-4" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80">
+                                    <div className="grid gap-4">
+                                        <div className="space-y-2">
+                                            <h4 className="font-medium leading-none">Breakdown Details</h4>
+                                            <p className="text-sm text-muted-foreground">
+                                               For week of {format(new Date(entry.weekOf), 'PPP')}
+                                            </p>
+                                        </div>
+                                        <div className="grid gap-2 text-sm">
+                                            {Object.entries(entry.breakdown).map(([key, value]) => (
+                                                <div className="grid grid-cols-2 items-center gap-4" key={key}>
+                                                    <span>{key}</span>
+                                                    <span className="text-right font-semibold">{formatCurrency(value)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+
                             <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => handleOpenIncomeDeleteConfirm(entry)}>
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </TableCell>
                       </TableRow>
                     )) : (
-                      <TableRow><TableCell colSpan={7} className="text-center">No income history for this business.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center">No income history for this business.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -296,6 +355,15 @@ export default function TrackingPage() {
         )}
       </Card>
       
+      {isConfigFormOpen && selectedBusiness && (
+        <BusinessConfigForm
+          isOpen={isConfigFormOpen}
+          onClose={() => setIsConfigFormOpen(false)}
+          business={selectedBusiness}
+          onSave={handleUpdateBusinessConfig}
+        />
+      )}
+
       <Dialog open={isBusinessFormOpen} onOpenChange={setIsBusinessFormOpen}>
         <DialogContent>
           <DialogHeader>

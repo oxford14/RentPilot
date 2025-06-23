@@ -691,6 +691,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newBusinessData = {
         name: businessName,
         clientId: currentContextClientId,
+        breakdownConfig: [],
     };
     try {
         await addDoc(collection(db, 'businesses'), newBusinessData);
@@ -741,7 +742,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addWeeklyIncome = async (businessId: string, income: number, weekOf: Date) => {
+  const addWeeklyIncome = async (incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'>) => {
       if (!authIsAuthenticated) {
           toast({ variant: "destructive", title: "Unauthorized" });
           return;
@@ -751,21 +752,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           toast({ variant: "destructive", title: "Client context not found."});
           return;
       }
-      // Calculation
-      const roi = income * 0.5;
-      const remainingForExpenses = income - roi;
-      const tithes = remainingForExpenses * 0.1;
-      const savings = remainingForExpenses * 0.2;
-      const remainingMoney = remainingForExpenses - tithes - savings;
-
-      const breakdown = { roi, remainingForExpenses, tithes, savings, remainingMoney };
 
       const newWeeklyIncomeData = {
-          businessId,
+          ...incomeEntry,
           clientId: currentContextClientId,
-          weekOf: weekOf.toISOString(),
-          income,
-          breakdown,
       };
 
       try {
