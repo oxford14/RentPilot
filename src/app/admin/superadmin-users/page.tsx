@@ -156,7 +156,7 @@ export default function SuperAdminUsersPage() {
             <div className="p-8 text-center text-muted-foreground">
               <ShieldCheck className="mx-auto h-12 w-12 mb-4 text-gray-400" />
               <p className="text-xl">No Additional Super Admins Found</p>
-              <p>Click "Add New Super Admin" to create one. The primary 'admin' account is not listed here.</p>
+              <p>The primary 'admin' account is for initial setup and is not listed here; its online status cannot be tracked. Create new super admin accounts to see the online status feature.</p>
             </div>
           )}
         </CardContent>
