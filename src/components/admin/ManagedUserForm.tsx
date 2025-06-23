@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { ManagedUser, ClientUserRole } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
 const clientUserRoles: ClientUserRole[] = ['admin', 'user'];
 
@@ -38,6 +39,7 @@ interface ManagedUserFormProps {
 export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientName, user }: ManagedUserFormProps) {
   const { addManagedUser, updateManagedUser, rawManagedUsers } = useAppContext();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
 
   const defaultFormValues = React.useMemo(() => (
     user
@@ -57,6 +59,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
           ? { username: user.username, email: user.email, password: '', role: user.role }
           : { username: '', email: '', password: '', role: 'user' as ClientUserRole }
       );
+      setShowPassword(false);
     }
   }, [user, isOpen, form]);
 
@@ -152,9 +155,20 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{user ? 'New Password (optional to change)' : 'Password'}</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                    </FormControl>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
