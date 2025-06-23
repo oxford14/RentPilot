@@ -1,9 +1,8 @@
-
 "use client";
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { User, UserCircle, Shield, ShieldCheck, Building, Mail } from 'lucide-react';
@@ -49,7 +48,6 @@ export default function ProfilePage() {
       <Card className="shadow-xl">
         <CardHeader className="items-center text-center border-b pb-6">
           <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2">
-            <AvatarImage src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299" alt={`${authUser.username}'s avatar`} data-ai-hint="user avatar large"/>
             <AvatarFallback className="text-3xl">{userInitials}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl font-headline">{authUser.username}</CardTitle>
