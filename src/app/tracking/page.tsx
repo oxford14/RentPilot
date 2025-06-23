@@ -143,6 +143,9 @@ export default function TrackingPage() {
   };
   
   const formatCurrency = (amount: number) => {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      return '₱--.--';
+    }
     return `₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   
