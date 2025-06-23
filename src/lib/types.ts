@@ -101,6 +101,7 @@ interface AppNavSubItem {
   adminOnly?: boolean;
   clientAdminOnly?: boolean;
   superAdminOnly?: boolean;
+  clientOnly?: boolean;
 }
 
 interface AppNavGroup {
@@ -111,6 +112,7 @@ interface AppNavGroup {
   adminOnly?: boolean;
   clientAdminOnly?: boolean;
   superAdminOnly?: boolean;
+  clientOnly?: boolean;
 }
 
 interface AppTopLevelNavItem {
@@ -121,6 +123,7 @@ interface AppTopLevelNavItem {
   adminOnly?: boolean;
   clientAdminOnly?: boolean;
   superAdminOnly?: boolean;
+  clientOnly?: boolean;
 }
 
 export type AppSidebarNavItem = AppTopLevelNavItem | AppNavGroup;

@@ -61,7 +61,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
   { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
-  { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award },
+  { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
     label: 'Reports',
@@ -181,7 +181,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
   let currentActivePageLabel = 'RentPilot';
 
-
+  const isSuperAdminViewingAsClient = !!authUser?.isSuperAdmin && !!viewingAsClientId;
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
   const activeClientForDisplay = viewingClient || loggedInClient;
@@ -235,13 +235,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         baseNavItems = [...tenantNavItems];
       } else {
         baseNavItems = [...appNavItems].filter(item => {
+          const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
+
           if (item.clientAdminOnly) {
-            return !authUser?.isSuperAdmin && !!authUser?.clientId && authUser?.role === 'admin';
+            const isActuallyClientAdmin = authUser?.role === 'admin' && !authUser.isSuperAdmin;
+            return isActuallyClientAdmin || isSuperAdminViewingAsClient;
+          }
+          if (item.clientOnly) {
+            return isClientContext;
           }
           if (item.superAdminOnly) { 
-              return !!authUser?.isSuperAdmin;
+              return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
           }
-          return true; 
+          return true;
         });
       }
 
@@ -435,7 +441,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                         tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
                         className="justify-start"
                         onClick={handleSidebarFooterSettingsClick}
-                        disabled={subscriptionExpired}
+                        disabled={subscriptionExpired && pathname !== '/subscription'}
                         >
                         <UserCircle className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">My Profile</span>
@@ -513,11 +519,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuItem onClick={() => router.push('/profile')} disabled={subscriptionExpired}>
+                <DropdownMenuItem onClick={() => router.push('/profile')} disabled={subscriptionExpired && pathname !== '/subscription'}>
                     <UserCircle className="mr-2 h-4 w-4" />
                     Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired}>
+                <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                 </DropdownMenuItem>
