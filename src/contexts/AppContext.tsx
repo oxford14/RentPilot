@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,6 +70,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
   const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
+  const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
+  const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -99,6 +101,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawManagedUsersState([]);
       setRawSuperAdminUsersState([]);
       setRawExpensesState([]);
+      setRawBusinessesState([]);
+      setRawWeeklyIncomesState([]);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -114,6 +118,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'managedUsers', setter: setRawManagedUsersState, label: 'managed users' },
       { name: 'superAdminUsers', setter: setRawSuperAdminUsersState, label: 'super admin users' },
       { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
+      { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
+      { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -195,6 +201,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!currentContextClientId) return [];
     return rawManagedUsersState.filter(mu => mu.clientId === currentContextClientId);
   }, [rawManagedUsersState, viewingAsClientId, authUser, authIsAuthenticated]);
+
+  const businesses = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    if (authUser?.isSuperAdmin) {
+      return viewingAsClientId ? rawBusinessesState.filter(b => b.clientId === viewingAsClientId) : [];
+    }
+    return rawBusinessesState.filter(b => b.clientId === authUser?.clientId);
+  }, [rawBusinessesState, viewingAsClientId, authUser, authIsAuthenticated]);
+
+  const weeklyIncomes = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    if (authUser?.isSuperAdmin) {
+        return viewingAsClientId ? rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId) : [];
+    }
+    return rawWeeklyIncomesState.filter(wi => wi.clientId === authUser?.clientId);
+  }, [rawWeeklyIncomesState, viewingAsClientId, authUser, authIsAuthenticated]);
 
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
@@ -414,7 +436,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
     try {
       batch.delete(doc(db, 'clients', clientId));
-      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses'];
+      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'businesses', 'weeklyIncomes'];
       for (const collName of collectionsToDelete) {
         const q = query(collection(db, collName), where('clientId', '==', clientId));
         const snapshot = await getDocs(q);
@@ -548,35 +570,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const batch = writeBatch(db);
-
-        // Find tenants for the client
-        const tenantsQuery = query(collection(db, 'tenants'), where('clientId', '==', clientId));
-        const tenantsSnapshot = await getDocs(tenantsQuery);
-        const tenantIds = tenantsSnapshot.docs.map(d => d.id);
-
-        if (tenantIds.length > 0) {
-            // Firestore 'in' query limit is 30
-            for (let i = 0; i < tenantIds.length; i += 30) {
-                const tenantIdChunk = tenantIds.slice(i, i + 30);
-                
-                // Find and delete payments for this chunk of tenants
-                const paymentsQuery = query(collection(db, 'payments'), where('tenantId', 'in', tenantIdChunk));
-                const paymentsSnapshot = await getDocs(paymentsQuery);
-                paymentsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-            }
-
-            // Delete tenants
-            tenantsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'businesses', 'weeklyIncomes'];
+        
+        for (const collName of collectionsToDelete) {
+          const q = query(collection(db, collName), where('clientId', '==', clientId));
+          const snapshot = await getDocs(q);
+          snapshot.docs.forEach(doc => batch.delete(doc.ref));
         }
-
-        // Delete expenses for the client
-        const expensesQuery = query(collection(db, 'expenses'), where('clientId', '==', clientId));
-        const expensesSnapshot = await getDocs(expensesQuery);
-        expensesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
 
         await batch.commit();
         
-        const successMsg = "All tenants, payments, and expenses for the client have been deleted.";
+        const successMsg = "All tenants, payments, expenses, and tracking data for the client have been deleted.";
         toast({ title: "Cleanup Successful", description: successMsg });
         return { success: true, message: successMsg };
 
@@ -601,11 +605,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { backupType, data } = backupFileContent;
     let collectionsToClear: string[];
     
-    // Determine which collections to clear from Firestore based on the backup type. This is a safety measure.
     if (backupType === 'Full System Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers'];
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers', 'businesses', 'weeklyIncomes'];
     } else if (backupType === 'All Client Data Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers']; // Note: superAdminUsers is NOT cleared
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'businesses', 'weeklyIncomes'];
     } else {
         return { success: false, message: `Unknown backup type: "${backupType}". Restore aborted.` };
     }
@@ -626,7 +629,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       let operationCount = 0;
       const commitLimit = 490;
   
-      // Phase 1: Clear existing data from the determined collections
       for (const collName of collectionsToClear) {
         const collRef = collection(db, collName);
         const snapshot = await getDocs(query(collRef));
@@ -646,7 +648,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         operationCount = 0;
       }
   
-      // Phase 2: Write new data from the backup file
       for (const { name: collName, data: collData } of collectionsToRestore) {
         for (const item of collData) {
           if (!item.id) continue;
@@ -676,6 +677,66 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addBusiness = async (businessName: string) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const currentContextClientId = authUser?.isSuperAdmin ? viewingAsClientId : authUser?.clientId;
+    if (!currentContextClientId) {
+        toast({ variant: "destructive", title: "Client context not found."});
+        return;
+    }
+
+    const newBusinessData = {
+        name: businessName,
+        clientId: currentContextClientId,
+    };
+    try {
+        await addDoc(collection(db, 'businesses'), newBusinessData);
+        toast({ title: "Business Added", description: `${businessName} has been added.`});
+    } catch (error: any) {
+        console.error("Error adding business:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${error.message}` });
+    }
+  };
+
+  const addWeeklyIncome = async (businessId: string, income: number, weekOf: Date) => {
+      if (!authIsAuthenticated) {
+          toast({ variant: "destructive", title: "Unauthorized" });
+          return;
+      }
+      const currentContextClientId = authUser?.isSuperAdmin ? viewingAsClientId : authUser?.clientId;
+      if (!currentContextClientId) {
+          toast({ variant: "destructive", title: "Client context not found."});
+          return;
+      }
+      // Calculation
+      const roi = income * 0.5;
+      const remainingForExpenses = income - roi;
+      const tithes = remainingForExpenses * 0.1;
+      const savings = remainingForExpenses * 0.2;
+      const remainingMoney = remainingForExpenses - tithes - savings;
+
+      const breakdown = { roi, remainingForExpenses, tithes, savings, remainingMoney };
+
+      const newWeeklyIncomeData = {
+          businessId,
+          clientId: currentContextClientId,
+          weekOf: weekOf.toISOString(),
+          income,
+          breakdown,
+      };
+
+      try {
+          await addDoc(collection(db, 'weeklyIncomes'), newWeeklyIncomeData);
+          toast({ title: "Income Recorded", description: "Weekly income and breakdown have been saved." });
+      } catch (error: any) {
+          console.error("Error adding weekly income:", error);
+          toast({ variant: "destructive", title: "Error", description: `Failed to save income: ${error.message}` });
+      }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -687,11 +748,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     expenseCategories: definedExpenseCategories,
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
-    
-    rawManagedUsers: rawManagedUsersState,
-    rawTenants: rawTenantsState,
-    rawPayments: rawPaymentsState,
-    rawExpenses: rawExpensesState,
+    businesses,
+    weeklyIncomes,
 
     setViewMode,
     updateSystemTimezone,
@@ -699,19 +757,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addTenant,
     updateTenant,
     attemptDeleteTenant,
+
     addPayment,
+    
     addClient,
     updateClient,
     deleteClient,
+
     addManagedUser,
     updateManagedUser,
     deleteManagedUser,
+
     addSuperAdminUser,
     updateSuperAdminUser,
     deleteSuperAdminUser,
+
     addExpense,
     updateExpense,
     deleteExpense,
+    
+    addBusiness,
+    addWeeklyIncome,
+
+    rawManagedUsers: rawManagedUsersState,
+    rawTenants: rawTenantsState,
+    rawPayments: rawPaymentsState,
+    rawExpenses: rawExpensesState,
+    rawBusinesses: rawBusinessesState,
+    rawWeeklyIncomes: rawWeeklyIncomesState,
+    
+    // Tenant Portal
     generateTenantInvitation,
     completeTenantSignup,
     cleanClientData,

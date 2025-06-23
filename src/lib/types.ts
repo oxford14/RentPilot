@@ -93,6 +93,28 @@ export interface Expense {
   clientId?: string; // Firestore document ID of the client, or undefined/null for global expenses
 }
 
+export interface Business {
+  id: string; // Firestore document ID
+  name: string;
+  clientId: string;
+}
+
+export interface WeeklyIncome {
+  id: string; // Firestore document ID
+  businessId: string;
+  clientId: string;
+  weekOf: string; // ISO string for the Friday of that week
+  income: number;
+  breakdown: {
+    roi: number;
+    remainingForExpenses: number;
+    tithes: number;
+    savings: number;
+    remainingMoney: number;
+  };
+}
+
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -160,6 +182,8 @@ export interface AppContextType {
   expenseCategories: ExpenseCategory[];
   viewingAsClientId: string | null;
   systemTimezone: string | null;
+  businesses: Business[];
+  weeklyIncomes: WeeklyIncome[];
 
   setViewMode: (clientId: string | null) => void;
   updateSystemTimezone: (timezone: string) => void;
@@ -191,6 +215,12 @@ export interface AppContextType {
   rawPayments: Payment[];
   rawExpenses: Expense[];
   
+  addBusiness: (businessName: string) => Promise<void>;
+  addWeeklyIncome: (businessId: string, income: number, weekOf: Date) => Promise<void>;
+
+  rawBusinesses: Business[];
+  rawWeeklyIncomes: WeeklyIncome[];
+
   // Tenant Portal
   generateTenantInvitation: (tenantId: string) => Promise<string>;
   completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
