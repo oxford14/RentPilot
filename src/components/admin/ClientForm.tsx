@@ -79,6 +79,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   const form = useForm<ClientFormValues>({
@@ -93,6 +94,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       setCroppedImageBlob(null);
       setImgSrc('');
       setCrop(undefined);
+      setIsSubmitting(false);
     }
   }, [client, isOpen, form]);
 
@@ -140,6 +142,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   };
 
   const onSubmit = async (data: ClientFormValues) => {
+    setIsSubmitting(true);
     try {
       if (client) { // Editing existing client
         await updateClient({ ...client, name: data.name }, croppedImageBlob);
@@ -150,12 +153,24 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       }
       onClose();
     } catch (error: any) {
+      console.error("Client form submission error:", error);
+      let description = "An unexpected error occurred. Check the console for details.";
+      if (error.code && typeof error.code === 'string') {
+          if (error.code.includes('storage/unauthorized')) {
+              description = "Upload failed: Permission denied. Please check your Firebase Storage rules and ensure they are deployed.";
+          } else if (error.code.includes('storage/object-not-found')) {
+              description = "Upload failed: The file could not be found.";
+          } else if(error.message) {
+            description = error.message;
+          }
+      }
       toast({
         variant: "destructive",
         title: "Save Failed",
-        description: "Could not save client. This is often due to Firebase Storage rules. Please ensure your storage rules are deployed and allow writes.",
+        description: description,
       });
-      console.error("Form submission error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,8 +222,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 <DialogClose asChild>
                   <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit" variant="default" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Saving...' : (client ? 'Save Changes' : 'Add Client')}
+                <Button type="submit" variant="default" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : (client ? 'Save Changes' : 'Add Client')}
                   </Button>
               </DialogFooter>
             </form>
