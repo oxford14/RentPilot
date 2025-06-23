@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email address." }),
-  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }),
+  email: z.string().email({ message: "Invalid email format." }).or(z.literal('')).optional(),
+  phone: z.string().min(10, { message: "Phone must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }).or(z.literal('')).optional(),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   status: z.enum(['active', 'inactive']),
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
@@ -41,6 +41,8 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
   const defaultValues = React.useMemo(() => {
     return tenant ? {
       ...tenant,
+      email: tenant.email || '',
+      phone: tenant.phone || '',
       joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
     } : {
       name: '',
@@ -61,21 +63,32 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
     if (isOpen) {
       form.reset(
         tenant 
-        ? { ...tenant, joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate }
+        ? { 
+            ...tenant,
+            email: tenant.email || '',
+            phone: tenant.phone || '',
+            joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate
+          }
         : { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
       );
     }
-  }, [tenant, isOpen, form.reset, newTenantJoinDate]);
+  }, [tenant, isOpen, form, newTenantJoinDate]);
 
 
   const onSubmit = (data: TenantFormValues) => {
     try {
       const finalJoinDate = new Date(data.joinDate).toISOString();
+      const submissionData = {
+        ...data,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+      };
+
       if (tenant) {
-        updateTenant({ ...tenant, ...data, joinDate: finalJoinDate });
+        updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate });
         toast({ title: "Tenant Updated", description: `${data.name} has been updated successfully.` });
       } else {
-        addTenant({...data, joinDate: finalJoinDate});
+        addTenant({...submissionData, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
       const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
@@ -114,7 +127,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Email Address (Optional)</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="e.g. john.doe@example.com" {...field} />
                     </FormControl>
@@ -127,7 +140,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. 123-456-7890" {...field} />
                     </FormControl>

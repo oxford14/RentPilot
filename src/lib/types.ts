@@ -30,8 +30,8 @@ export interface SuperAdminUser {
 export interface Tenant {
   id: string; // Firestore document ID
   name: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   monthlyRentalRate: number;
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
