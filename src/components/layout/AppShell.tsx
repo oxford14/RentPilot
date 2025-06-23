@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin, AlertCircle } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, MapPin, AlertCircle, Award } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -61,6 +61,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
   { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
+  { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award },
   {
     isGroup: true,
     label: 'Reports',
@@ -276,6 +277,7 @@ export function AppShell({ children }: { children: ReactNode }) {
      if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
      else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
      else if (!activeItemFound && pathname === '/tracking') currentActivePageLabel = 'Tracking';
+     else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
      else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
 
