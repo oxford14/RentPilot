@@ -94,7 +94,7 @@ export default function ExpensesPage() {
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center">
             <ReceiptText className="mr-3 h-8 w-8 text-primary" />
-            Expenses Tracker
+            Expenses
           </h1>
           <p className="text-muted-foreground">Track and manage all your operational expenses.</p>
         </div>

@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, AreaChart, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -60,6 +60,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/', label: 'Dashboard', icon: Home },
   { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
   { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
+  { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
@@ -249,14 +250,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           return true;
         });
 
-        // Add Expenses Tracker to the bottom of the list for all non-tenant users.
-        const expensesTrackerItem: AppSidebarNavItem = {
+        // Add Tracking to the bottom of the list for all non-tenant users.
+        const trackingItem: AppSidebarNavItem = {
             isGroup: false,
-            href: '/expenses',
-            label: 'Expenses Tracker',
-            icon: ReceiptText,
+            href: '/tracking',
+            label: 'Tracking',
+            icon: MapPin,
         };
-        baseNavItems.push(expensesTrackerItem);
+        baseNavItems.push(trackingItem);
       }
 
       currentAppNavItems = baseNavItems;
@@ -411,7 +412,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && item.href !== '/subscription' && item.href !== '/tracking'}
+                          disabled={subscriptionExpired && item.href !== '/subscription'}
                         >
                           <Link href={item.href}>
                             <item.icon className="h-5 w-5" />
