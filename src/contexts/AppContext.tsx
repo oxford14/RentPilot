@@ -79,11 +79,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     setIsDataLoading(true);
     let isMounted = true;
-    let loadedCollectionsCount = 0;
-    const totalCollectionsToLoad = 6; 
-
-    const listeners: Array<() => void> = [];
-
+    
     const collectionsToListen = [
       { name: 'clients', setter: setRawClientsState, label: 'clients' },
       { name: 'tenants', setter: setRawTenantsState, label: 'tenants' },
@@ -92,36 +88,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'superAdminUsers', setter: setRawSuperAdminUsersState, label: 'super admin users' },
       { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
     ];
-
-    collectionsToListen.forEach(coll => {
-      const q = query(collection(db, coll.name));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        if (!isMounted) return;
-        const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-        coll.setter(items);
-        
-        loadedCollectionsCount++;
-        if (loadedCollectionsCount >= totalCollectionsToLoad) {
-          setIsDataLoading(false);
-          setInitialLoadComplete(true);
-        }
-        
-      }, (error) => {
-        if (!isMounted) return;
-        console.error(`Error fetching ${coll.name}: `, error);
-        if (error.code === 'permission-denied') {
-          toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: `Missing or insufficient permissions. Please deploy Firestore rules.` });
-        } else {
+    
+    const unsubs = collectionsToListen.map(coll => 
+      onSnapshot(query(collection(db, coll.name)), 
+        (snapshot) => {
+          if (!isMounted) return;
+          const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          coll.setter(items);
+        }, 
+        (error) => {
+          if (!isMounted) return;
+          console.error(`Error fetching ${coll.label}: `, error);
           toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: error.message });
         }
-        setIsDataLoading(false); 
-      });
-      listeners.push(unsubscribe);
+      )
+    );
+
+    Promise.all(collectionsToListen.map(c => getDocs(query(collection(db, c.name))))).then(() => {
+        if (isMounted) {
+            setInitialLoadComplete(true);
+            setIsDataLoading(false);
+        }
+    }).catch(error => {
+        if (isMounted) {
+            console.error("Error during initial data fetch:", error);
+            setIsDataLoading(false);
+        }
     });
-    
+
     return () => {
       isMounted = false;
-      listeners.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
     };
   }, [authIsAuthenticated, toast]);
 
@@ -344,6 +341,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error adding client:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add client: ${error.message}` });
+      throw error;
     }
   };
 
@@ -372,6 +370,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error updating client:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update client: ${error.message}` });
+      throw error;
     }
   };
 
@@ -519,7 +518,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-3 text-lg text-muted-foreground">Loading application data...</p>
       </div>
     );
   }
