@@ -214,6 +214,7 @@ export interface AppContextType {
   updateBusiness: (business: Business) => Promise<void>;
   deleteBusiness: (businessId: string) => Promise<void>;
   addWeeklyIncome: (businessId: string, income: number, weekOf: Date) => Promise<void>;
+  deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];

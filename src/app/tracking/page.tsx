@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function TrackingPage() {
-  const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome } = useAppContext();
+  const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome, deleteWeeklyIncome } = useAppContext();
   const { toast } = useToast();
 
   const [isBusinessFormOpen, setIsBusinessFormOpen] = useState(false);
@@ -49,6 +49,8 @@ export default function TrackingPage() {
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [businessToDelete, setBusinessToDelete] = useState<Business | null>(null);
+  
+  const [incomeToDelete, setIncomeToDelete] = useState<WeeklyIncome | null>(null);
 
   const [editedBusinessName, setEditedBusinessName] = useState('');
 
@@ -151,6 +153,16 @@ export default function TrackingPage() {
     setSelectedBusinessId(null);
     setIsDeleteConfirmOpen(false);
     setBusinessToDelete(null);
+  };
+  
+  const handleOpenIncomeDeleteConfirm = (incomeEntry: WeeklyIncome) => {
+    setIncomeToDelete(incomeEntry);
+  };
+  
+  const handleConfirmDeleteIncome = async () => {
+    if (!incomeToDelete) return;
+    await deleteWeeklyIncome(incomeToDelete.id);
+    setIncomeToDelete(null);
   };
 
   return (
@@ -255,6 +267,7 @@ export default function TrackingPage() {
                       <TableHead className="text-right">Tithes</TableHead>
                       <TableHead className="text-right">Savings</TableHead>
                       <TableHead className="text-right">Remaining</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -266,9 +279,14 @@ export default function TrackingPage() {
                         <TableCell className="text-right">{formatCurrency(entry.breakdown.tithes)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(entry.breakdown.savings)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(entry.breakdown.remainingMoney)}</TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="destructive" size="icon" className="h-8 w-8" onClick={() => handleOpenIncomeDeleteConfirm(entry)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </TableCell>
                       </TableRow>
                     )) : (
-                      <TableRow><TableCell colSpan={6} className="text-center">No income history for this business.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center">No income history for this business.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -328,6 +346,25 @@ export default function TrackingPage() {
           </AlertDialogContent>
         )}
       </AlertDialog>
+
+      {/* Delete Income Entry Confirmation */}
+      <AlertDialog open={!!incomeToDelete} onOpenChange={(isOpen) => !isOpen && setIncomeToDelete(null)}>
+        {incomeToDelete && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the income entry for {selectedBusiness?.name} from the week of {format(new Date(incomeToDelete.weekOf), 'PPP')}. This allows you to re-calculate for that week.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteIncome} className={cn(buttonVariants({ variant: "destructive" }))}>Delete Entry</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
     </div>
   );
 }

@@ -776,6 +776,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           toast({ variant: "destructive", title: "Error", description: `Failed to save income: ${error.message}` });
       }
   };
+  
+  const deleteWeeklyIncome = async (weeklyIncomeId: string) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    try {
+        await deleteDoc(doc(db, 'weeklyIncomes', weeklyIncomeId));
+        toast({ title: "Income Entry Deleted", description: "The weekly income entry has been successfully deleted."});
+    } catch (error: any) {
+        console.error("Error deleting weekly income:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete income entry: ${error.message}` });
+    }
+  };
 
 
   const contextValue: AppContextType = {
@@ -820,11 +834,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateBusiness,
     deleteBusiness,
     addWeeklyIncome,
+    deleteWeeklyIncome,
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,
     rawPayments: rawPaymentsState,
     rawExpenses: rawExpensesState,
+    
     rawBusinesses: rawBusinessesState,
     rawWeeklyIncomes: rawWeeklyIncomesState,
     
