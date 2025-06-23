@@ -154,20 +154,23 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       onClose();
     } catch (error: any) {
       console.error("Client form submission error:", error);
-      let description = "An unexpected error occurred. Check the console for details.";
-      if (error.code && typeof error.code === 'string') {
+      let description = "An unexpected error occurred. Check the browser console for details.";
+      if (error.message?.includes('timed out')) {
+        description = error.message;
+      } else if (error.code && typeof error.code === 'string') {
           if (error.code.includes('storage/unauthorized')) {
               description = "Upload failed: Permission denied. Please check your Firebase Storage rules and ensure they are deployed.";
           } else if (error.code.includes('storage/object-not-found')) {
               description = "Upload failed: The file could not be found.";
-          } else if(error.message) {
-            description = error.message;
           }
+      } else if (error.message) {
+        description = error.message;
       }
       toast({
         variant: "destructive",
         title: "Save Failed",
         description: description,
+        duration: 9000,
       });
     } finally {
       setIsSubmitting(false);

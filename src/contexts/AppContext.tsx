@@ -31,6 +31,32 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const LOCAL_STORAGE_TIMEZONE_KEY = 'rentPilotSystemTimezone';
 const DEFAULT_TIMEZONE = 'Etc/UTC';
 
+/**
+ * Wraps a promise with a timeout.
+ * @param promise The promise to wrap.
+ * @param ms The timeout in milliseconds.
+ * @param timeoutError The error to reject with on timeout.
+ * @returns A new promise that resolves/rejects with the original promise, or rejects on timeout.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutError = new Error('Operation timed out')): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(timeoutError);
+    }, ms);
+
+    promise
+      .then(value => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth();
   const { toast } = useToast(); 
@@ -326,8 +352,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
-        const uploadResult = await uploadBytes(storageRef, logoFile);
-        logoUrl = await getDownloadURL(uploadResult.ref);
+        
+        const uploadPromise = uploadBytes(storageRef, logoFile);
+        const uploadResult = await withTimeout(uploadPromise, 20000, new Error('File upload timed out. Please check your Firebase Storage setup in the console.'));
+
+        const downloadURLPromise = getDownloadURL(uploadResult.ref);
+        logoUrl = await withTimeout(downloadURLPromise, 10000, new Error('Could not get download URL. Please check your Storage Rules.'));
       }
 
       const dataToSave = {
@@ -358,9 +388,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
-        const uploadResult = await uploadBytes(storageRef, logoFile);
-        dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);
-        // In a production app, you might want to delete the old logo from storage here.
+        
+        const uploadPromise = uploadBytes(storageRef, logoFile);
+        const uploadResult = await withTimeout(uploadPromise, 20000, new Error('File upload timed out. Please check your Firebase Storage setup in the console.'));
+
+        const downloadURLPromise = getDownloadURL(uploadResult.ref);
+        dataToUpdate.logoUrl = await withTimeout(downloadURLPromise, 10000, new Error('Could not get download URL. Please check your Storage Rules.'));
       }
       
       await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
