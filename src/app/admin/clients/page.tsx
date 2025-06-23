@@ -93,15 +93,15 @@ export default function AdminClientsPage() {
                           <Image 
                             src={client.logoUrl} 
                             alt={`${client.name} logo`} 
-                            width={120} 
-                            height={45} 
+                            width={240} 
+                            height={90} 
                             className="object-contain rounded"
-                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/120x45.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
+                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/240x90.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading logo'; }}
                             data-ai-hint="client logo"
                           />
                         ) : (
-                          <div className="w-[120px] h-[45px] flex items-center justify-center bg-muted rounded text-muted-foreground">
-                            <ImageOff className="h-6 w-6" />
+                          <div className="w-[240px] h-[90px] flex items-center justify-center bg-muted rounded text-muted-foreground">
+                            <ImageOff className="h-8 w-8" />
                           </div>
                         )}
                       </TableCell>
