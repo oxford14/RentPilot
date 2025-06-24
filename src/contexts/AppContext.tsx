@@ -33,32 +33,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const LOCAL_STORAGE_TIMEZONE_KEY = 'rentPilotSystemTimezone';
 const DEFAULT_TIMEZONE = 'Etc/UTC';
 
-/**
- * Wraps a promise with a timeout.
- * @param promise The promise to wrap.
- * @param ms The timeout in milliseconds.
- * @param timeoutError The error to reject with on timeout.
- * @returns A new promise that resolves/rejects with the original promise, or rejects on timeout.
- */
-function withTimeout<T>(promise: Promise<T>, ms: number, timeoutError = new Error('Operation timed out')): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(timeoutError);
-    }, ms);
-
-    promise
-      .then(value => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch(err => {
-        clearTimeout(timer);
-        reject(err);
-      });
-  });
-}
-
-
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { user: authUser, isAuthenticated: authIsAuthenticated } = useAuth();
   const { toast } = useToast(); 

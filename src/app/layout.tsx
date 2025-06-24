@@ -48,9 +48,9 @@ export default function RootLayout({
             <ProtectedLayout>
               {children}
             </ProtectedLayout>
-            <Toaster />
           </AppProvider>
         </AuthProvider>
+        <Toaster />
       </body>
     </html>
   );
