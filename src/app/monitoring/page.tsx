@@ -163,7 +163,7 @@ export default function MonitoringPage() {
               )}
             </MonitoringCard>
         </div>
-        <div className="flex items-center justify-center mt-6 p-2 rounded-full bg-black/30 backdrop-blur-sm max-w-md mx-auto">
+        <div className="flex items-center justify-center mt-6 p-2 rounded-full bg-black/50 backdrop-blur-sm max-w-md mx-auto">
             <Info className="h-4 w-4 mr-2 text-white/80"/>
             <p className="text-xs text-white/80">Calculations are based on tenant join dates and recorded payments.</p>
         </div>

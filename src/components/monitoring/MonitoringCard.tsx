@@ -15,7 +15,7 @@ interface MonitoringCardProps {
 
 export function MonitoringCard({ title, icon: Icon, count, children }: MonitoringCardProps) {
   return (
-    <Card className="bg-black/50 backdrop-blur-lg border border-white/20 text-white shadow-xl flex flex-col h-[60vh]">
+    <Card className="bg-black/60 backdrop-blur-lg border border-white/20 text-white shadow-xl flex flex-col h-[60vh]">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
