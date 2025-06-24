@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -155,8 +154,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full lg:grid lg:grid-cols-3">
-      <div className="flex lg:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
+    <div className="min-h-screen w-full md:grid md:grid-cols-3">
+      <div className="hidden md:flex md:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
         <div className="max-w-2xl space-y-8">
             <h1 className="text-5xl font-bold tracking-tight">
                 Take Control of Your Rentals with RentPilot
@@ -187,7 +186,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-4 bg-background">
+      <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto md:col-span-1">
           <LoginBox />
       </div>
     </div>
