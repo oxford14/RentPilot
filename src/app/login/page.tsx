@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send } from 'lucide-react';
+import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DemoBookingDialog } from '@/components/auth/DemoBookingDialog';
 
@@ -141,6 +142,7 @@ export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
+  const [showLoginOnMobile, setShowLoginOnMobile] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -158,9 +160,16 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="min-h-screen w-full md:grid md:grid-cols-2 lg:grid-cols-3">
-        <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800 lg:col-span-2">
-          <div className="max-w-2xl space-y-8">
+      <div className="min-h-screen w-full">
+        <div className="md:grid md:grid-cols-2 lg:grid-cols-3">
+          
+          {/* Promotional Section - visibility controlled */}
+          <div className={cn(
+            "lg:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-100",
+            showLoginOnMobile ? "hidden" : "flex flex-col justify-center items-center p-8 min-h-screen",
+            "md:flex md:flex-col md:justify-center md:items-center md:p-12 md:min-h-screen"
+          )}>
+            <div className="max-w-2xl space-y-8">
               <h1 className="text-5xl font-bold tracking-tight">
                   Take Control of Your Rentals with RentPilot
               </h1>
@@ -192,14 +201,39 @@ export default function LoginPage() {
                     Contact Us
                   </a>
               </div>
+            </div>
+            {/* Mobile only Login Button */}
+            <div className="mt-8 w-full max-w-sm md:hidden">
+                <Button 
+                    onClick={() => setShowLoginOnMobile(true)}
+                    size="lg"
+                    variant="secondary"
+                    className="w-full shadow-lg"
+                >
+                    <LogIn className="mr-2 h-5 w-5"/>
+                    Sign In
+                </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto lg:col-span-1">
+          {/* Login Section - visibility controlled */}
+          <div className={cn(
+            "lg:col-span-1 bg-background relative",
+            showLoginOnMobile ? "flex flex-col justify-center items-center p-4 min-h-screen" : "hidden",
+            "md:flex md:flex-col md:justify-center md:items-center md:p-4 md:min-h-screen"
+          )}>
+            <Button
+                variant="ghost"
+                onClick={() => setShowLoginOnMobile(false)}
+                className="md:hidden absolute top-4 left-4"
+            >
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+            </Button>
             <LoginBox />
+          </div>
+          
         </div>
       </div>
-
       <DemoBookingDialog isOpen={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen} />
     </>
   );
