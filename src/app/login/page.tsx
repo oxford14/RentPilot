@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -170,18 +171,18 @@ export default function LoginPage() {
                 <Feature icon={DollarSign} text="Seamless Payment Logs" />
             </div>
             <div className="flex gap-4 pt-6">
-                <Link href="/book-demo">
-                    <Button size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
+                <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
+                    <Link href="/book-demo">
                         <Send className="mr-2 h-5 w-5"/>
                         Get Started
-                    </Button>
-                </Link>
-                <a href="https://facebook.com/YourPageHere" target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" variant="outline" className="shadow-lg hover:shadow-xl transition-shadow">
+                    </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="shadow-lg hover:shadow-xl transition-shadow">
+                    <a href="https://facebook.com/YourPageHere" target="_blank" rel="noopener noreferrer">
                         <Facebook className="mr-2 h-5 w-5"/>
                         Contact Us
-                    </Button>
-                </a>
+                    </a>
+                </Button>
             </div>
         </div>
       </div>
