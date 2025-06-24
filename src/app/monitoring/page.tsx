@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -81,23 +82,19 @@ export default function MonitoringPage() {
         return; // Done with this tenant
       }
 
-      // Tenant has a balance. Find out when it became due.
+      // Tenant has a balance. Let's categorize them.
       const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
 
-      if (anniversaryThisMonth < today) {
-        // Due date for this month has passed.
-        newPastDue.push({ tenant, balance: balanceToday });
-
-      } else if (anniversaryThisMonth.getTime() === today.getTime()) {
-        // Due date is today.
+      if (anniversaryThisMonth.getTime() === today.getTime()) {
+        // Anniversary is today, and they have a balance. They are "Due Today".
         newDueToday.push({ tenant, balance: balanceToday });
-
-      } else { // anniversaryThisMonth > today
-        // Due date for this month is in the future. Check if it's upcoming.
-        const daysUntilDue = Math.round((anniversaryThisMonth.getTime() - today.getTime()) / (1000 * 3600 * 24));
-        if (anniversaryThisMonth < upcomingLimit) {
-          newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
-        }
+      } else if (anniversaryThisMonth > today) {
+        // Anniversary for this month hasn't happened yet.
+        // Since they have a balance, it MUST be from a previous month. They are "Past Due".
+        newPastDue.push({ tenant, balance: balanceToday });
+      } else { // anniversaryThisMonth < today
+        // Anniversary for this month has already passed, and they still have a balance. They are "Past Due".
+        newPastDue.push({ tenant, balance: balanceToday });
       }
     });
 
