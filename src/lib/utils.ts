@@ -9,13 +9,17 @@ export function cn(...inputs: ClassValue[]) {
 
 // All dates here are treated as UTC dates at midnight
 export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], upToDate: Date): number {
-  const normalizedUpToDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate()));
+  // `upToDate` is the last day to be included. So we set our boundary to be the start of the *next* day in UTC.
+  const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
+  
   const joinDate = new Date(tenant.joinDate);
 
-  if (joinDate > normalizedUpToDate) {
+  // If tenant joins on or after the boundary, they owe nothing for this period.
+  if (joinDate >= boundaryDate) {
     return 0;
   }
 
+  // --- Billing Calculation ---
   let monthsBilled = 0;
   let cursorYear = joinDate.getUTCFullYear();
   let cursorMonth = joinDate.getUTCMonth();
@@ -26,7 +30,8 @@ export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], u
     const anniversaryDay = Math.min(joinDay, lastDayOfCursorMonth);
     const anniversaryDate = new Date(Date.UTC(cursorYear, cursorMonth, anniversaryDay));
 
-    if (anniversaryDate > normalizedUpToDate) {
+    // We bill if the anniversary date is BEFORE our boundary date (i.e., on or before upToDate).
+    if (anniversaryDate >= boundaryDate) {
       break;
     }
     
@@ -41,9 +46,11 @@ export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], u
 
   const totalExpectedBilled = monthsBilled * tenant.monthlyRentalRate;
 
+  // --- Payment Calculation ---
   const tenantPaymentsMade = allPayments.filter(p => {
-    const paymentDate = new Date(p.date);
-    return p.tenantId === tenant.id && paymentDate <= normalizedUpToDate;
+    const paymentDate = new Date(p.date); // p.date is ISO string, so this creates a UTC date object.
+    // We include payments made strictly BEFORE our boundary date.
+    return p.tenantId === tenant.id && paymentDate < boundaryDate;
   });
 
   const totalCreditedToTenant = tenantPaymentsMade.reduce((sum, p) => {
@@ -59,24 +66,27 @@ export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], u
 export const isTenantCurrentlyDueForRent = (
   tenant: Tenant,
   allPayments: Payment[],
-  currentDate: Date // Assumed to be UTC from caller
+  currentDate: Date // Assumed to be UTC start of day from caller
 ): boolean => {
   if (tenant.status !== 'active') {
     return false;
   }
 
+  // Ensure we are working with a clean UTC date, just in case.
+  const currentUTCDate = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
   const joinDate = new Date(tenant.joinDate);
   const dueDayOfMonthBasedOnJoin = joinDate.getUTCDate();
   
-  const lastDayOfCurrentMonth = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastDayOfCurrentMonth = new Date(Date.UTC(currentUTCDate.getUTCFullYear(), currentUTCDate.getUTCMonth() + 1, 0)).getUTCDate();
   const effectiveDueDayThisMonth = Math.min(dueDayOfMonthBasedOnJoin, lastDayOfCurrentMonth);
 
   // Check if today is the anniversary day
-  if (currentDate.getUTCDate() !== effectiveDueDayThisMonth) {
+  if (currentUTCDate.getUTCDate() !== effectiveDueDayThisMonth) {
     return false;
   }
 
   // To be "due", they must have a positive balance.
-  const balance = calculateTenantBalance(tenant, allPayments, currentDate);
+  // This now calls the fixed calculation logic.
+  const balance = calculateTenantBalance(tenant, allPayments, currentUTCDate);
   return balance > 0;
 };
