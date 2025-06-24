@@ -19,7 +19,6 @@ const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw
 export const metadata: Metadata = {
   title: 'RentPilot - Rental Management',
   description: 'Manage tenants, payments, and reports efficiently.',
-  manifest: '/manifest.json',
   themeColor: '#6699CC',
   icons: {
     icon: iconUrl,
