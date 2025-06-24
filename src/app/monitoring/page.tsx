@@ -74,7 +74,7 @@ export default function MonitoringPage() {
         
         const daysUntilDue = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
         
-        if (daysUntilDue > 0 && nextDueDate < upcomingLimit) {
+        if (daysUntilDue >= 0 && nextDueDate < upcomingLimit) { // include day 0 for upcoming
             newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
         }
         // Done with this tenant, continue to next.
@@ -89,10 +89,10 @@ export default function MonitoringPage() {
         } else if (anniversaryThisMonth.getTime() === today.getTime()) {
             // Their due date is today, and they have a balance. They are "Due Today".
             newDueToday.push({ tenant, balance: balanceToday });
-        } else { // anniversaryThisMonth > today
-            // Their due date is in the future, but they have a balance. This means it's from a previous month. They are "Past Due".
-            newPastDue.push({ tenant, balance: balanceToday });
-        }
+        } 
+        // If anniversaryThisMonth > today, they have a balance from a previous month
+        // but their current cycle due date hasn't arrived. Per user feedback,
+        // they should not appear in "Past Due" until the current anniversary passes.
       }
     });
 
@@ -117,8 +117,8 @@ export default function MonitoringPage() {
         data-ai-hint="abstract background"
       />
       
-      <div className="w-full max-w-7xl mx-auto">
-        <div className="mb-8 text-center bg-black/60 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg text-white/95">
+       <div className="w-full max-w-7xl mx-auto">
+        <div className="mb-8 text-center bg-black/60 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg text-white">
             <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
               <BellRing className="h-10 w-10" />
               Dues Monitoring
