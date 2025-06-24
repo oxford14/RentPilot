@@ -77,7 +77,11 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
 
   const onSubmit = (data: TenantFormValues) => {
     try {
-      const finalJoinDate = new Date(data.joinDate).toISOString();
+      // Fix for timezone issue:
+      // The date string from the input is "YYYY-MM-DD". We append "T00:00:00.000Z"
+      // to ensure it's parsed as midnight UTC, regardless of the user's timezone.
+      const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
+      
       const submissionData = {
         ...data,
       };

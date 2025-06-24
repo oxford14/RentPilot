@@ -18,7 +18,7 @@ import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link, MessageSquare } f
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -106,6 +106,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [tenants, showInactiveTenants]);
 
+  const formatUtcDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const utcDate = addMinutes(date, date.getTimezoneOffset());
+    return format(utcDate, "PP");
+  };
+
   if (!displayedTenants || displayedTenants.length === 0) {
     const message = showInactiveTenants 
       ? "No tenants found. Add a new tenant to get started."
@@ -142,7 +148,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                       {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-center">{format(new Date(tenant.joinDate), "PP")}</TableCell>
+                  <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
