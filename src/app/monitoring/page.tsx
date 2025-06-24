@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { MonitoredTenant } from '@/lib/types';
 import { calculateTenantBalance } from '@/lib/utils';
-import { startOfDay, addDays, isSameDay, isBefore, differenceInDays, getDate, getMonth, getYear, lastDayOfMonth, addMonths } from 'date-fns';
+import { startOfDay, addDays, isSameDay, isBefore, differenceInDays, getYear, getMonth, lastDayOfMonth, getDate, addMonths, isAfter } from 'date-fns';
 import { MonitoringCard } from '@/components/monitoring/MonitoringCard';
 import { TenantListItem } from '@/components/monitoring/TenantListItem';
 import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-react';
@@ -25,7 +25,7 @@ export default function MonitoringPage() {
   useEffect(() => {
     setIsLoading(true);
     const today = startOfDay(new Date());
-    const upcomingLimit = addDays(today, 7);
+    const upcomingLimit = addDays(today, 8); // Look 7 days into the future
 
     const newPastDue: MonitoredTenant[] = [];
     const newDueToday: MonitoredTenant[] = [];
@@ -39,56 +39,47 @@ export default function MonitoringPage() {
         const day = Math.min(getDate(joinDate), lastDayInMonth);
         return startOfDay(new Date(year, month, day));
     };
-
-    const findNextDueDate = (tenant: import('@/lib/types').Tenant, fromDate: Date): Date => {
-        let anniversary = getAnniversaryForMonth(tenant, fromDate);
-        if (isBefore(anniversary, fromDate) || isSameDay(anniversary, fromDate)) {
-             anniversary = getAnniversaryForMonth(tenant, addMonths(fromDate, 1));
-        }
-        return anniversary;
-    };
     
     activeTenants.forEach(tenant => {
         const balanceToday = calculateTenantBalance(tenant, payments, today);
         const anniversaryForCurrentMonth = getAnniversaryForMonth(tenant, today);
         
-        // If balance is zero or less, they can only be "Upcoming" for the *next* cycle.
-        if (balanceToday <= 0) {
-            const nextDueDate = findNextDueDate(tenant, today);
-            if (isBefore(nextDueDate, upcomingLimit) || isSameDay(nextDueDate, upcomingLimit)) {
-                // If paid up, the upcoming balance will be their rent.
-                const balanceOnDueDate = tenant.monthlyRentalRate;
-                if (balanceOnDueDate > 0) {
-                    const daysUntilDue = differenceInDays(nextDueDate, today);
-                    // Only show if it's actually in the future.
-                    if (daysUntilDue > 0) {
-                       newUpcoming.push({ tenant, balance: balanceOnDueDate, daysUntilDue });
-                    }
-                }
+        if (balanceToday > 0) {
+            // Tenant has an outstanding balance.
+            
+            // Check if this month's due date has already passed.
+            if (isBefore(anniversaryForCurrentMonth, today)) {
+                newPastDue.push({ tenant, balance: balanceToday });
+                return;
             }
-            return; // Finished with this paid-up tenant.
-        }
 
-        // From here on, we know balanceToday > 0.
+            // Check if this month's due date is today.
+            if (isSameDay(anniversaryForCurrentMonth, today)) {
+                newDueToday.push({ tenant, balance: balanceToday });
+                return;
+            }
 
-        // Check for Due Today
-        if (isSameDay(anniversaryForCurrentMonth, today)) {
-            newDueToday.push({ tenant, balance: balanceToday });
-            return;
-        }
-        
-        // Check for Past Due
-        if (isBefore(anniversaryForCurrentMonth, today)) {
-            newPastDue.push({ tenant, balance: balanceToday });
-            return;
-        }
-
-        // If we reach here, they have a balance, but their due date for this month is in the future.
-        // This is an "Upcoming" payment.
-        if (isBefore(anniversaryForCurrentMonth, upcomingLimit) || isSameDay(anniversaryForCurrentMonth, upcomingLimit)) {
+            // If we are here, the due date is in the future. Check if it's upcoming.
             const daysUntilDue = differenceInDays(anniversaryForCurrentMonth, today);
-            if (daysUntilDue > 0) { // Exclude today since it's handled above
+            if (daysUntilDue > 0 && isBefore(anniversaryForCurrentMonth, upcomingLimit)) {
                 newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
+            }
+
+        } else {
+            // Tenant is paid up. Check for their *next* due date to see if they are upcoming.
+            let nextDueDate = anniversaryForCurrentMonth;
+
+            // If this month's due date is today or in the past, the next one is next month.
+            if (!isAfter(nextDueDate, today)) {
+                nextDueDate = getAnniversaryForMonth(tenant, addMonths(today, 1));
+            }
+            
+            const daysUntilDue = differenceInDays(nextDueDate, today);
+
+            // Show if it's within the upcoming window and actually in the future.
+            if (daysUntilDue > 0 && isBefore(nextDueDate, upcomingLimit)) {
+                // For paid-up tenants, the upcoming "balance" is their standard rent.
+                newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
             }
         }
     });
