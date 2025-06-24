@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { MonitoredTenant } from '@/lib/types';
 import { calculateTenantBalance } from '@/lib/utils';
-import { startOfDay, addDays, isSameDay, isBefore, differenceInDays, getDate, getMonth, getYear, lastDayOfMonth } from 'date-fns';
+import { startOfDay, addDays, isSameDay, isBefore, differenceInDays, getDate, getMonth, getYear, lastDayOfMonth, addMonths } from 'date-fns';
 import { MonitoringCard } from '@/components/monitoring/MonitoringCard';
 import { TenantListItem } from '@/components/monitoring/TenantListItem';
 import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-react';
