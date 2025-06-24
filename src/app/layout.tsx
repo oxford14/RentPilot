@@ -42,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased bg-background">
         <AuthProvider>
           <AppProvider>
             <ProtectedLayout>

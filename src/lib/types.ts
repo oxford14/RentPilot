@@ -156,8 +156,12 @@ interface AppTopLevelNavItem {
 
 export type AppSidebarNavItem = AppTopLevelNavItem | AppNavGroup;
 
-// AppState is no longer used for localStorage persistence of main data
-// export interface AppState { ... }
+
+export interface MonitoredTenant {
+  tenant: Tenant;
+  balance: number;
+  daysUntilDue?: number;
+}
 
 
 export interface AuthContextType {
