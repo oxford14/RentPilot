@@ -17,8 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email format." }).or(z.literal('')).optional(),
-  phone: z.string().min(10, { message: "Phone must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }).or(z.literal('')).optional(),
+  email: z.string().email({ message: "Invalid email format." }),
+  phone: z.string().min(10, { message: "Phone must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   status: z.enum(['active', 'inactive']),
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
@@ -127,7 +127,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address (Optional)</FormLabel>
+                    <FormLabel>Email Address</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="e.g. john.doe@example.com" {...field} />
                     </FormControl>
@@ -140,7 +140,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. 123-456-7890" {...field} />
                     </FormControl>
