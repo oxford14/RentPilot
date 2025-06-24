@@ -14,7 +14,7 @@ const inter = Inter({
   display: 'swap',
 });
 
-const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20%282%29.png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
+const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
 
 export const metadata: Metadata = {
   title: 'RentPilot - Rental Management',
@@ -55,5 +55,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
