@@ -165,10 +165,18 @@ export default function LoginPage() {
           
           {/* Promotional Section - visibility controlled */}
           <div className={cn(
-            "lg:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-100",
+            "lg:col-span-2 bg-gradient-to-br from-blue-50 to-indigo-100 relative",
             showLoginOnMobile ? "hidden" : "flex flex-col justify-center items-center p-8 min-h-screen",
             "md:flex md:flex-col md:justify-center md:items-center md:p-12 md:min-h-screen"
           )}>
+            <Button
+                onClick={() => setShowLoginOnMobile(true)}
+                variant="outline"
+                size="sm"
+                className="absolute top-6 right-6 md:hidden bg-white text-primary shadow-md hover:bg-gray-100 font-semibold"
+            >
+                Sign In
+            </Button>
             <div className="max-w-2xl space-y-8">
               <h1 className="text-5xl font-bold tracking-tight">
                   Take Control of Your Rentals with RentPilot
@@ -201,18 +209,6 @@ export default function LoginPage() {
                     Contact Us
                   </a>
               </div>
-            </div>
-            {/* Mobile only Login Button */}
-            <div className="mt-8 w-full max-w-sm md:hidden">
-                <Button 
-                    onClick={() => setShowLoginOnMobile(true)}
-                    size="lg"
-                    variant="secondary"
-                    className="w-full shadow-lg"
-                >
-                    <LogIn className="mr-2 h-5 w-5"/>
-                    Sign In
-                </Button>
             </div>
           </div>
 
