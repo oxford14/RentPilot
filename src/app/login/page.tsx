@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -155,8 +156,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full md:grid md:grid-cols-3">
-      <div className="hidden md:flex md:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
+    <div className="min-h-screen w-full md:grid md:grid-cols-2 lg:grid-cols-3">
+      <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800 lg:col-span-2">
         <div className="max-w-2xl space-y-8">
             <h1 className="text-5xl font-bold tracking-tight">
                 Take Control of Your Rentals with RentPilot
@@ -171,23 +172,27 @@ export default function LoginPage() {
                 <Feature icon={DollarSign} text="Seamless Payment Logs" />
             </div>
             <div className="flex gap-4 pt-6">
-                <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
-                    <Link href="/book-demo">
-                        <Send className="mr-2 h-5 w-5"/>
-                        Get Started
-                    </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="shadow-lg hover:shadow-xl transition-shadow">
-                    <a href="https://facebook.com/YourPageHere" target="_blank" rel="noopener noreferrer">
-                        <Facebook className="mr-2 h-5 w-5"/>
-                        Contact Us
-                    </a>
-                </Button>
+                <Link 
+                  href="/book-demo"
+                  className={cn(buttonVariants({ size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
+                >
+                  <Send className="mr-2 h-5 w-5"/>
+                  Get Started
+                </Link>
+                <a 
+                  href="https://facebook.com/YourPageHere" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
+                >
+                  <Facebook className="mr-2 h-5 w-5"/>
+                  Contact Us
+                </a>
             </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto md:col-span-1">
+      <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto lg:col-span-1">
           <LoginBox />
       </div>
     </div>
