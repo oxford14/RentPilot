@@ -1,10 +1,10 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { MonitoredTenant } from '@/lib/types';
 import { calculateTenantBalance } from '@/lib/utils';
-import { startOfDay, addDays, isSameDay, isBefore, differenceInDays, getYear, getMonth, lastDayOfMonth, getDate, addMonths, isAfter } from 'date-fns';
 import { MonitoringCard } from '@/components/monitoring/MonitoringCard';
 import { TenantListItem } from '@/components/monitoring/TenantListItem';
 import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-react';
@@ -25,89 +25,81 @@ export default function MonitoringPage() {
     setIsLoading(true);
 
     const now = new Date();
-    const timeZone = systemTimezone || 'Etc/UTC'; // Fallback to UTC
+    const timeZone = systemTimezone || 'Etc/UTC';
 
     // Use Intl.DateTimeFormat to reliably get date parts in the target timezone
-    // The 'en-CA' locale gives a YYYY-MM-DD format which is safe to parse.
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        timeZone: timeZone,
-    });
+    const dateParts = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
+    }).formatToParts(now).reduce((acc, part) => {
+        if (part.type !== 'literal') {
+            (acc as any)[part.type] = parseInt(part.value);
+        }
+        return acc;
+    }, {} as Record<string, number>);
     
-    // Construct a date string like "2023-11-20" from the parts
-    const formattedDate = formatter.format(now);
-    
-    // Create a new Date object representing the start of the day in the target timezone, interpreted as UTC
-    const today = new Date(`${formattedDate}T00:00:00Z`);
+    // today is midnight UTC for the given timezone's current date
+    const today = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
 
-    if (isNaN(today.getTime())) {
-        // Fallback if the date creation fails for any reason
-        console.error("Failed to construct date with system timezone. Falling back to local date.");
-        const localToday = startOfDay(new Date());
-        // You could either return or proceed with localToday
-        // For now, let's just log error and proceed to avoid breaking the page
-    }
-
-
-    const upcomingLimit = addDays(today, 8); // Look 7 days into the future
+    const upcomingLimit = new Date(today.getTime());
+    upcomingLimit.setUTCDate(today.getUTCDate() + 8); // Look 7 days into the future
 
     const newPastDue: MonitoredTenant[] = [];
     const newDueToday: MonitoredTenant[] = [];
     const newUpcoming: MonitoredTenant[] = [];
 
-    const getAnniversaryForMonth = (tenant: import('@/lib/types').Tenant, dateForMonth: Date): Date => {
+    const getAnniversaryForMonth = (tenant: import('@/lib/types').Tenant, refDate: Date): Date => {
         const joinDate = new Date(tenant.joinDate);
-        const year = getYear(dateForMonth);
-        const month = getMonth(dateForMonth);
-        const lastDayInMonth = getDate(lastDayOfMonth(new Date(year, month, 1)));
-        const day = Math.min(getDate(joinDate), lastDayInMonth);
-        return startOfDay(new Date(year, month, day));
-    };
-    
-    activeTenants.forEach(tenant => {
-        const balanceToday = calculateTenantBalance(tenant, payments, today);
-        const anniversaryForCurrentMonth = getAnniversaryForMonth(tenant, today);
+        const joinDay = joinDate.getUTCDate();
+        const refYear = refDate.getUTCFullYear();
+        const refMonth = refDate.getUTCMonth();
         
-        if (balanceToday > 0) {
-            // Tenant has an outstanding balance.
-            
-            // Check if this month's due date has already passed.
-            if (isBefore(anniversaryForCurrentMonth, today)) {
-                newPastDue.push({ tenant, balance: balanceToday });
-                return;
-            }
+        const lastDayInMonth = new Date(Date.UTC(refYear, refMonth + 1, 0)).getUTCDate();
+        const anniversaryDay = Math.min(joinDay, lastDayInMonth);
+        
+        return new Date(Date.UTC(refYear, refMonth, anniversaryDay));
+    };
 
-            // Check if this month's due date is today.
-            if (isSameDay(anniversaryForCurrentMonth, today)) {
-                newDueToday.push({ tenant, balance: balanceToday });
-                return;
-            }
+    activeTenants.forEach(tenant => {
+      const balanceToday = calculateTenantBalance(tenant, payments, today);
+      
+      if (balanceToday <= 0) {
+        // Tenant is paid up. Check for their *next* due date.
+        let anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
+        let nextDueDate;
 
-            // If we are here, the due date is in the future. Check if it's upcoming.
-            const daysUntilDue = differenceInDays(anniversaryForCurrentMonth, today);
-            if (daysUntilDue > 0 && isBefore(anniversaryForCurrentMonth, upcomingLimit)) {
-                newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
-            }
-
+        if (anniversaryThisMonth > today) {
+            nextDueDate = anniversaryThisMonth;
         } else {
-            // Tenant is paid up. Check for their *next* due date to see if they are upcoming.
-            let nextDueDate = anniversaryForCurrentMonth;
-
-            // If this month's due date is today or in the past, the next one is next month.
-            if (!isAfter(nextDueDate, today)) {
-                nextDueDate = getAnniversaryForMonth(tenant, addMonths(today, 1));
-            }
-            
-            const daysUntilDue = differenceInDays(nextDueDate, today);
-
-            // Show if it's within the upcoming window and actually in the future.
-            if (daysUntilDue > 0 && isBefore(nextDueDate, upcomingLimit)) {
-                // For paid-up tenants, the upcoming "balance" is their standard rent.
-                newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
-            }
+            const nextMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
+            nextDueDate = getAnniversaryForMonth(tenant, nextMonthDate);
         }
+        
+        const daysUntilDue = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        
+        if (daysUntilDue > 0 && nextDueDate < upcomingLimit) {
+            newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
+        }
+        return; // Done with this tenant
+      }
+
+      // Tenant has a balance. Find out when it became due.
+      const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
+
+      if (anniversaryThisMonth < today) {
+        // Due date for this month has passed.
+        newPastDue.push({ tenant, balance: balanceToday });
+
+      } else if (anniversaryThisMonth.getTime() === today.getTime()) {
+        // Due date is today.
+        newDueToday.push({ tenant, balance: balanceToday });
+
+      } else { // anniversaryThisMonth > today
+        // Due date for this month is in the future. Check if it's upcoming.
+        const daysUntilDue = Math.round((anniversaryThisMonth.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        if (anniversaryThisMonth < upcomingLimit) {
+          newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
+        }
+      }
     });
 
     // Sort the categorized lists
