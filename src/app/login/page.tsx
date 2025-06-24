@@ -113,6 +113,18 @@ export default function LoginPage() {
               <Link href="/forgot-password" className="text-sm text-primary hover:underline">
                 Forgot Password?
               </Link>
+              <div className="mt-4 text-center text-xs text-muted-foreground w-full">
+                <p>By signing in, you agree to our</p>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                    <Link href="/terms" className="underline hover:text-primary">
+                        Terms of Service
+                    </Link>
+                    <span>and</span>
+                    <Link href="/privacy-policy" className="underline hover:text-primary">
+                        Privacy Policy
+                    </Link>
+                </div>
+            </div>
             </CardFooter>
           </form>
         </Form>
