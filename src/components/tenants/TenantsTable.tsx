@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Mail, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link, MessageSquare } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -76,22 +76,19 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     try {
       const link = await generateTenantInvitation(tenant.id);
       
-      // Log the link and a sample email to the console for the developer
-      console.log(`--- SIMULATED EMAIL INVITATION ---`);
-      console.log(`Recipient: ${tenant.email}`);
-      console.log(`Subject: You're invited to the RentPilot Tenant Portal!`);
-      console.log(`Body: Hello ${tenant.name}, please use the following link to create your account: ${link}`);
-      console.log(`------------------------------------`);
+      // Copy link to clipboard
+      await navigator.clipboard.writeText(link);
 
       toast({
-        title: "Invitation Sent (Simulation)",
-        description: `An invite for ${tenant.name} has been simulated. Check the console for the link.`,
+        title: "Invitation Link Generated",
+        description: `The sign-up link for ${tenant.name} has been copied to your clipboard.`,
       });
     } catch (error: any) {
+      console.error("Failed to generate or copy invitation link:", error);
       toast({
         variant: "destructive",
-        title: "Failed to Send Invite",
-        description: error.message || "An unknown error occurred.",
+        title: "Failed to Generate Invite",
+        description: error.message || "Could not copy link to clipboard. Check browser permissions.",
       });
     }
   };
@@ -165,7 +162,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         )}
                         {!tenant.hasAccount && (
                           <DropdownMenuItem onClick={() => handleSendInvite(tenant)}>
-                            <Mail className="mr-2 h-4 w-4" /> Send Invite
+                            <Link className="mr-2 h-4 w-4" /> Generate Invite Link
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
