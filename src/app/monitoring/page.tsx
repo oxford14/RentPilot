@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -124,12 +123,12 @@ export default function MonitoringPage() {
       />
       
       <div className="w-full max-w-7xl mx-auto">
-        <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold text-white shadow-lg flex items-center justify-center gap-3">
+        <div className="mb-8 text-center bg-black/40 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg">
+            <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
               <BellRing className="h-10 w-10" />
               Dues Monitoring
             </h1>
-            <p className="text-white/80 mt-2 shadow-md">An overview of tenant payment statuses.</p>
+            <p className="text-white/90 mt-2">An overview of tenant payment statuses.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -164,8 +163,8 @@ export default function MonitoringPage() {
             </MonitoringCard>
         </div>
         <div className="flex items-center justify-center mt-6 p-2 rounded-full bg-black/50 backdrop-blur-sm max-w-md mx-auto">
-            <Info className="h-4 w-4 mr-2 text-white/80"/>
-            <p className="text-xs text-white/80">Calculations are based on tenant join dates and recorded payments.</p>
+            <Info className="h-4 w-4 mr-2 text-white/90"/>
+            <p className="text-xs text-white/90">Calculations are based on tenant join dates and recorded payments.</p>
         </div>
       </div>
     </div>
