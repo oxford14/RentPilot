@@ -14,14 +14,16 @@ const inter = Inter({
   display: 'swap',
 });
 
+const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
+
 export const metadata: Metadata = {
-  title: 'TenantTracker - Rental Management',
+  title: 'RentPilot - Rental Management',
   description: 'Manage tenants, payments, and reports efficiently.',
   manifest: '/manifest.json',
   themeColor: '#6699CC',
   icons: {
-    icon: 'https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299',
-    apple: 'https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299',
+    icon: iconUrl,
+    apple: iconUrl,
   },
 };
 
