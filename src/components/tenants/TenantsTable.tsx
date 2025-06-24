@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Mail, MessageSquare } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -72,18 +72,25 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     }
   };
 
-  const handleGenerateInvite = async (tenant: Tenant) => {
+  const handleSendInvite = async (tenant: Tenant) => {
     try {
       const link = await generateTenantInvitation(tenant.id);
-      await navigator.clipboard.writeText(link);
+      
+      // Log the link and a sample email to the console for the developer
+      console.log(`--- SIMULATED EMAIL INVITATION ---`);
+      console.log(`Recipient: ${tenant.email}`);
+      console.log(`Subject: You're invited to the RentPilot Tenant Portal!`);
+      console.log(`Body: Hello ${tenant.name}, please use the following link to create your account: ${link}`);
+      console.log(`------------------------------------`);
+
       toast({
-        title: "Invitation Link Generated & Copied",
-        description: `An invite link for ${tenant.name} has been copied to your clipboard.`,
+        title: "Invitation Sent (Simulation)",
+        description: `An invite for ${tenant.name} has been simulated. Check the console for the link.`,
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Failed to Generate Link",
+        title: "Failed to Send Invite",
         description: error.message || "An unknown error occurred.",
       });
     }
@@ -157,8 +164,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         {!tenant.hasAccount && (
-                          <DropdownMenuItem onClick={() => handleGenerateInvite(tenant)}>
-                            <LinkIcon className="mr-2 h-4 w-4" /> Generate Invite
+                          <DropdownMenuItem onClick={() => handleSendInvite(tenant)}>
+                            <Mail className="mr-2 h-4 w-4" /> Send Invite
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
