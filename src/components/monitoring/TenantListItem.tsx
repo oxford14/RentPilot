@@ -17,7 +17,7 @@ export function TenantListItem({ tenant, balance, daysUntilDue }: TenantListItem
   };
   
   return (
-    <div className="p-3 rounded-lg bg-black/20 hover:bg-black/30 transition-colors">
+    <div className="p-3 rounded-lg bg-black/60 hover:bg-black/70 transition-colors">
       <div className="flex justify-between items-center">
         <p className="font-semibold truncate">{tenant.name}</p>
         {daysUntilDue !== undefined && (
