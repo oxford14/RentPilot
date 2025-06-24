@@ -80,8 +80,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(data.joinDate).toISOString();
       const submissionData = {
         ...data,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
       };
 
       if (tenant) {
