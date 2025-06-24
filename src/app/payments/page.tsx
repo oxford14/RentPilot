@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
 import { calculateTenantBalance, isTenantCurrentlyDueForRent } from '@/lib/utils';
-import { startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -33,7 +32,7 @@ export default function PaymentsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [amountDue, setAmountDue] = useState<number | null>(null); 
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
-  const { payments, tenants, deletePayment } = useAppContext(); 
+  const { payments, tenants, deletePayment, systemTimezone } = useAppContext(); 
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -41,8 +40,32 @@ export default function PaymentsPage() {
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
 
   useEffect(() => {
-    setClientToday(startOfDay(new Date()));
-  }, []);
+    // This effect now correctly determines "today" based on the system timezone.
+    const now = new Date();
+    const timeZone = systemTimezone || 'Etc/UTC';
+
+    // Intl.DateTimeFormat is a standard API to format dates according to a specific timezone.
+    // We use 'en-CA' format because it produces a reliable YYYY-MM-DD format.
+    try {
+        const dateParts = new Intl.DateTimeFormat('en-CA', {
+            year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
+        }).formatToParts(now).reduce((acc, part) => {
+            if (part.type !== 'literal') {
+                (acc as any)[part.type] = parseInt(part.value);
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        
+        // We construct a new UTC date from the parts, which represents the start of "today" in the target timezone.
+        const todayInSystemTimezone = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
+        setClientToday(todayInSystemTimezone);
+    } catch (e) {
+        console.error("Failed to parse date with system timezone, falling back to UTC.", e);
+        // Fallback to pure UTC if Intl API fails for some reason
+        const now = new Date();
+        setClientToday(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+    }
+  }, [systemTimezone]);
 
   const handleOpenForm = (payment?: Payment) => {
     setEditingPayment(payment || null);
