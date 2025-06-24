@@ -203,6 +203,8 @@ export interface AppContextType {
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
+  updatePayment: (payment: Payment) => Promise<void>;
+  deletePayment: (paymentId: string) => Promise<void>;
   
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;

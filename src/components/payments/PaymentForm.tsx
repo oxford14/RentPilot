@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import type { PaymentMethod, Tenant } from '@/lib/types';
+import type { Payment, PaymentMethod, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign } from 'lucide-react';
@@ -53,13 +53,16 @@ interface PaymentFormProps {
   isOpen: boolean;
   onClose: () => void;
   defaultTenantId?: string | null;
+  payment?: Payment | null;
 }
 
-export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormProps) {
-  const { tenants, payments: allPayments, addPayment } = useAppContext();
+export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
+  const { tenants, payments: allPayments, addPayment, updatePayment } = useAppContext();
   const { toast } = useToast();
   const [amountDueForSelectedTenant, setAmountDueForSelectedTenant] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  const isEditing = !!payment;
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -67,17 +70,37 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
   const activeTenants = tenants.filter(t => t.status === 'active');
 
-  const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentFormSchema),
-    defaultValues: {
+  const defaultValues = React.useMemo(() => {
+    if (payment) {
+        return {
+            ...payment,
+            date: new Date(payment.date),
+            amount: Number(payment.amount),
+            discountApplied: Number(payment.discountApplied || 0),
+            discountDescription: payment.discountDescription || '',
+        }
+    }
+    return {
       tenantId: defaultTenantId || '',
       amount: 0,
       date: new Date(),
       paymentMethod: undefined,
-      discountApplied: 0, // Changed from undefined
+      discountApplied: 0, 
       discountDescription: '',
-    },
+    };
+  }, [payment, defaultTenantId]);
+
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues,
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(defaultValues);
+    }
+  }, [isOpen, defaultValues, form]);
+
 
   const selectedTenantId = form.watch('tenantId');
   const currentAmountPaid = form.watch('amount') || 0;
@@ -106,7 +129,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
         amount: 0,
         date: new Date(),
         paymentMethod: undefined,
-        discountApplied: 0, // Changed from undefined
+        discountApplied: 0, 
         discountDescription: '',
       });
       if (defaultTenantId && clientToday) {
@@ -127,7 +150,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
     const discount = data.discountApplied || 0;
     const discountDesc = data.discountDescription || '';
 
-    if (discount > 0) {
+    if (discount > 0 && !isEditing) {
       if (amountDueForSelectedTenant === null || amountDueForSelectedTenant <= 0) {
         form.setError("discountApplied", { type: "manual", message: "Cannot apply discount when no amount is due or tenant has a credit." });
         toast({ variant: "destructive", title: "Invalid Discount", description: "Discount cannot be applied if there is no outstanding balance." });
@@ -147,18 +170,22 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
 
     try {
-      addPayment({...data, date: data.date.toISOString(), discountApplied: discount, discountDescription: discountDesc, paymentMethod: data.paymentMethod });
-      const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
-      toast({ title: "Payment Recorded", description: `Payment for ${tenantName} recorded successfully.` });
-      form.reset({ 
-        tenantId: defaultTenantId || '', 
-        amount: 0, 
-        date: new Date(), 
-        paymentMethod: undefined,
-        discountApplied: 0, // Changed from undefined
-        discountDescription: '',
-      });
-      setAmountDueForSelectedTenant(null); 
+      const payload = {
+        ...data, 
+        date: data.date.toISOString(), 
+        discountApplied: discount, 
+        discountDescription: discountDesc, 
+        paymentMethod: data.paymentMethod 
+      };
+
+      if (isEditing && payment) {
+        updatePayment({ ...payment, ...payload });
+        toast({ title: "Payment Updated", description: "Payment record has been updated successfully." });
+      } else {
+        addPayment(payload);
+        const tenantName = tenants.find(t => t.id === data.tenantId)?.name || 'Tenant';
+        toast({ title: "Payment Recorded", description: `Payment for ${tenantName} recorded successfully.` });
+      }
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to record payment." });
@@ -211,24 +238,11 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-            onClose();
-            setAmountDueForSelectedTenant(null);
-            form.reset({ 
-                tenantId: defaultTenantId || '', 
-                amount: 0, 
-                date: new Date(), 
-                paymentMethod: undefined,
-                discountApplied: 0, // Changed from undefined
-                discountDescription: '',
-              });
-        }
-    }}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">Record New Payment</DialogTitle>
-          <DialogDescription>Enter the details for the new payment record. Discounts can be applied against the current amount due.</DialogDescription>
+          <DialogTitle className="font-headline text-2xl">{isEditing ? 'Edit Payment' : 'Record New Payment'}</DialogTitle>
+          <DialogDescription>{isEditing ? 'Update the details for this payment record.' : 'Enter the details for the new payment record. Discounts can be applied against the current amount due.'}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
@@ -238,22 +252,11 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tenant</FormLabel>
-                  <Select onValueChange={(value) => {
-                    field.onChange(value);
-                    if (value && clientToday) {
-                        const tenant = tenants.find(t => t.id === value);
-                        if (tenant) {
-                            const balance = calculateTenantBalance(tenant, allPayments, clientToday);
-                            setAmountDueForSelectedTenant(balance);
-                        } else {
-                             setAmountDueForSelectedTenant(null);
-                        }
-                    } else {
-                        setAmountDueForSelectedTenant(null);
-                    }
-                  }} 
-                  value={field.value} 
-                  defaultValue={field.value}
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value} 
+                    defaultValue={field.value}
+                    disabled={isEditing}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -273,7 +276,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
               )}
             />
 
-            {balanceInfo && (
+            {!isEditing && balanceInfo && (
                 <div className="mt-2 p-3 border rounded-md bg-muted/50 text-sm space-y-2">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -408,7 +411,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
               )}
             />
 
-            {transactionSummary && selectedTenantId && (amountDueForSelectedTenant !== null) && (
+            {!isEditing && transactionSummary && selectedTenantId && (amountDueForSelectedTenant !== null) && (
                 <div className="mt-2 p-3 border-t text-sm space-y-1">
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -435,20 +438,9 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
             
             <DialogFooter className="pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline" onClick={() => {
-                    onClose();
-                    setAmountDueForSelectedTenant(null);
-                     form.reset({
-                        tenantId: defaultTenantId || '', 
-                        amount: 0, 
-                        date: new Date(), 
-                        paymentMethod: undefined,
-                        discountApplied: 0, // Changed from undefined
-                        discountDescription: '',
-                      });
-                }}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
               </DialogClose>
-              <Button type="submit" variant="default">Record Payment</Button>
+              <Button type="submit" variant="default">{isEditing ? 'Save Changes' : 'Record Payment'}</Button>
             </DialogFooter>
           </form>
         </Form>

@@ -15,6 +15,17 @@ import { useAppContext } from '@/contexts/AppContext';
 import { calculateTenantBalance, isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -22,15 +33,38 @@ export default function PaymentsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [amountDue, setAmountDue] = useState<number | null>(null); 
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
-  const { payments, tenants } = useAppContext(); 
+  const { payments, tenants, deletePayment } = useAppContext(); 
+  const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
+
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
   }, []);
 
-  const handleOpenForm = () => setIsFormOpen(true);
-  const handleCloseForm = () => setIsFormOpen(false);
+  const handleOpenForm = (payment?: Payment) => {
+    setEditingPayment(payment || null);
+    setIsFormOpen(true);
+  };
+  const handleCloseForm = () => {
+    setEditingPayment(null);
+    setIsFormOpen(false);
+  };
+  
+  const handleDeletePayment = (payment: Payment) => {
+    setPaymentToDelete(payment);
+  };
+  
+  const confirmDeletePayment = () => {
+    if (paymentToDelete) {
+      deletePayment(paymentToDelete.id);
+      toast({ title: "Payment Deleted", description: "The payment record has been deleted." });
+      setPaymentToDelete(null);
+    }
+  };
+
 
   const handleSelectTenant = (tenant: Tenant) => {
     setSelectedTenant(tenant);
@@ -62,7 +96,7 @@ export default function PaymentsPage() {
               <CardTitle className="text-2xl font-bold font-headline">Payment Tracking</CardTitle>
               <CardDescription>Select a tenant to view their payments or record a new one.</CardDescription>
             </div>
-            <Button onClick={handleOpenForm} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
+            <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
               <PlusCircle className="mr-2 h-5 w-5" /> Record New Payment
             </Button>
           </div>
@@ -107,7 +141,7 @@ export default function PaymentsPage() {
                   </CardTitle>
                 </div>
                 {selectedTenant && (
-                  <Button onClick={handleOpenForm} size="sm" className="shadow-sm">
+                  <Button onClick={() => handleOpenForm()} size="sm" className="shadow-sm">
                       <DollarSign className="mr-2 h-4 w-4" />
                       Pay
                   </Button>
@@ -145,7 +179,11 @@ export default function PaymentsPage() {
             )}
           </CardHeader>
           <CardContent className="flex-grow">
-            <PaymentsTable tenantId={selectedTenant?.id} />
+            <PaymentsTable 
+              tenantId={selectedTenant?.id} 
+              onEdit={handleOpenForm}
+              onDelete={handleDeletePayment}
+            />
           </CardContent>
         </Card>
       </div>
@@ -155,8 +193,27 @@ export default function PaymentsPage() {
             isOpen={isFormOpen}
             onClose={handleCloseForm}
             defaultTenantId={selectedTenant?.id}
+            payment={editingPayment}
         />
       )}
+
+      <AlertDialog open={!!paymentToDelete} onOpenChange={(isOpen) => { if (!isOpen) setPaymentToDelete(null); }}>
+        {paymentToDelete && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this payment record.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeletePayment}>Delete Payment</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
     </div>
   );
 }

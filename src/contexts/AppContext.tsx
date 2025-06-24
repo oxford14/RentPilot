@@ -317,6 +317,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updatePayment = async (updatedPayment: Payment) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
+    const { id, ...dataToUpdate } = updatedPayment;
+    try {
+      await setDoc(doc(db, 'payments', id), dataToUpdate, { merge: true });
+    } catch (error: any) {
+      console.error("Error updating payment in Firestore:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update payment: ${error.message}` });
+    }
+  };
+
+  const deletePayment = async (paymentId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'payments', paymentId));
+    } catch (error: any) {
+      console.error("Error deleting payment from Firestore:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete payment: ${error.message}` });
+    }
+  };
+
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'clientId'>) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
@@ -797,6 +824,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     attemptDeleteTenant,
 
     addPayment,
+    updatePayment,
+    deletePayment,
     
     addClient,
     updateClient,

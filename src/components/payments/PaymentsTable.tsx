@@ -10,14 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
   if (!method) return <MinusCircle className="h-4 w-4 text-muted-foreground" />;
@@ -32,9 +34,11 @@ const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
 
 interface PaymentsTableProps {
   tenantId?: string | null;
+  onEdit: (payment: Payment) => void;
+  onDelete: (payment: Payment) => void;
 }
 
-export function PaymentsTable({ tenantId }: PaymentsTableProps) {
+export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps) {
   const { payments: allPaymentsFromContext, tenants: allTenantsFromContext } = useAppContext();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -96,6 +100,7 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
               <TableHead className="text-right">Amount Paid (₱)</TableHead>
               <TableHead className="text-right">Discount (₱)</TableHead>
               <TableHead className="text-center">Method</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,6 +137,24 @@ export function PaymentsTable({ tenantId }: PaymentsTableProps) {
                     {payment.paymentMethod || 'N/A'}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(payment)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
               </TableRow>
             ))}
           </TableBody>
