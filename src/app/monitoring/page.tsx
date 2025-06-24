@@ -27,7 +27,6 @@ export default function MonitoringPage() {
     const now = new Date();
     const timeZone = systemTimezone || 'Etc/UTC';
 
-    // Use Intl.DateTimeFormat to reliably get date parts in the target timezone
     const dateParts = new Intl.DateTimeFormat('en-CA', {
         year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
     }).formatToParts(now).reduce((acc, part) => {
@@ -37,7 +36,6 @@ export default function MonitoringPage() {
         return acc;
     }, {} as Record<string, number>);
     
-    // today is midnight UTC for the given timezone's current date
     const today = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
 
     const upcomingLimit = new Date(today.getTime());
@@ -61,7 +59,7 @@ export default function MonitoringPage() {
 
     activeTenants.forEach(tenant => {
       const balanceToday = calculateTenantBalance(tenant, payments, today);
-      
+
       if (balanceToday <= 0) {
         // Tenant is paid up. Check for their *next* due date.
         let anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
@@ -79,22 +77,22 @@ export default function MonitoringPage() {
         if (daysUntilDue > 0 && nextDueDate < upcomingLimit) {
             newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
         }
-        return; // Done with this tenant
-      }
+        // Done with this tenant, continue to next.
 
-      // Tenant has a balance. Let's categorize them.
-      const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
+      } else { // balanceToday > 0
+        // Tenant has a balance. They are either "Past Due" or "Due Today".
+        const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
 
-      if (anniversaryThisMonth.getTime() === today.getTime()) {
-        // Anniversary is today, and they have a balance. They are "Due Today".
-        newDueToday.push({ tenant, balance: balanceToday });
-      } else if (anniversaryThisMonth > today) {
-        // Anniversary for this month hasn't happened yet.
-        // Since they have a balance, it MUST be from a previous month. They are "Past Due".
-        newPastDue.push({ tenant, balance: balanceToday });
-      } else { // anniversaryThisMonth < today
-        // Anniversary for this month has already passed, and they still have a balance. They are "Past Due".
-        newPastDue.push({ tenant, balance: balanceToday });
+        if (anniversaryThisMonth < today) {
+            // Their due date this month has passed, and they have a balance. They are "Past Due".
+            newPastDue.push({ tenant, balance: balanceToday });
+        } else if (anniversaryThisMonth.getTime() === today.getTime()) {
+            // Their due date is today, and they have a balance. They are "Due Today".
+            newDueToday.push({ tenant, balance: balanceToday });
+        } else { // anniversaryThisMonth > today
+            // Their due date is in the future, but they have a balance. This means it's from a previous month. They are "Past Due".
+            newPastDue.push({ tenant, balance: balanceToday });
+        }
       }
     });
 
@@ -120,8 +118,8 @@ export default function MonitoringPage() {
       />
       
       <div className="w-full max-w-7xl mx-auto">
-        <div className="mb-8 text-center bg-black/40 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg">
-            <h1 className="text-4xl font-bold text-white flex items-center justify-center gap-3">
+        <div className="mb-8 text-center bg-black/60 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg text-white/95">
+            <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
               <BellRing className="h-10 w-10" />
               Dues Monitoring
             </h1>
