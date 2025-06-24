@@ -30,7 +30,7 @@ export default function MonitoringPage() {
     const newPastDue: MonitoredTenant[] = [];
     const newDueToday: MonitoredTenant[] = [];
     const newUpcoming: MonitoredTenant[] = [];
-    
+
     const getAnniversaryForMonth = (tenant: import('@/lib/types').Tenant, dateForMonth: Date): Date => {
         const joinDate = new Date(tenant.joinDate);
         const year = getYear(dateForMonth);
@@ -39,10 +39,10 @@ export default function MonitoringPage() {
         const day = Math.min(getDate(joinDate), lastDayInMonth);
         return startOfDay(new Date(year, month, day));
     };
-    
+
     const findNextDueDate = (tenant: import('@/lib/types').Tenant, fromDate: Date): Date => {
         let anniversary = getAnniversaryForMonth(tenant, fromDate);
-        if (isBefore(anniversary, fromDate)) {
+        if (isBefore(anniversary, fromDate) || isSameDay(anniversary, fromDate)) {
              anniversary = getAnniversaryForMonth(tenant, addMonths(fromDate, 1));
         }
         return anniversary;
@@ -50,32 +50,53 @@ export default function MonitoringPage() {
     
     activeTenants.forEach(tenant => {
         const balanceToday = calculateTenantBalance(tenant, payments, today);
-        const nextDueDate = findNextDueDate(tenant, today);
-        const anniversaryToday = getAnniversaryForMonth(tenant, today);
+        const anniversaryForCurrentMonth = getAnniversaryForMonth(tenant, today);
+        
+        // If balance is zero or less, they can only be "Upcoming" for the *next* cycle.
+        if (balanceToday <= 0) {
+            const nextDueDate = findNextDueDate(tenant, today);
+            if (isBefore(nextDueDate, upcomingLimit) || isSameDay(nextDueDate, upcomingLimit)) {
+                // If paid up, the upcoming balance will be their rent.
+                const balanceOnDueDate = tenant.monthlyRentalRate;
+                if (balanceOnDueDate > 0) {
+                    const daysUntilDue = differenceInDays(nextDueDate, today);
+                    // Only show if it's actually in the future.
+                    if (daysUntilDue > 0) {
+                       newUpcoming.push({ tenant, balance: balanceOnDueDate, daysUntilDue });
+                    }
+                }
+            }
+            return; // Finished with this paid-up tenant.
+        }
 
-        if (isSameDay(anniversaryToday, today) && balanceToday > 0) {
+        // From here on, we know balanceToday > 0.
+
+        // Check for Due Today
+        if (isSameDay(anniversaryForCurrentMonth, today)) {
             newDueToday.push({ tenant, balance: balanceToday });
             return;
         }
-
-        if (balanceToday > 0) {
+        
+        // Check for Past Due
+        if (isBefore(anniversaryForCurrentMonth, today)) {
             newPastDue.push({ tenant, balance: balanceToday });
             return;
         }
-        
-        if (isBefore(nextDueDate, upcomingLimit) || isSameDay(nextDueDate, upcomingLimit)) {
-             const balanceOnDueDate = calculateTenantBalance(tenant, payments, nextDueDate);
-             if (balanceOnDueDate > 0) {
-                 const daysUntilDue = differenceInDays(nextDueDate, today);
-                 newUpcoming.push({ tenant, balance: balanceOnDueDate, daysUntilDue });
-             }
+
+        // If we reach here, they have a balance, but their due date for this month is in the future.
+        // This is an "Upcoming" payment.
+        if (isBefore(anniversaryForCurrentMonth, upcomingLimit) || isSameDay(anniversaryForCurrentMonth, upcomingLimit)) {
+            const daysUntilDue = differenceInDays(anniversaryForCurrentMonth, today);
+            if (daysUntilDue > 0) { // Exclude today since it's handled above
+                newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
+            }
         }
     });
 
-    // Sort by balance descending
+    // Sort the categorized lists
     newPastDue.sort((a, b) => b.balance - a.balance);
     newDueToday.sort((a, b) => b.balance - a.balance);
-    newUpcoming.sort((a, b) => a.daysUntilDue! - b.daysUntilDue!);
+    newUpcoming.sort((a, b) => (a.daysUntilDue ?? 99) - (b.daysUntilDue ?? 99));
 
     setCategorizedTenants({ pastDue: newPastDue, dueToday: newDueToday, upcoming: newUpcoming });
     setIsLoading(false);
