@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useMe
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
 import { expenseCategories as definedExpenseCategories } from '@/lib/types';
-import { db, storage, auth } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import {
   collection,
   doc,
@@ -24,7 +24,6 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { signInAnonymously } from "firebase/auth";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverCompleteTenantSignup, serverUpdateManagedUser, serverUpdateSuperAdminUser } from '@/actions/user-actions';
