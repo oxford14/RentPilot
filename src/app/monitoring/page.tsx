@@ -59,40 +59,40 @@ export default function MonitoringPage() {
 
     activeTenants.forEach(tenant => {
       const balanceToday = calculateTenantBalance(tenant, payments, today);
+      const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
 
-      if (balanceToday <= 0) {
-        // Tenant is paid up. Check for their *next* due date.
-        let anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
-        let nextDueDate;
-
-        if (anniversaryThisMonth > today) {
-            nextDueDate = anniversaryThisMonth;
-        } else {
-            const nextMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
-            nextDueDate = getAnniversaryForMonth(tenant, nextMonthDate);
-        }
-        
-        const daysUntilDue = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
-        
-        if (daysUntilDue >= 0 && nextDueDate < upcomingLimit) { // include day 0 for upcoming
-            newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
-        }
-        // Done with this tenant, continue to next.
-
-      } else { // balanceToday > 0
-        // Tenant has a balance. They are either "Past Due" or "Due Today".
-        const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
-
+      if (balanceToday > 0) {
+        // Tenant has a balance. Check if past, today, or upcoming.
         if (anniversaryThisMonth < today) {
-            // Their due date this month has passed, and they have a balance. They are "Past Due".
-            newPastDue.push({ tenant, balance: balanceToday });
+          // Due date passed this month. They are "Past Due".
+          newPastDue.push({ tenant, balance: balanceToday });
         } else if (anniversaryThisMonth.getTime() === today.getTime()) {
-            // Their due date is today, and they have a balance. They are "Due Today".
-            newDueToday.push({ tenant, balance: balanceToday });
-        } 
-        // If anniversaryThisMonth > today, they have a balance from a previous month
-        // but their current cycle due date hasn't arrived. Per user feedback,
-        // they should not appear in "Past Due" until the current anniversary passes.
+          // Due date is today. They are "Due Today".
+          newDueToday.push({ tenant, balance: balanceToday });
+        } else { // anniversaryThisMonth > today
+          // Due date is in the future, but they have a balance from a previous cycle.
+          // Check if it's within the upcoming window.
+          const daysUntilDue = Math.round((anniversaryThisMonth.getTime() - today.getTime()) / (1000 * 3600 * 24));
+          if (daysUntilDue >= 0 && anniversaryThisMonth < upcomingLimit) {
+            newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
+          }
+        }
+      } else {
+        // Tenant is paid up (balance <= 0). Check for *next* due date for "Upcoming".
+        let nextDueDate;
+        if (anniversaryThisMonth > today) {
+          nextDueDate = anniversaryThisMonth;
+        } else {
+          // anniversary was today or in the past this month, find next month's anniversary.
+          const nextMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
+          nextDueDate = getAnniversaryForMonth(tenant, nextMonthDate);
+        }
+
+        const daysUntilDue = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        if (daysUntilDue >= 0 && nextDueDate < upcomingLimit) {
+          // For paid-up tenants, the "balance" to show in Upcoming is their next rental amount.
+          newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
+        }
       }
     });
 
@@ -118,12 +118,12 @@ export default function MonitoringPage() {
       />
       
        <div className="w-full max-w-7xl mx-auto">
-        <div className="mb-8 text-center bg-black/60 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg text-white">
+        <div className="mb-8 text-center bg-black/70 backdrop-blur-sm p-6 rounded-xl border border-white/20 shadow-lg text-white/95">
             <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
               <BellRing className="h-10 w-10" />
               Dues Monitoring
             </h1>
-            <p className="text-white/90 mt-2">An overview of tenant payment statuses.</p>
+            <p className="text-white/80 mt-2">An overview of tenant payment statuses.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
