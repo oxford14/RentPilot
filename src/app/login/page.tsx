@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -180,7 +179,7 @@ export default function LoginPage() {
                   Get Started
                 </Link>
                 <a 
-                  href="https://facebook.com/YourPageHere" 
+                  href="https://www.facebook.com/rentpilotweb/" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
