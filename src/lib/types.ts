@@ -120,6 +120,16 @@ export interface WeeklyIncome {
   remainingMoney: number;
 }
 
+export interface DemoBooking {
+  id: string; // Firestore document ID
+  name: string;
+  email: string;
+  phone: string;
+  scheduled_at: string; // ISO string
+  status: 'pending' | 'done';
+  createdAt: string; // ISO string
+}
+
 
 // Navigation item types
 interface AppNavSubItem {
@@ -194,6 +204,7 @@ export interface AppContextType {
   systemTimezone: string | null;
   businesses: Business[];
   weeklyIncomes: WeeklyIncome[];
+  rawDemoBookings: DemoBooking[];
 
   setViewMode: (clientId: string | null) => void;
   updateSystemTimezone: (timezone: string) => void;
@@ -241,4 +252,8 @@ export interface AppContextType {
   completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
   restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
+  
+  // Demo Bookings
+  addDemoBooking: (bookingData: Omit<DemoBooking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
+  markBookingAsDone: (bookingId: string) => Promise<void>;
 }

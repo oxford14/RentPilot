@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, DemoBooking } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +22,7 @@ import {
   DocumentReference,
   DocumentData,
   getDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
@@ -46,6 +47,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
   const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
+  const [rawDemoBookingsState, setRawDemoBookingsState] = useState<DemoBooking[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -77,6 +79,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawExpensesState([]);
       setRawBusinessesState([]);
       setRawWeeklyIncomesState([]);
+      setRawDemoBookingsState([]);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -94,6 +97,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
       { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
+      { name: 'demo_bookings', setter: setRawDemoBookingsState, label: 'demo bookings'},
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -776,6 +780,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addDemoBooking = async (bookingData: Omit<DemoBooking, 'id' | 'status' | 'createdAt'>) => {
+    const newBookingData = {
+      ...bookingData,
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+    try {
+      await addDoc(collection(db, 'demo_bookings'), newBookingData);
+    } catch (error: any) {
+      console.error("Error adding demo booking:", error);
+      toast({ variant: "destructive", title: "Booking Error", description: `Failed to save booking: ${error.message}` });
+      throw error; // Re-throw to be caught by the form
+    }
+  };
+
+  const markBookingAsDone = async (bookingId: string) => {
+    if (!authUser?.isSuperAdmin) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
+      return;
+    }
+    try {
+      const bookingRef = doc(db, 'demo_bookings', bookingId);
+      await updateDoc(bookingRef, { status: 'done' });
+      toast({ title: "Booking Updated", description: "The booking has been marked as done."});
+    } catch (error: any) {
+      console.error("Error updating booking status:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to update booking: ${error.message}` });
+    }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -789,6 +823,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     systemTimezone: systemTimezoneState,
     businesses,
     weeklyIncomes,
+    rawDemoBookings: rawDemoBookingsState,
 
     setViewMode,
     updateSystemTimezone,
@@ -836,6 +871,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     completeTenantSignup,
     cleanClientData,
     restoreDataFromBackup,
+    
+    // Demo Bookings
+    addDemoBooking,
+    markBookingAsDone,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {

@@ -8,13 +8,12 @@ import * as z from 'zod';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send } from 'lucide-react';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -23,9 +22,20 @@ const loginFormSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
-export default function LoginPage() {
-  const { login: authLogin, isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
+function Feature({ icon: Icon, text }: { icon: React.ElementType, text: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <span className="font-medium text-lg">{text}</span>
+    </div>
+  );
+}
+
+
+function LoginBox() {
+  const { login: authLogin, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -37,20 +47,11 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    await authLogin(data.username, data.password); 
+    await authLogin(data.username, data.password);
   };
-
-  if (isLoading || isAuthenticated) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-2xl">
+    <Card className="w-full max-w-md shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center items-center py-4">
             <Image
@@ -73,7 +74,7 @@ export default function LoginPage() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Username or Email</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. admin" {...field} />
                     </FormControl>
@@ -107,13 +108,18 @@ export default function LoginPage() {
               />
             </CardContent>
             <CardFooter className="flex flex-col items-center gap-4">
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || authLoading}>
                 <LogIn className="mr-2 h-4 w-4" /> Sign In
               </Button>
-              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                Forgot Password?
-              </Link>
-              <div className="mt-4 text-center text-xs text-muted-foreground w-full">
+              <div className="flex justify-between w-full text-sm">
+                <Link href="/tenant-signup" className="text-primary hover:underline">
+                  Tenant Signup
+                </Link>
+                <Link href="/forgot-password" className="text-primary hover:underline">
+                  Forgot Password?
+                </Link>
+              </div>
+               <div className="mt-4 text-center text-xs text-muted-foreground w-full">
                 <p>By signing in, you agree to our</p>
                 <div className="flex items-center justify-center gap-2 mt-1">
                     <Link href="/terms" className="underline hover:text-primary">
@@ -129,6 +135,64 @@ export default function LoginPage() {
           </form>
         </Form>
       </Card>
+  );
+}
+
+
+export default function LoginPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+        router.push('/');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-3">
+      <div className="hidden lg:flex lg:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
+        <div className="max-w-2xl space-y-8">
+            <h1 className="text-5xl font-bold tracking-tight">
+                Take Control of Your Rentals with RentPilot
+            </h1>
+            <p className="text-xl text-gray-600">
+                Effortlessly manage tenants, track payments, and gain insights with our powerful, all-in-one platform.
+            </p>
+            <div className="space-y-4">
+                <Feature icon={User} text="Smart Tenant Tracking" />
+                <Feature icon={Clock} text="Due Date Reminders" />
+                <Feature icon={BarChart} text="Real-time Monitoring Dashboard" />
+                <Feature icon={DollarSign} text="Seamless Payment Logs" />
+            </div>
+            <div className="flex gap-4 pt-6">
+                <Link href="/book-demo">
+                    <Button size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
+                        <Send className="mr-2 h-5 w-5"/>
+                        Get Started
+                    </Button>
+                </Link>
+                <a href="https://facebook.com/YourPageHere" target="_blank" rel="noopener noreferrer">
+                    <Button size="lg" variant="outline" className="shadow-lg hover:shadow-xl transition-shadow">
+                        <Facebook className="mr-2 h-5 w-5"/>
+                        Contact Us
+                    </Button>
+                </a>
+            </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center p-4 bg-background">
+          <LoginBox />
+      </div>
     </div>
   );
 }

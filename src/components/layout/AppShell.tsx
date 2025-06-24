@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, CalendarCheck } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -85,6 +85,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
   { isGroup: false, href: '/admin/clients', label: 'Clients', icon: Building },
   { isGroup: false, href: '/admin/users', label: 'All Client Users', icon: UsersRound },
+  { isGroup: false, href: '/admin/demo-bookings', label: 'Demo Bookings', icon: CalendarCheck },
   {
     isGroup: true,
     groupLabel: 'System',
@@ -230,6 +231,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
     else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
+    else if (!activeItemFound && pathname === '/admin/demo-bookings') currentActivePageLabel = 'Demo Bookings';
   } else {
       let baseNavItems: AppSidebarNavItem[];
       if(isTenantSection) {

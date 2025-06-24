@@ -66,6 +66,14 @@
         { "fieldPath": "businessId", "order": "ASCENDING" },
         { "fieldPath": "weekOf", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "demo_bookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
