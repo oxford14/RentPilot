@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DemoBookingDialog } from '@/components/auth/DemoBookingDialog';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -139,6 +140,7 @@ function LoginBox() {
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -155,45 +157,50 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full md:grid md:grid-cols-2 lg:grid-cols-3">
-      <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800 lg:col-span-2">
-        <div className="max-w-2xl space-y-8">
-            <h1 className="text-5xl font-bold tracking-tight">
-                Take Control of Your Rentals with RentPilot
-            </h1>
-            <p className="text-xl text-gray-600">
-                Effortlessly manage tenants, track payments, and gain insights with our powerful, all-in-one platform.
-            </p>
-            <div className="space-y-4">
-                <Feature icon={User} text="Smart Tenant Tracking" />
-                <Feature icon={Clock} text="Due Date Reminders" />
-                <Feature icon={BarChart} text="Real-time Monitoring Dashboard" />
-                <Feature icon={DollarSign} text="Seamless Payment Logs" />
-            </div>
-            <div className="flex gap-4 pt-6">
-                <Link 
-                  href="/book-demo"
-                  className={cn(buttonVariants({ size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
-                >
-                  <Send className="mr-2 h-5 w-5"/>
-                  Get Started
-                </Link>
-                <a 
-                  href="https://www.facebook.com/rentpilotweb/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
-                >
-                  <Facebook className="mr-2 h-5 w-5"/>
-                  Contact Us
-                </a>
-            </div>
+    <>
+      <div className="min-h-screen w-full md:grid md:grid-cols-2 lg:grid-cols-3">
+        <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800 lg:col-span-2">
+          <div className="max-w-2xl space-y-8">
+              <h1 className="text-5xl font-bold tracking-tight">
+                  Take Control of Your Rentals with RentPilot
+              </h1>
+              <p className="text-xl text-gray-600">
+                  Effortlessly manage tenants, track payments, and gain insights with our powerful, all-in-one platform.
+              </p>
+              <div className="space-y-4">
+                  <Feature icon={User} text="Smart Tenant Tracking" />
+                  <Feature icon={Clock} text="Due Date Reminders" />
+                  <Feature icon={BarChart} text="Real-time Monitoring Dashboard" />
+                  <Feature icon={DollarSign} text="Seamless Payment Logs" />
+              </div>
+              <div className="flex gap-4 pt-6">
+                  <Button
+                    onClick={() => setIsDemoDialogOpen(true)}
+                    size="lg"
+                    className="shadow-lg hover:shadow-xl transition-shadow"
+                  >
+                    <Send className="mr-2 h-5 w-5"/>
+                    Get Started
+                  </Button>
+                  <a
+                    href="https://www.facebook.com/rentpilotweb/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
+                  >
+                    <Facebook className="mr-2 h-5 w-5"/>
+                    Contact Us
+                  </a>
+              </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto lg:col-span-1">
+            <LoginBox />
         </div>
       </div>
 
-      <div className="flex items-center justify-center p-4 bg-background h-screen md:h-auto lg:col-span-1">
-          <LoginBox />
-      </div>
-    </div>
+      <DemoBookingDialog isOpen={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen} />
+    </>
   );
 }
