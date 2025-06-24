@@ -398,15 +398,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                 })
               ) : ( 
-                currentAppNavItems.map((item, index) => {
+                currentAppNavItems.map((item) => {
                   if (item.isGroup) {
                     const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
                     return (
-                       <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}-${index}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
+                       <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
                         <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} />
                       </Accordion>
                     );
-                  } else { 
+                  } else {
+                    let finalHref = item.href;
+                    if (item.href === '/users' && authUser?.isSuperAdmin) {
+                        finalHref = '/admin/users';
+                    }
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -416,7 +420,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           className="justify-start"
                           disabled={subscriptionExpired && item.href !== '/subscription'}
                         >
-                          <Link href={item.href}>
+                          <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
                             <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                           </Link>
@@ -564,5 +568,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
