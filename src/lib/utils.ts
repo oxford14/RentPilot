@@ -46,7 +46,11 @@ export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], u
     return p.tenantId === tenant.id && paymentDate <= normalizedUpToDate;
   });
 
-  const totalCreditedToTenant = tenantPaymentsMade.reduce((sum, p) => sum + p.amount + (p.discountApplied || 0), 0);
+  const totalCreditedToTenant = tenantPaymentsMade.reduce((sum, p) => {
+    const paymentAmount = Number(p.amount || 0);
+    const discountAmount = Number(p.discountApplied || 0);
+    return sum + paymentAmount + discountAmount;
+  }, 0);
   
   return totalExpectedBilled - totalCreditedToTenant;
 }
