@@ -34,7 +34,7 @@ if (!getApps().length) {
 }
 
 const db = getFirestore(app);
-const storage = getStorage(app);
+const storage = getStorage(app, `gs://${firebaseConfig.storageBucket}`);
 const auth = getAuth(app); // Uncomment when Firebase Auth is integrated
 
 export { app, db, storage, auth };
