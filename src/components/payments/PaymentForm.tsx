@@ -189,7 +189,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId }: PaymentFormPro
 
   const transactionSummary = useMemo(() => {
     if (amountDueForSelectedTenant === null) return null;
-    const totalCredited = currentAmountPaid + currentDiscountApplied;
+    const totalCredited = Number(currentAmountPaid) + Number(currentDiscountApplied);
     const remainingBalance = amountDueForSelectedTenant - totalCredited;
     
     let remainingBalanceText = "Remaining Balance:";
