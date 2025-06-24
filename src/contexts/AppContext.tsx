@@ -378,11 +378,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
         
-        const uploadPromise = uploadBytes(storageRef, logoFile);
-        const uploadResult = await withTimeout(uploadPromise, 60000, new Error('File upload timed out. Please check your Firebase Storage setup in the console.'));
-
-        const downloadURLPromise = getDownloadURL(uploadResult.ref);
-        logoUrl = await withTimeout(downloadURLPromise, 10000, new Error('Could not get download URL. Please check your Storage Rules.'));
+        const uploadResult = await uploadBytes(storageRef, logoFile);
+        logoUrl = await getDownloadURL(uploadResult.ref);
       }
 
       const dataToSave: Partial<Client> = {
@@ -413,11 +410,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const uniqueFileName = `${uuidv4()}-${fileName}`;
         const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
         
-        const uploadPromise = uploadBytes(storageRef, logoFile);
-        const uploadResult = await withTimeout(uploadPromise, 60000, new Error('File upload timed out. Please check your Firebase Storage setup in the console.'));
-
-        const downloadURLPromise = getDownloadURL(uploadResult.ref);
-        dataToUpdate.logoUrl = await withTimeout(downloadURLPromise, 10000, new Error('Could not get download URL. Please check your Storage Rules.'));
+        const uploadResult = await uploadBytes(storageRef, logoFile);
+        dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);
       }
       
       await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
