@@ -104,7 +104,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 ];
 
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
-const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
+const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
