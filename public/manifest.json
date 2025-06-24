@@ -1,7 +1,7 @@
 {
-  "name": "RentPilot",
+  "name": "RentPilot - Rental Management",
   "short_name": "RentPilot",
-  "description": "Rental Management Application",
+  "description": "Manage tenants, payments, and reports efficiently.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F0F0F0",
