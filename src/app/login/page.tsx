@@ -111,10 +111,7 @@ function LoginBox() {
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || authLoading}>
                 <LogIn className="mr-2 h-4 w-4" /> Sign In
               </Button>
-              <div className="flex justify-between w-full text-sm">
-                <Link href="/tenant-signup" className="text-primary hover:underline">
-                  Tenant Signup
-                </Link>
+              <div className="flex justify-end w-full text-sm">
                 <Link href="/forgot-password" className="text-primary hover:underline">
                   Forgot Password?
                 </Link>
@@ -159,7 +156,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-3">
-      <div className="hidden lg:flex lg:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
+      <div className="flex lg:col-span-2 flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-12 text-gray-800">
         <div className="max-w-2xl space-y-8">
             <h1 className="text-5xl font-bold tracking-tight">
                 Take Control of Your Rentals with RentPilot
