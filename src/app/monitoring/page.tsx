@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -12,7 +11,7 @@ import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-r
 import Image from 'next/image';
 
 export default function MonitoringPage() {
-  const { tenants, payments } = useAppContext();
+  const { tenants, payments, systemTimezone } = useAppContext();
   const [categorizedTenants, setCategorizedTenants] = useState<{
     pastDue: MonitoredTenant[];
     dueToday: MonitoredTenant[];
@@ -24,7 +23,34 @@ export default function MonitoringPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const today = startOfDay(new Date());
+
+    const now = new Date();
+    const timeZone = systemTimezone || 'Etc/UTC'; // Fallback to UTC
+
+    // Use Intl.DateTimeFormat to reliably get date parts in the target timezone
+    // The 'en-CA' locale gives a YYYY-MM-DD format which is safe to parse.
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: timeZone,
+    });
+    
+    // Construct a date string like "2023-11-20" from the parts
+    const formattedDate = formatter.format(now);
+    
+    // Create a new Date object representing the start of the day in the target timezone, interpreted as UTC
+    const today = new Date(`${formattedDate}T00:00:00Z`);
+
+    if (isNaN(today.getTime())) {
+        // Fallback if the date creation fails for any reason
+        console.error("Failed to construct date with system timezone. Falling back to local date.");
+        const localToday = startOfDay(new Date());
+        // You could either return or proceed with localToday
+        // For now, let's just log error and proceed to avoid breaking the page
+    }
+
+
     const upcomingLimit = addDays(today, 8); // Look 7 days into the future
 
     const newPastDue: MonitoredTenant[] = [];
@@ -92,7 +118,7 @@ export default function MonitoringPage() {
     setCategorizedTenants({ pastDue: newPastDue, dueToday: newDueToday, upcoming: newUpcoming });
     setIsLoading(false);
 
-  }, [activeTenants, payments]);
+  }, [activeTenants, payments, systemTimezone]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] w-full flex flex-col items-center justify-center p-4">
