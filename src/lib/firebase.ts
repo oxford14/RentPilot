@@ -1,4 +1,3 @@
-
 // src/lib/firebase.ts
 import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
@@ -34,7 +33,7 @@ if (!getApps().length) {
 }
 
 const db = getFirestore(app);
-const storage = getStorage(app, `gs://${firebaseConfig.storageBucket}`);
+const storage = getStorage(app);
 const auth = getAuth(app); // Uncomment when Firebase Auth is integrated
 
 export { app, db, storage, auth };
