@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/table";
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link as LinkIcon } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link as LinkIcon, MessageSquare } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ReminderDialog } from './ReminderDialog';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -39,6 +40,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const { tenants, updateTenant, attemptDeleteTenant, generateTenantInvitation } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -84,6 +87,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         description: error.message || "An unknown error occurred.",
       });
     }
+  };
+
+  const handleOpenReminder = (tenant: Tenant) => {
+    setTenantForReminder(tenant);
+    setIsReminderOpen(true);
   };
   
   const displayedTenants = useMemo(() => {
@@ -143,6 +151,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
                           <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
+                        {tenant.status === 'active' && (
+                          <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
+                            <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
+                          </DropdownMenuItem>
+                        )}
                         {!tenant.hasAccount && (
                           <DropdownMenuItem onClick={() => handleGenerateInvite(tenant)}>
                             <LinkIcon className="mr-2 h-4 w-4" /> Generate Invite
@@ -152,6 +165,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                           Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </DropdownMenuItem>
@@ -185,6 +199,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           </AlertDialogContent>
         )}
       </AlertDialog>
+
+      <ReminderDialog 
+        isOpen={isReminderOpen}
+        onClose={() => setIsReminderOpen(false)}
+        tenant={tenantForReminder}
+      />
     </>
   );
 }
