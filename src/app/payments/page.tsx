@@ -99,12 +99,20 @@ export default function PaymentsPage() {
 
         <Card className="lg:col-span-2 shadow-lg min-h-[300px] flex flex-col">
           <CardHeader>
-             <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <CardTitle className="font-headline text-lg">
-                  {selectedTenant ? `Payment History for ${selectedTenant.name}` : "Payment History"}
-                </CardTitle>
-             </div>
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle className="font-headline text-lg">
+                    {selectedTenant ? `Payment History for ${selectedTenant.name}` : "Payment History"}
+                  </CardTitle>
+                </div>
+                {selectedTenant && (
+                  <Button onClick={handleOpenForm} size="sm" className="shadow-sm">
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      Pay
+                  </Button>
+                )}
+            </div>
             <CardDescription className="text-xs">
               {selectedTenant ? `Showing all payments for ${selectedTenant.name}.` : "Select a tenant from the list to view their payments."}
             </CardDescription>
@@ -152,4 +160,3 @@ export default function PaymentsPage() {
     </div>
   );
 }
-
