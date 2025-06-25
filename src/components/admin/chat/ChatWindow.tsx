@@ -11,8 +11,11 @@ import { db } from '@/lib/firebase';
 import { collectionGroup, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import type { ChatMessage } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Send, User, Shield, Power } from 'lucide-react';
+import { Send, User, Shield, Power, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { generateChatResponseOptions, type ChatMessage as AIChatMessage } from '@/ai/flows/generate-chat-response-flow';
+
 
 interface ChatWindowProps {
   sessionId: string;
@@ -25,16 +28,21 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+
   useEffect(() => {
     if (!sessionId) return;
-    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'desc'));
+    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newMessages: ChatMessage[] = [];
       querySnapshot.forEach((doc) => {
         newMessages.push({ id: doc.id, ...doc.data() } as ChatMessage);
       });
-      setMessages(newMessages.reverse());
+      setMessages(newMessages);
     });
 
     return () => unsubscribe();
@@ -72,6 +80,37 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
     }
   };
 
+  const handleGenerateSuggestions = async () => {
+    setIsGenerating(true);
+    setSuggestions([]);
+    setSuggestionError(null);
+    try {
+      const history: AIChatMessage[] = messages.map(msg => ({ sender: msg.sender, text: msg.text }));
+      
+      if (history.length === 0 || history[history.length - 1].sender === 'admin') {
+        setSuggestionError("There's no new visitor message to reply to.");
+        setIsSuggestionsOpen(true);
+        setIsGenerating(false);
+        return;
+      }
+
+      const result = await generateChatResponseOptions({ history });
+      if (result && result.options.length > 0) {
+        setSuggestions(result.options);
+        setIsSuggestionsOpen(true);
+      } else {
+        setSuggestionError("No suggestions could be generated for this conversation.");
+        setIsSuggestionsOpen(true);
+      }
+    } catch (err: any) {
+      console.error("Failed to generate suggestions:", err);
+      setSuggestionError("An AI error occurred. Please try again.");
+      setIsSuggestionsOpen(true);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b flex justify-between items-center">
@@ -106,15 +145,55 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
       </ScrollArea>
       <div className="p-4 border-t">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your response..."
-            autoComplete="off"
-          />
-          <Button type="submit" size="icon" disabled={!newMessage.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+            <Popover open={isSuggestionsOpen} onOpenChange={setIsSuggestionsOpen}>
+                <PopoverTrigger asChild>
+                    <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={handleGenerateSuggestions}
+                        disabled={isGenerating}
+                        className="shrink-0"
+                    >
+                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
+                        <span className="sr-only">Generate AI Suggestions</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                    <div className="space-y-2">
+                        <h4 className="font-medium leading-none">AI-Generated Replies</h4>
+                        <p className="text-sm text-muted-foreground">
+                            Click a suggestion to use it.
+                        </p>
+                        <div className="grid gap-2">
+                            {suggestions.map((suggestion, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => {
+                                        setNewMessage(suggestion);
+                                        setIsSuggestionsOpen(false);
+                                    }}
+                                    className="text-left text-sm p-2 rounded-md hover:bg-accent transition-colors"
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                            {suggestionError && <p className="text-xs text-destructive p-2">{suggestionError}</p>}
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
+
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type your response..."
+              autoComplete="off"
+              className="flex-grow"
+            />
+            <Button type="submit" size="icon" disabled={!newMessage.trim()} className="shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
         </form>
       </div>
     </div>
