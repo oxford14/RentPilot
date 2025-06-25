@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -14,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
@@ -30,6 +31,7 @@ const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
     case 'Gcash': return <Wallet className="h-4 w-4 text-blue-500" />;
     case 'From Deposit': return <Send className="h-4 w-4 text-purple-500" />;
     case 'From Credit': return <BadgeDollarSign className="h-4 w-4 text-cyan-500" />;
+    case 'Security Deposit': return <ShieldCheck className="h-4 w-4 text-indigo-500" />;
     default: return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
   }
 };
@@ -176,7 +178,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                 <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit'}>
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -199,3 +201,4 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
     </TooltipProvider>
   );
 }
+

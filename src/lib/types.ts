@@ -1,6 +1,7 @@
 
 
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -47,7 +48,7 @@ export interface Tenant {
   invitationTokenExpires?: number; // Timestamp for token expiry
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'From Deposit' | 'From Credit' | 'Other';
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID
@@ -330,3 +331,4 @@ export interface AppContextType {
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
   restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
 }
+

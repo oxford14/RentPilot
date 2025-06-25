@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings } from '@/lib/types';
@@ -245,14 +246,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    let determinedClientId: string | undefined = getScopedClientId();
-    const newTenantData: Omit<Tenant, 'id'> = {
-      ...tenantData,
-      hasAccount: false, // Initialize tenant-specific fields
-      ...(determinedClientId && { clientId: determinedClientId })
-    };
+    const determinedClientId: string | undefined = getScopedClientId();
+    
     try {
-      await addDoc(collection(db, 'tenants'), newTenantData);
+      const batch = writeBatch(db);
+      const tenantRef = doc(collection(db, 'tenants'));
+
+      const newTenantData: Omit<Tenant, 'id'> = {
+        ...tenantData,
+        hasAccount: false,
+        ...(determinedClientId && { clientId: determinedClientId })
+      };
+      batch.set(tenantRef, newTenantData);
+
+      if (tenantData.securityDeposit && tenantData.securityDeposit > 0) {
+        const paymentRef = doc(collection(db, 'payments'));
+        const paymentData: Omit<Payment, 'id'> = {
+          tenantId: tenantRef.id,
+          date: tenantData.joinDate,
+          amount: tenantData.securityDeposit,
+          paymentMethod: 'Security Deposit',
+          clientId: determinedClientId,
+        };
+        batch.set(paymentRef, paymentData);
+      }
+      
+      await batch.commit();
+
     } catch (error: any) {
       console.error("Error adding tenant to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add tenant: ${error.message}` });
@@ -265,8 +285,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     const { id, ...dataToUpdate } = updatedTenant;
+    
     try {
-      await setDoc(doc(db, 'tenants', id), dataToUpdate, { merge: true });
+      const tenantRef = doc(db, 'tenants', id);
+      const batch = writeBatch(db);
+
+      const originalTenant = rawTenantsState.find(t => t.id === id);
+      const oldDeposit = originalTenant?.securityDeposit || 0;
+      const newDeposit = updatedTenant.securityDeposit || 0;
+
+      batch.set(tenantRef, dataToUpdate, { merge: true });
+
+      if (newDeposit > oldDeposit) {
+        const depositIncrease = newDeposit - oldDeposit;
+        const paymentRef = doc(collection(db, 'payments'));
+        const paymentData: Omit<Payment, 'id'> = {
+          tenantId: id,
+          date: new Date().toISOString(),
+          amount: depositIncrease,
+          paymentMethod: 'Security Deposit',
+          clientId: updatedTenant.clientId,
+        };
+        batch.set(paymentRef, paymentData);
+      }
+
+      await batch.commit();
+
     } catch (error: any) {
       console.error("Error updating tenant in Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update tenant: ${error.message}` });
@@ -1193,3 +1237,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
