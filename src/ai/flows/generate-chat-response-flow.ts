@@ -10,7 +10,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const ChatMessageSchema = z.object({
+const ChatMessageSchema = z.object({
   sender: z.enum(['admin', 'visitor']),
   text: z.string(),
 });
