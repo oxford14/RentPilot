@@ -31,7 +31,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
-import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword } from '@/actions/user-actions';
+import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
 import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -769,6 +769,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, message: `An unexpected server error occurred: ${error.message}` };
     }
   };
+  
+  const resetTenantPassword = async (tenantId: string): Promise<{success: boolean, password?: string, message?: string}> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: "You must be logged in." };
+    }
+    try {
+      const result = await serverResetTenantPassword(tenantId);
+      return result;
+    } catch (error: any) {
+      console.error("Error resetting tenant password:", error);
+      return { success: false, message: `An unexpected server error occurred: ${error.message}` };
+    }
+  };
 
   const forceChangeTenantPassword = async (tenantId: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
      try {
@@ -1160,6 +1173,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     attemptDeleteTenant,
     generateTenantAccount,
     forceChangeTenantPassword,
+    resetTenantPassword,
 
     addPayment,
     updatePayment,

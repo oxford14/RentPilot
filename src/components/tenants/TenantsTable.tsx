@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -38,12 +38,12 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, updateTenant, attemptDeleteTenant, generateTenantAccount } = useAppContext();
+  const { tenants, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
-  const [credentials, setCredentials] = useState<{username: string, password: string} | null>(null);
+  const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -90,6 +90,19 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       toast({
         variant: "destructive",
         title: "Account Generation Failed",
+        description: result.message || "An unknown error occurred.",
+      });
+    }
+  };
+
+  const handleResetPassword = async (tenant: Tenant) => {
+    const result = await resetTenantPassword(tenant.id);
+    if (result.success && result.password && tenant.username) {
+      setCredentials({ username: tenant.username, password: result.password });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Password Reset Failed",
         description: result.message || "An unknown error occurred.",
       });
     }
@@ -168,7 +181,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                             <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                           </DropdownMenuItem>
                         )}
-                        {!tenant.hasAccount && (
+                        {tenant.hasAccount ? (
+                           <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
+                          </DropdownMenuItem>
+                        ) : (
                           <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
                             <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
                           </DropdownMenuItem>

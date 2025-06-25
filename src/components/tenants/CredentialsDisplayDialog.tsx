@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, ClipboardCopy } from 'lucide-react';
 
 interface CredentialsDisplayDialogProps {
   isOpen: boolean;
@@ -26,12 +26,31 @@ interface CredentialsDisplayDialogProps {
 
 export function CredentialsDisplayDialog({ isOpen, onClose, username, password }: CredentialsDisplayDialogProps) {
   const { toast } = useToast();
-  const [copiedField, setCopiedField] = React.useState<'username' | 'password' | null>(null);
+  const [copiedField, setCopiedField] = React.useState<'username' | 'password' | 'all' | null>(null);
 
   const handleCopy = (text: string, field: 'username' | 'password') => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
     toast({ title: "Copied!", description: `${field.charAt(0).toUpperCase() + field.slice(1)} copied to clipboard.` });
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleCopyAll = () => {
+    if (!password) return;
+    const loginUrl = `${window.location.origin}/login`;
+    const fullMessage = `
+Welcome to RentPilot!
+
+You can log in to your tenant portal here: ${loginUrl}
+Username: ${username}
+Temporary Password: ${password}
+
+You will be required to change your password on your first login.
+    `.trim();
+
+    navigator.clipboard.writeText(fullMessage);
+    setCopiedField('all');
+    toast({ title: "Copied All Info!", description: `Login details have been copied to the clipboard.` });
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -66,10 +85,14 @@ export function CredentialsDisplayDialog({ isOpen, onClose, username, password }
             </div>
           )}
         </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button">Close</Button>
-          </DialogClose>
+        <DialogFooter className="sm:justify-between flex-col-reverse sm:flex-row gap-2">
+            <Button variant="secondary" onClick={handleCopyAll} disabled={!password}>
+                {copiedField === 'all' ? <Check className="mr-2 h-4 w-4 text-green-500" /> : <ClipboardCopy className="mr-2 h-4 w-4" />}
+                {copiedField === 'all' ? 'Copied!' : 'Copy All Info'}
+            </Button>
+            <DialogClose asChild>
+                <Button type="button">Close</Button>
+            </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

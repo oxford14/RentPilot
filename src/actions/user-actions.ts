@@ -143,6 +143,29 @@ export async function serverGenerateTenantAccount(tenantId: string): Promise<{su
     return { success: true, username: username, password: temporaryPassword };
 }
 
+// Reset Tenant Password Action
+export async function serverResetTenantPassword(tenantId: string): Promise<{success: boolean, password?: string, message?: string}> {
+    const tenantRef = doc(db, 'tenants', tenantId);
+    const tenantSnapshot = await getDoc(tenantRef);
+
+    if (!tenantSnapshot.exists()) {
+        return { success: false, message: 'Tenant not found.' };
+    }
+    if (!tenantSnapshot.data().hasAccount) {
+        return { success: false, message: 'This tenant does not have an account yet. Please generate one first.' };
+    }
+
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await hashPassword(temporaryPassword);
+
+    await updateDoc(tenantRef, {
+        password: hashedPassword,
+        temporaryPassword: true,
+    });
+    
+    return { success: true, password: temporaryPassword };
+}
+
 
 // New Tenant Force Password Change Action
 export async function serverForceChangeTenantPassword(tenantId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
