@@ -24,27 +24,19 @@ async function verifyPasswordAndMigrate(
   
   let isMatch = false;
   try {
-    // This will work for hashed passwords. It might throw an error for invalid formats (like plaintext).
     isMatch = await bcrypt.compare(passwordInput, storedPassword);
   } catch (e) {
-    // An error here likely means storedPassword is not a valid hash (e.g., plaintext).
-    // We can safely ignore it and proceed to the plaintext check.
     console.warn("bcrypt comparison failed, attempting plaintext check for migration. This is expected for users with legacy passwords.");
   }
   
-  // If hash comparison failed (or threw an error), try a plaintext comparison.
-  // This allows users with old, unhashed passwords to log in once,
-  // during which their password will be securely updated.
   if (!isMatch && passwordInput === storedPassword) {
     isMatch = true;
-    // Password matches plaintext. Log the user in and update the password to a hash.
     try {
       const newHashedPassword = await hashPassword(passwordInput);
       await updateDoc(docRef, { password: newHashedPassword });
       console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
     } catch(updateError) {
       console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
-      // We still allow the login, but log the failure to update.
     }
   }
   
@@ -111,7 +103,6 @@ export async function serverChangeManagedUserPassword(
 
   const userData = userSnapshot.data() as ManagedUser;
   
-  // Use the migration-aware verification function here as well
   const isMatch = await verifyPasswordAndMigrate(userDocRef, currentPasswordInput, userData.password);
 
   if (!isMatch) {
@@ -124,33 +115,49 @@ export async function serverChangeManagedUserPassword(
   return { success: true, message: 'Password changed successfully.' };
 }
 
+// New Tenant Account Generation Action
+export async function serverGenerateTenantAccount(tenantId: string): Promise<{success: boolean, username?: string, password?: string, message?: string}> {
+    const tenantRef = doc(db, 'tenants', tenantId);
+    const tenantSnapshot = await getDoc(tenantRef);
 
-// Tenant Signup Action
-export async function serverCompleteTenantSignup(token: string, password: string): Promise<{ success: boolean, message: string }> {
-    const q = query(collection(db, 'tenants'), where('invitationToken', '==', token));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-        return { success: false, message: 'Invalid or expired invitation link.' };
+    if (!tenantSnapshot.exists()) {
+        return { success: false, message: 'Tenant not found.' };
+    }
+    if (tenantSnapshot.data().hasAccount) {
+        return { success: false, message: 'This tenant already has an account.' };
     }
 
-    const tenantDoc = snapshot.docs[0];
-    const tenant = tenantDoc.data() as Tenant;
+    const username = `tenant${Math.floor(100000 + Math.random() * 900000)}`;
+    const temporaryPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await hashPassword(temporaryPassword);
 
-    if (tenant.invitationTokenExpires && tenant.invitationTokenExpires < Date.now()) {
-        return { success: false, message: 'This invitation link has expired. Please request a new one.' };
-    }
-
-    const hashedPassword = await hashPassword(password);
-    await updateDoc(tenantDoc.ref, {
+    await updateDoc(tenantRef, {
+        username: username,
         password: hashedPassword,
         hasAccount: true,
-        invitationToken: null,
+        temporaryPassword: true,
+        invitationToken: null, 
         invitationTokenExpires: null,
     });
     
-    return { success: true, message: 'Account created successfully! You can now log in.' };
+    return { success: true, username: username, password: temporaryPassword };
 }
+
+
+// New Tenant Force Password Change Action
+export async function serverForceChangeTenantPassword(tenantId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const tenantRef = doc(db, 'tenants', tenantId);
+    
+    const newHashedPassword = await hashPassword(newPassword);
+    
+    await updateDoc(tenantRef, {
+        password: newHashedPassword,
+        temporaryPassword: false,
+    });
+    
+    return { success: true, message: 'Password changed successfully! You can now log in with your new password.' };
+}
+
 
 // Login Verification Action
 export async function serverVerifyCredentials(usernameInput: string, passwordInput: string): Promise<User | null> {
@@ -189,8 +196,8 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         }
     }
 
-    // 4. Check tenants by email
-    const tenantQuery = query(collection(db, 'tenants'), where('email', '==', usernameInput));
+    // 4. Check tenants by username
+    const tenantQuery = query(collection(db, 'tenants'), where('username', '==', usernameInput));
     const tenantSnapshot = await getDocs(tenantQuery);
     if (!tenantSnapshot.empty) {
         const tenantDoc = tenantSnapshot.docs[0];
@@ -202,12 +209,13 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         
         if (await verifyPasswordAndMigrate(tenantDoc.ref, passwordInput, tenantData.password)) {
              return {
-                username: tenantData.name,
+                username: tenantData.username!,
                 email: tenantData.email,
                 tenantId: tenantDoc.id,
                 isSuperAdmin: false,
                 role: 'tenant',
                 clientId: tenantData.clientId,
+                temporaryPassword: tenantData.temporaryPassword || false,
             };
         }
     }

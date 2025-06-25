@@ -31,7 +31,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
-import { serverAddManagedUser, serverAddSuperAdminUser, serverCompleteTenantSignup, serverUpdateManagedUser, serverUpdateSuperAdminUser } from '@/actions/user-actions';
+import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword } from '@/actions/user-actions';
 import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -757,32 +757,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const generateTenantInvitation = async (tenantId: string): Promise<string> => {
+  const generateTenantAccount = async (tenantId: string): Promise<{success: boolean, username?: string, password?: string, message?: string}> => {
     if (!authIsAuthenticated) {
-      throw new Error("You must be logged in to generate an invitation.");
+      return { success: false, message: "You must be logged in." };
     }
-
-    const token = uuidv4();
-    const expires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
-    const tenantRef = doc(db, 'tenants', tenantId);
-    await updateDoc(tenantRef, {
-      invitationToken: token,
-      invitationTokenExpires: expires,
-    });
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${origin}/tenant-signup?token=${token}`;
+    try {
+      const result = await serverGenerateTenantAccount(tenantId);
+      return result;
+    } catch (error: any) {
+      console.error("Error generating tenant account:", error);
+      return { success: false, message: `An unexpected server error occurred: ${error.message}` };
+    }
   };
 
-  const completeTenantSignup = async (token: string, password: string): Promise<{ success: boolean, message: string }> => {
-    try {
-      return await serverCompleteTenantSignup(token, password);
-    } catch(error: any) {
-        console.error("Error completing tenant signup:", error);
+  const forceChangeTenantPassword = async (tenantId: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+     try {
+      return await serverForceChangeTenantPassword(tenantId, newPassword);
+    } catch (error: any) {
+        console.error("Error forcing tenant password change:", error);
         return { success: false, message: `An unexpected server error occurred: ${error.message}` };
     }
   };
+
 
   const cleanClientData = async (clientId: string): Promise<{ success: boolean; message: string; }> => {
     if (!authUser?.isSuperAdmin) {
@@ -1162,6 +1158,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addTenant,
     updateTenant,
     attemptDeleteTenant,
+    generateTenantAccount,
+    forceChangeTenantPassword,
 
     addPayment,
     updatePayment,
@@ -1209,8 +1207,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteDemoRequest,
 
     // Tenant Portal
-    generateTenantInvitation,
-    completeTenantSignup,
     cleanClientData,
     restoreDataFromBackup,
   };
@@ -1237,4 +1233,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-

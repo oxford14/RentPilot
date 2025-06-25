@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, Link, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ReminderDialog } from './ReminderDialog';
+import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -37,11 +38,12 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, updateTenant, attemptDeleteTenant, generateTenantInvitation } = useAppContext();
+  const { tenants, updateTenant, attemptDeleteTenant, generateTenantAccount } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
+  const [credentials, setCredentials] = useState<{username: string, password: string} | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -72,23 +74,23 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     }
   };
 
-  const handleSendInvite = async (tenant: Tenant) => {
-    try {
-      const link = await generateTenantInvitation(tenant.id);
-      
-      // Copy link to clipboard
-      await navigator.clipboard.writeText(link);
-
-      toast({
-        title: "Invitation Link Generated",
-        description: `The sign-up link for ${tenant.name} has been copied to your clipboard.`,
-      });
-    } catch (error: any) {
-      console.error("Failed to generate or copy invitation link:", error);
+  const handleGenerateAccount = async (tenant: Tenant) => {
+    if (tenant.hasAccount) {
       toast({
         variant: "destructive",
-        title: "Failed to Generate Invite",
-        description: error.message || "Could not copy link to clipboard. Check browser permissions.",
+        title: "Account Exists",
+        description: "This tenant already has an account.",
+      });
+      return;
+    }
+    const result = await generateTenantAccount(tenant.id);
+    if (result.success && result.username && result.password) {
+      setCredentials({ username: result.username, password: result.password });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Account Generation Failed",
+        description: result.message || "An unknown error occurred.",
       });
     }
   };
@@ -167,8 +169,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         {!tenant.hasAccount && (
-                          <DropdownMenuItem onClick={() => handleSendInvite(tenant)}>
-                            <Link className="mr-2 h-4 w-4" /> Generate Invite Link
+                          <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
+                            <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
@@ -215,6 +217,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         onClose={() => setIsReminderOpen(false)}
         tenant={tenantForReminder}
       />
+      
+      {credentials && (
+        <CredentialsDisplayDialog
+          isOpen={!!credentials}
+          onClose={() => setCredentials(null)}
+          username={credentials.username}
+          password={credentials.password}
+        />
+      )}
     </>
   );
 }

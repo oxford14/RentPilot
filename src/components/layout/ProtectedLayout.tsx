@@ -19,7 +19,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const publicRoutes = ['/login', '/forgot-password', '/tenant-signup', '/terms', '/privacy-policy'];
+    const publicRoutes = ['/login', '/forgot-password', '/terms', '/privacy-policy', '/force-password-change'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
     // If not authenticated and not on a public route, redirect to login
@@ -30,7 +30,17 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
     // If authenticated...
     if (isAuthenticated) {
-      if (pathname === '/login' || pathname === '/tenant-signup') {
+      if (user?.temporaryPassword && !pathname.startsWith('/force-password-change')) {
+        router.push('/force-password-change');
+        return;
+      }
+      
+      if (!user?.temporaryPassword && pathname.startsWith('/force-password-change')) {
+        router.push('/');
+        return;
+      }
+      
+      if (pathname === '/login') {
         if (user?.isSuperAdmin) {
           router.push('/admin');
         } else {
@@ -68,7 +78,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
       // Tenant Checks
       if (isTenant) {
-        const allowedTenantRoutes = ['/', '/profile'];
+        const allowedTenantRoutes = ['/', '/profile', '/force-password-change'];
         if (!allowedTenantRoutes.includes(pathname)) {
           toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
           router.push('/');
@@ -96,19 +106,25 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       </div>
     );
   }
+  
+  if (isAuthenticated && user?.temporaryPassword && !pathname.startsWith('/force-password-change')) {
+     return (
+       <div className="flex h-screen w-full items-center justify-center bg-background">
+         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+         <p className="ml-3 text-md text-muted-foreground">Redirecting to password change...</p>
+       </div>
+     );
+  }
 
-  // If page is public, render it without the shell
-  const isPublicRoute = ['/login', '/forgot-password', '/tenant-signup', '/terms', '/privacy-policy'].some(route => pathname.startsWith(route));
+  const isPublicRoute = ['/login', '/forgot-password', '/terms', '/privacy-policy', '/force-password-change'].some(route => pathname.startsWith(route));
   if (isPublicRoute) {
     return <>{children}</>;
   }
 
-  // If authenticated, render with the AppShell
   if (isAuthenticated) {
     return <AppShell>{children}</AppShell>;
   }
 
-  // Fallback for unauthenticated users on protected routes (shows loading while redirecting)
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -2,6 +2,7 @@
 
 
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -9,10 +10,11 @@ export interface User { // For AuthContext user
   username: string;
   isSuperAdmin?: boolean;
   clientId?: string; // Firestore document ID of the client
-  role?: UserRole; 
+  role?: UserRole;
   tenantId?: string; // Firestore document ID of the tenant if user is a tenant
   email?: string; // Add email to user object
   canApplyDiscount?: boolean;
+  temporaryPassword?: boolean; // NEW
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
@@ -21,7 +23,7 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   email: string;
   clientId: string; // Firestore document ID of the client
   password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
-  role: ClientUserRole; 
+  role: ClientUserRole;
   canApplyDiscount?: boolean;
 }
 
@@ -42,10 +44,12 @@ export interface Tenant {
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
   clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants
+  username?: string; // NEW
   password?: string; // For tenant login
+  temporaryPassword?: boolean; // NEW: flag for forced password change
   hasAccount?: boolean; // To track if tenant has created a login
-  invitationToken?: string; // For signup link
-  invitationTokenExpires?: number; // Timestamp for token expiry
+  invitationToken?: string; // DEPRECATED
+  invitationTokenExpires?: number; // DEPRECATED
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -278,6 +282,8 @@ export interface AppContextType {
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => Promise<void>;
   updateTenant: (tenant: Tenant) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
+  generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
+  forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;
@@ -326,9 +332,6 @@ export interface AppContextType {
   deleteDemoRequest: (requestId: string) => Promise<void>;
 
   // Tenant Portal
-  generateTenantInvitation: (tenantId: string) => Promise<string>;
-  completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
   restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
 }
-
