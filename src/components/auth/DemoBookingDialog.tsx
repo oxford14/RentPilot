@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, setHours, setMinutes, addDays } from 'date-fns';
+import { format, setHours, setMinutes, startOfDay } from 'date-fns';
 import { CalendarIcon, Clock, CheckCircle, Send, Loader2 } from 'lucide-react';
 
 const bookingFormSchema = z.object({
@@ -190,7 +190,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                               field.onChange(date);
                               setIsCalendarOpen(false);
                             }}
-                            disabled={(date) => date < addDays(new Date(), 1) || date.getDay() === 0 || date.getDay() === 6}
+                            disabled={(date) => date < startOfDay(new Date()) || date.getDay() === 0 || date.getDay() === 6}
                             initialFocus
                           />
                         </PopoverContent>
