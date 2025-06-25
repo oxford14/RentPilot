@@ -204,9 +204,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       
     if (authUser?.role === 'tenant') {
       setNotifications(tenantNotifications);
-    } else {
-      // For clients and super admins
+    } else if (!authUser?.isSuperAdmin) {
+      // For clients
       setNotifications(clientNotifications);
+    } else {
+        // For super admins, no notifications
+        setNotifications([]);
     }
   }, [authUser]);
 
@@ -547,56 +550,58 @@ export function AppShell({ children }: { children: ReactNode }) {
                  {viewingClient && !isAdminSection && ` - ${viewingClient.name}`}
               </h1>
             </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative rounded-full">
-                        <Bell className="h-5 w-5" />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
-                            </span>
-                        )}
-                        <span className="sr-only">View notifications</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 sm:w-96">
-                    <DropdownMenuLabel className="flex justify-between items-center">
-                        Notifications
-                        <Badge variant="secondary">{unreadCount} unread</Badge>
-                    </DropdownMenuLabel>
-                     <Tabs defaultValue="unread" className="w-full" onValueChange={(value) => setNotificationFilter(value as any)}>
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="unread">Unread</TabsTrigger>
-                            <TabsTrigger value="all">All</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                    <DropdownMenuSeparator />
-                    <ScrollArea className="h-64">
-                        {filteredNotifications.length > 0 ? (
-                            filteredNotifications.map((notif) => (
-                                <DropdownMenuItem key={notif.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkAsRead(notif.id); }}>
-                                    {!notif.read && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
-                                    <div className={cn("flex-1 space-y-1", notif.read && "pl-5")}>
-                                        <p className="text-sm font-medium leading-none">{notif.title}</p>
-                                        <p className="text-sm text-muted-foreground">{notif.description}</p>
-                                        <p className="text-xs text-muted-foreground">{notif.date.toLocaleDateString()}</p>
-                                    </div>
-                                </DropdownMenuItem>
-                            ))
-                        ) : (
-                            <div className="text-center text-sm text-muted-foreground py-10">
-                                <p>No {notificationFilter} notifications.</p>
-                            </div>
-                        )}
-                    </ScrollArea>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center">
-                        <Check className="mr-2 h-4 w-4" />
-                        Mark all as read
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {!authUser?.isSuperAdmin && (
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="relative rounded-full">
+                          <Bell className="h-5 w-5" />
+                          {unreadCount > 0 && (
+                              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                              </span>
+                          )}
+                          <span className="sr-only">View notifications</span>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80 sm:w-96">
+                      <DropdownMenuLabel className="flex justify-between items-center">
+                          Notifications
+                          <Badge variant="secondary">{unreadCount} unread</Badge>
+                      </DropdownMenuLabel>
+                      <Tabs defaultValue="unread" className="w-full" onValueChange={(value) => setNotificationFilter(value as any)}>
+                          <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="unread">Unread</TabsTrigger>
+                              <TabsTrigger value="all">All</TabsTrigger>
+                          </TabsList>
+                      </Tabs>
+                      <DropdownMenuSeparator />
+                      <ScrollArea className="h-64">
+                          {filteredNotifications.length > 0 ? (
+                              filteredNotifications.map((notif) => (
+                                  <DropdownMenuItem key={notif.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkAsRead(notif.id); }}>
+                                      {!notif.read && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                                      <div className={cn("flex-1 space-y-1", notif.read && "pl-5")}>
+                                          <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                          <p className="text-sm text-muted-foreground">{notif.description}</p>
+                                          <p className="text-xs text-muted-foreground">{notif.date.toLocaleDateString()}</p>
+                                      </div>
+                                  </DropdownMenuItem>
+                              ))
+                          ) : (
+                              <div className="text-center text-sm text-muted-foreground py-10">
+                                  <p>No {notificationFilter} notifications.</p>
+                              </div>
+                          )}
+                      </ScrollArea>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center">
+                          <Check className="mr-2 h-4 w-4" />
+                          Mark all as read
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
