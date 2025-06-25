@@ -108,6 +108,14 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 
+interface AppNotification {
+  id: number;
+  title: string;
+  description: string;
+  read: boolean;
+  date: Date;
+}
+
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
@@ -178,12 +186,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   // Notification State
-  const [notifications, setNotifications] = React.useState([
-    { id: 1, title: 'Rent Reminder', description: 'Your rent for July is due in 3 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-    { id: 2, title: 'Maintenance Update', description: 'The elevator will be serviced tomorrow from 10 AM to 12 PM.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24) },
-    { id: 3, title: 'Welcome!', description: 'Welcome to your new tenant portal. Explore your dashboard.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
-  ]);
+  const [notifications, setNotifications] = React.useState<AppNotification[]>([]);
   const [notificationFilter, setNotificationFilter] = React.useState<'all' | 'unread'>('unread');
+  
+  React.useEffect(() => {
+    const tenantNotifications: AppNotification[] = [
+      { id: 1, title: 'Rent Reminder', description: 'Your rent for July is due in 3 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 2) },
+      { id: 2, title: 'Maintenance Update', description: 'The elevator will be serviced tomorrow from 10 AM to 12 PM.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24) },
+      { id: 3, title: 'Welcome!', description: 'Welcome to your new tenant portal. Explore your dashboard.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
+    ];
+
+    const clientNotifications: AppNotification[] = [
+      { id: 1, title: 'Subscription Renewal', description: 'Your RentPilot subscription is due for renewal in 15 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15) },
+      { id: 2, title: 'New Feature: Business Tracker', description: 'We have launched a new module to track income and expenses for multiple businesses.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2) },
+      { id: 3, title: 'Scheduled Maintenance', description: 'RentPilot will be undergoing scheduled maintenance on July 1st from 2-4 AM PHT.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
+    ];
+      
+    if (authUser?.role === 'tenant') {
+      setNotifications(tenantNotifications);
+    } else {
+      // For clients and super admins
+      setNotifications(clientNotifications);
+    }
+  }, [authUser]);
+
+
   const unreadCount = React.useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
   const filteredNotifications = React.useMemo(() => {
     return notifications
