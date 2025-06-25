@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
@@ -30,7 +30,7 @@ import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [runningBalance, setRunningBalance] = useState<number | null>(null); 
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
   const { payments, tenants, deletePayment, systemTimezone, additionalDues } = useAppContext(); 
@@ -90,10 +90,14 @@ export default function PaymentsPage() {
       setPaymentToDelete(null);
     }
   };
-
+  
+  const selectedTenant = useMemo(() => {
+      if (!selectedTenantId) return null;
+      return tenants.find(t => t.id === selectedTenantId) || null;
+  }, [selectedTenantId, tenants]);
 
   const handleSelectTenant = (tenant: Tenant) => {
-    setSelectedTenant(tenant);
+    setSelectedTenantId(tenant.id);
   };
 
   useEffect(() => {
@@ -154,7 +158,7 @@ export default function PaymentsPage() {
             <TenantsListForPayments 
               onSelectTenant={handleSelectTenant} 
               searchTerm={searchTerm} 
-              selectedTenantId={selectedTenant?.id}
+              selectedTenantId={selectedTenantId}
             />
           </CardContent>
         </Card>
@@ -208,7 +212,7 @@ export default function PaymentsPage() {
                           <span>Security Deposit on File</span>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit} className="h-7">
-                        <Send className="h-4 w-4 mr-1" /> Apply
+                        <Send className="h-4 w-4 mr-1" /> Use
                       </Button>
                     </div>
                     <div className="font-bold text-lg text-primary">
@@ -220,7 +224,7 @@ export default function PaymentsPage() {
           </CardHeader>
           <CardContent className="flex-grow">
             <PaymentsTable 
-              tenantId={selectedTenant?.id} 
+              tenantId={selectedTenantId} 
               onEdit={handleOpenForm}
               onDelete={handleDeletePayment}
             />
@@ -232,7 +236,7 @@ export default function PaymentsPage() {
         <PaymentForm
             isOpen={isFormOpen}
             onClose={handleCloseForm}
-            defaultTenantId={selectedTenant?.id}
+            defaultTenantId={selectedTenantId}
             payment={editingPayment}
         />
       )}
