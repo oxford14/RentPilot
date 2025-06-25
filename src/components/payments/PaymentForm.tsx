@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import type { Payment, PaymentMethod, Tenant, BalanceBreakdown } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
@@ -311,24 +311,31 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="p-3 border-t bg-background">
+                                  {(balanceBreakdown && balanceBreakdown.total > 0) ? (
                                     <div className="space-y-2 text-sm">
-                                        <h4 className="font-semibold">Balance Breakdown</h4>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
-                                            <span>₱{formatCurrency(balanceBreakdown?.rentDue ?? 0)}</span>
-                                        </div>
-                                        {balanceBreakdown?.unpaidDues.map(due => (
-                                            <div key={due.id} className="flex justify-between items-center">
-                                                <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
-                                                <span>₱{formatCurrency(due.amount)}</span>
-                                            </div>
-                                        ))}
-                                        <Separator className="my-2"/>
-                                        <div className="flex justify-between items-center font-bold">
-                                            <span>Total Due</span>
-                                            <span>₱{formatCurrency(balanceBreakdown?.total ?? 0)}</span>
-                                        </div>
+                                      <h4 className="font-semibold">Balance Breakdown</h4>
+                                      <div className="flex justify-between items-center">
+                                          <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
+                                          <span>₱{formatCurrency(balanceBreakdown?.rentDue ?? 0)}</span>
+                                      </div>
+                                      {balanceBreakdown?.unpaidDues.map(due => (
+                                          <div key={due.id} className="flex justify-between items-center">
+                                              <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
+                                              <span>₱{formatCurrency(due.amount)}</span>
+                                          </div>
+                                      ))}
+                                      <Separator className="my-2"/>
+                                      <div className="flex justify-between items-center font-bold">
+                                          <span>Total Due</span>
+                                          <span>₱{formatCurrency(balanceBreakdown?.total ?? 0)}</span>
+                                      </div>
                                     </div>
+                                  ) : (
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                      <span>This tenant is fully paid up. No outstanding dues.</span>
+                                    </div>
+                                  )}
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
@@ -345,6 +352,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                                 ₱{(selectedTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <Button type="button" variant="secondary" size="sm" className="h-7" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit}>
+                              <Send className="mr-1 h-4 w-4"/>
                               Use
                             </Button>
                           </div>
