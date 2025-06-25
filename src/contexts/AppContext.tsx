@@ -27,8 +27,9 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
-import { addDays } from 'date-fns';
+import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverCompleteTenantSignup, serverUpdateManagedUser, serverUpdateSuperAdminUser } from '@/actions/user-actions';
+import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -436,17 +437,68 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    let determinedClientId: string | undefined = getScopedClientId();
-    const newDueData = {
-      ...dueData,
-      createdAt: new Date().toISOString(),
-      ...(determinedClientId && { clientId: determinedClientId })
-    };
-    try {
-      await addDoc(collection(db, 'additionalDues'), newDueData);
-    } catch (error: any) {
-      console.error("Error adding additional due:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add due: ${error.message}` });
+    const { tenantId, amount, type } = dueData;
+
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    if (!tenant) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Tenant not found.' });
+      return;
+    }
+
+    const today = startOfDay(new Date());
+    const balanceBefore = calculateTenantBalance(tenant, rawPaymentsState, rawAdditionalDuesState, today);
+    
+    const determinedClientId: string | undefined = getScopedClientId();
+
+    if (balanceBefore < 0 && Math.abs(balanceBefore) >= amount) {
+      const batch = writeBatch(db);
+
+      const newDueRef = doc(collection(db, 'additionalDues'));
+      const newDueData = {
+        ...dueData,
+        status: 'paid' as const,
+        createdAt: new Date().toISOString(),
+        ...(determinedClientId && { clientId: determinedClientId })
+      };
+      batch.set(newDueRef, newDueData);
+      
+      const newPaymentRef = doc(collection(db, 'payments'));
+      const newPaymentData: Omit<Payment, 'id'> = {
+        tenantId,
+        date: new Date().toISOString(),
+        amount,
+        paymentMethod: 'From Credit',
+        discountApplied: 0,
+        discountDescription: `Auto-paid from credit for: ${type}`,
+        ...(determinedClientId && { clientId: determinedClientId })
+      };
+      batch.set(newPaymentRef, newPaymentData);
+
+      try {
+        await batch.commit();
+        toast({
+          title: "Due Added & Auto-Paid",
+          description: `The ${type} charge of ₱${amount.toFixed(2)} was automatically paid from ${tenant.name}'s credit.`,
+        });
+      } catch (error: any) {
+        console.error("Error in auto-payment batch write:", error);
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to auto-pay due: ${error.message}` });
+      }
+
+    } else {
+      const newDueData = {
+        ...dueData,
+        status: 'unpaid' as const,
+        createdAt: new Date().toISOString(),
+        ...(determinedClientId && { clientId: determinedClientId })
+      };
+      try {
+        await addDoc(collection(db, 'additionalDues'), newDueData);
+        toast({ title: "Due Added", description: "The new charge has been added to the tenant." });
+      } catch (error: any) {
+        console.error("Error adding additional due:", error);
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add due: ${error.message}` });
+      }
     }
   };
   
