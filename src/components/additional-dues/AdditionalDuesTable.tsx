@@ -120,13 +120,13 @@ export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus
                   ) : tenantBalance <= 0 ? (
                     <Tooltip>
                       <TooltipTrigger>
-                        <Badge variant="default" className="bg-blue-500/20 text-blue-700 border-blue-400 cursor-help">
+                        <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400 cursor-help">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Covered
+                          Paid
                         </Badge>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>This due is covered by the tenant's credit balance.</p>
+                        <p>Paid using the tenant's credit balance.</p>
                       </TooltipContent>
                     </Tooltip>
                   ) : (

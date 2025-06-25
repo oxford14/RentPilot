@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -35,6 +35,7 @@ import { startOfDay } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface AdminTopLevelNavItem {
@@ -174,6 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
+  const { toast } = useToast();
 
   // Notification State
   const [notifications, setNotifications] = React.useState([
@@ -462,6 +464,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarContent>
           <SidebarFooter className="p-2 border-t">
              <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton
+                        tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
+                        className="justify-start"
+                        onClick={() => toast({ title: "Feature not available", description: "PWA installation is not yet implemented."})}
+                        >
+                        <Download className="h-5 w-5" />
+                        <span className="group-data-[collapsible=icon]:hidden">Download App</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}

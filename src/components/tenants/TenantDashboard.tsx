@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -196,9 +195,9 @@ export function TenantDashboard() {
                                     Paid
                                     </Badge>
                                 ) : (balance !== null && balance <= 0) ? (
-                                    <Badge variant="default" className="bg-blue-500/20 text-blue-700 border-blue-400">
+                                    <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400">
                                         <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Covered
+                                        Paid
                                     </Badge>
                                 ) : (
                                     <Badge variant="destructive" className="bg-yellow-500/20 text-yellow-700 border-yellow-400">
