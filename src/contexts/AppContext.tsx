@@ -968,7 +968,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const sessionRef = await addDoc(collection(db, 'chatSessions'), newSessionData);
     
     // Add the first message
-    await addDoc(collection(db, 'chatMessages'), {
+    await addDoc(collection(db, `chatSessions/${sessionRef.id}/chatMessages`), {
       sessionId: sessionRef.id,
       sender: 'visitor',
       text: initialMessage.text,
@@ -992,8 +992,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       visitorUnread: message.sender === 'admin',
     });
 
-    // Add new message
-    const messageRef = doc(collection(db, 'chatMessages'));
+    // Add new message to subcollection
+    const messageRef = doc(collection(db, `chatSessions/${sessionId}/chatMessages`));
     batch.set(messageRef, {
       ...message,
       sessionId: sessionId,
