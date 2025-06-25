@@ -188,7 +188,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
               <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                  <FormField
                   control={form.control}
                   name="preferredDate"
@@ -200,7 +200,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn("w-full justify-start text-left font-normal h-11 bg-muted/50",!field.value && "text-muted-foreground")}
+                              className={cn("w-full justify-start text-left font-normal",!field.value && "text-muted-foreground")}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
@@ -233,7 +233,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                       <FormLabel>Preferred Time</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!selectedDate || availableSlots.length === 0}>
                         <FormControl>
-                          <SelectTrigger className="h-11 bg-muted/50">
+                          <SelectTrigger>
                             <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                             <SelectValue placeholder="Select a time slot" />
                           </SelectTrigger>
