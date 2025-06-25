@@ -18,9 +18,10 @@ import type { Payment, PaymentMethod, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck } from 'lucide-react';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
+import { calculateTenantBalance } from '@/lib/utils';
 
 const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Other'];
 
@@ -43,7 +44,7 @@ const paymentFormSchema = z.object({
      ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Either amount paid or discount applied must be greater than zero.",
-      path: ["amount"], // Or a general form error if preferred
+      path: ["amount"],
     });
   }
 });
@@ -55,13 +56,15 @@ interface PaymentFormProps {
   onClose: () => void;
   defaultTenantId?: string | null;
   payment?: Payment | null;
-  balanceBeforeTransaction: number | null;
 }
 
-export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balanceBeforeTransaction }: PaymentFormProps) {
-  const { tenants, addPayment, updatePayment } = useAppContext();
+export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
+  const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment } = useAppContext();
   const { toast } = useToast();
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
+  
+  const [balanceBeforeTransaction, setBalanceBeforeTransaction] = useState<number | null>(null);
+  const [clientToday, setClientToday] = useState<Date | null>(null);
 
   const isEditing = !!payment;
   
@@ -70,6 +73,27 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balance
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const now = new Date();
+    const timeZone = systemTimezone || 'Etc/UTC';
+     try {
+        const dateParts = new Intl.DateTimeFormat('en-CA', {
+            year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
+        }).formatToParts(now).reduce((acc, part) => {
+            if (part.type !== 'literal') {
+                (acc as any)[part.type] = parseInt(part.value);
+            }
+            return acc;
+        }, {} as Record<string, number>);
+        const todayInSystemTimezone = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
+        setClientToday(todayInSystemTimezone);
+    } catch (e) {
+        const now = new Date();
+        setClientToday(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+    }
+  }, [isOpen, systemTimezone]);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,6 +115,8 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balance
         };
       
       form.reset(resetValues);
+    } else {
+        setBalanceBeforeTransaction(null);
     }
   }, [isOpen, payment, defaultTenantId, form]);
 
@@ -103,6 +129,23 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balance
   const selectedTenant = useMemo(() => {
     return tenants.find(t => t.id === selectedTenantId)
   }, [selectedTenantId, tenants]);
+
+  useEffect(() => {
+    if (!selectedTenantId || !clientToday) {
+      setBalanceBeforeTransaction(null);
+      return;
+    }
+
+    const tenantForBalance = tenants.find(t => t.id === selectedTenantId);
+    if (tenantForBalance) {
+      let balance = calculateTenantBalance(tenantForBalance, payments, additionalDues, clientToday);
+      if (isEditing && payment && payment.tenantId === selectedTenantId) {
+        const totalCredited = (payment.amount || 0) + (payment.discountApplied || 0);
+        balance += totalCredited;
+      }
+      setBalanceBeforeTransaction(balance);
+    }
+  }, [selectedTenantId, clientToday, tenants, payments, additionalDues, isEditing, payment]);
 
   const onSubmit = (data: PaymentFormValues) => {
     const discount = data.discountApplied || 0;
@@ -201,7 +244,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balance
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
           onClose();
-          setIsApplyDepositOpen(false); // Ensure child dialog also closes
+          setIsApplyDepositOpen(false);
         }
       }}>
         <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
@@ -241,7 +284,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment, balance
                 )}
               />
 
-              {!isEditing && (
+              {!isEditing && selectedTenantId && (
                 <div className="mt-2 space-y-2">
                     {balanceInfo && (
                         <div className="p-3 border rounded-md bg-muted/50 text-sm">

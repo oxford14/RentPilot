@@ -32,7 +32,6 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [runningBalance, setRunningBalance] = useState<number | null>(null); 
-  const [balanceForForm, setBalanceForForm] = useState<number | null>(null);
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
   const { payments, tenants, deletePayment, systemTimezone, additionalDues } = useAppContext(); 
   const { toast } = useToast();
@@ -44,12 +43,9 @@ export default function PaymentsPage() {
 
 
   useEffect(() => {
-    // This effect now correctly determines "today" based on the system timezone.
     const now = new Date();
     const timeZone = systemTimezone || 'Etc/UTC';
 
-    // Intl.DateTimeFormat is a standard API to format dates according to a specific timezone.
-    // We use 'en-CA' format because it produces a reliable YYYY-MM-DD format.
     try {
         const dateParts = new Intl.DateTimeFormat('en-CA', {
             year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
@@ -60,12 +56,10 @@ export default function PaymentsPage() {
             return acc;
         }, {} as Record<string, number>);
         
-        // We construct a new UTC date from the parts, which represents the start of "today" in the target timezone.
         const todayInSystemTimezone = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
         setClientToday(todayInSystemTimezone);
     } catch (e) {
         console.error("Failed to parse date with system timezone, falling back to UTC.", e);
-        // Fallback to pure UTC if Intl API fails for some reason
         const now = new Date();
         setClientToday(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
     }
@@ -73,20 +67,9 @@ export default function PaymentsPage() {
 
   const handleOpenForm = (payment?: Payment) => {
     setEditingPayment(payment || null);
-    if (runningBalance !== null) {
-      if (payment) {
-        // Editing: calculate balance *before* this payment was made.
-        const totalCreditedByThisPayment = (payment.amount || 0) + (payment.discountApplied || 0);
-        setBalanceForForm(runningBalance + totalCreditedByThisPayment);
-      } else {
-        // New payment: use the current running balance.
-        setBalanceForForm(runningBalance);
-      }
-    } else {
-      setBalanceForForm(null);
-    }
     setIsFormOpen(true);
   };
+
   const handleCloseForm = () => {
     setEditingPayment(null);
     setIsFormOpen(false);
@@ -251,7 +234,6 @@ export default function PaymentsPage() {
             onClose={handleCloseForm}
             defaultTenantId={selectedTenantId}
             payment={editingPayment}
-            balanceBeforeTransaction={balanceForForm}
         />
       )}
 
