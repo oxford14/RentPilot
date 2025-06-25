@@ -7,7 +7,7 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant, Payment } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock, ShieldCheck, Banknote, ShieldChevronRight } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock, ShieldCheck, Banknote, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -208,7 +208,7 @@ export default function PaymentsPage() {
                           <span>Security Deposit on File</span>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit} className="h-7">
-                        <ShieldChevronRight className="h-4 w-4 mr-1" /> Apply
+                        <Send className="h-4 w-4 mr-1" /> Apply
                       </Button>
                     </div>
                     <div className="font-bold text-lg text-primary">
