@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -18,7 +17,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
-import { startOfDay } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -39,9 +38,10 @@ interface PaymentsTableProps {
   tenantId?: string | null;
   onEdit: (payment: Payment) => void;
   onDelete: (payment: Payment) => void;
+  filterPeriod?: 'all' | 'today' | 'this_week' | 'this_month';
 }
 
-export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps) {
+export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all' }: PaymentsTableProps) {
   const { payments: allPaymentsFromContext, tenants: allTenantsFromContext, additionalDues } = useAppContext();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -60,10 +60,34 @@ export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps
     if (!tenantId) {
       return [];
     }
-    return [...allPaymentsFromContext]
-      .filter(payment => payment.tenantId === tenantId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allPaymentsFromContext, tenantId]);
+
+    const today = new Date();
+    let interval: { start: Date; end: Date } | undefined;
+
+    switch (filterPeriod) {
+      case 'today':
+        interval = { start: startOfDay(today), end: endOfDay(today) };
+        break;
+      case 'this_week':
+        interval = { start: startOfWeek(today), end: endOfWeek(today) };
+        break;
+      case 'this_month':
+        interval = { start: startOfMonth(today), end: endOfMonth(today) };
+        break;
+      case 'all':
+      default:
+        interval = undefined;
+        break;
+    }
+
+    let paymentsToFilter = [...allPaymentsFromContext].filter(payment => payment.tenantId === tenantId);
+    
+    if (interval) {
+        paymentsToFilter = paymentsToFilter.filter(p => isWithinInterval(new Date(p.date), interval!));
+    }
+
+    return paymentsToFilter.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [allPaymentsFromContext, tenantId, filterPeriod]);
 
   const isSelectedTenantCurrentlyDue = useMemo(() => {
     if (!tenantId || !clientToday) return false;
@@ -88,7 +112,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps
       <div className="text-center text-muted-foreground py-8 flex flex-col items-center justify-center h-full">
         <ListX className="mx-auto h-12 w-12 mb-3 text-gray-400" />
         <p className="text-lg">No Payments Found</p>
-        <p className="text-sm">There are no payments recorded for {tenantForHeader || 'this tenant'}.</p>
+        <p className="text-sm">There are no payments recorded for {tenantForHeader || 'this tenant'} in the selected period.</p>
       </div>
     );
   }
