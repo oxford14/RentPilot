@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, DemoBooking, AdditionalDue } from '@/lib/types';
@@ -24,6 +23,7 @@ import {
   DocumentData,
   getDoc,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
@@ -332,6 +332,57 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error deleting payment from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete payment: ${error.message}` });
+    }
+  };
+
+  const applySecurityDeposit = async (tenantId: string, amountToApply: number) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const tenantRef = doc(db, "tenants", tenantId);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const tenantDoc = await transaction.get(tenantRef);
+            if (!tenantDoc.exists()) {
+                throw new Error("Tenant document does not exist!");
+            }
+
+            const currentDeposit = tenantDoc.data().securityDeposit || 0;
+            if (amountToApply > currentDeposit) {
+                throw new Error("Cannot apply more than the available security deposit.");
+            }
+            if (amountToApply <= 0) {
+              throw new Error("Amount to apply must be positive.");
+            }
+
+            const newDepositAmount = currentDeposit - amountToApply;
+            transaction.update(tenantRef, { securityDeposit: newDepositAmount });
+
+            const newPaymentRef = doc(collection(db, "payments"));
+            const newPaymentData = {
+                tenantId: tenantId,
+                date: new Date().toISOString(),
+                amount: amountToApply,
+                paymentMethod: 'From Deposit' as PaymentMethod,
+                clientId: tenantDoc.data().clientId, 
+            };
+            transaction.set(newPaymentRef, newPaymentData);
+        });
+
+        toast({
+            title: "Success",
+            description: `₱${amountToApply.toFixed(2)} from the security deposit has been applied as a payment.`,
+        });
+
+    } catch (error: any) {
+        console.error("Error applying security deposit: ", error);
+        toast({
+            variant: "destructive",
+            title: "Transaction Failed",
+            description: error.message || "Could not apply the security deposit.",
+        });
     }
   };
 
@@ -890,6 +941,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addPayment,
     updatePayment,
     deletePayment,
+    applySecurityDeposit,
     
     addClient,
     updateClient,

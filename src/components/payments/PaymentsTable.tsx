@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, ShieldChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
@@ -29,6 +29,7 @@ const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
     case 'Bank Transfer': return <Landmark className="h-4 w-4 text-green-500" />;
     case 'Cash': return <DollarSign className="h-4 w-4 text-yellow-600" />;
     case 'Gcash': return <Wallet className="h-4 w-4 text-blue-500" />;
+    case 'From Deposit': return <ShieldChevronRight className="h-4 w-4 text-purple-500" />;
     default: return <HelpCircle className="h-4 w-4 text-muted-foreground" />;
   }
 };
@@ -141,7 +142,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps
                 <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit'}>
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>

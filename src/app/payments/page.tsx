@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant, Payment } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock, ShieldCheck, Banknote } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock, ShieldCheck, Banknote, ShieldChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
 
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -39,6 +39,8 @@ export default function PaymentsPage() {
 
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
+
 
   useEffect(() => {
     // This effect now correctly determines "today" based on the system timezone.
@@ -110,6 +112,8 @@ export default function PaymentsPage() {
       setRentStatusMessage(null);
     }
   }, [selectedTenant, payments, additionalDues, clientToday, tenants]); 
+
+  const canApplyDeposit = selectedTenant && (selectedTenant.securityDeposit || 0) > 0 && runningBalance !== null && runningBalance > 0;
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -198,9 +202,14 @@ export default function PaymentsPage() {
                     )}
                 </div>
                  <div className="p-3 border rounded-md bg-muted/50 space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <ShieldCheck className="h-4 w-4"/>
-                        <span>Security Deposit on File</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <ShieldCheck className="h-4 w-4"/>
+                          <span>Security Deposit on File</span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit} className="h-7">
+                        <ShieldChevronRight className="h-4 w-4 mr-1" /> Apply
+                      </Button>
                     </div>
                     <div className="font-bold text-lg text-primary">
                         {'₱' + (selectedTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -225,6 +234,15 @@ export default function PaymentsPage() {
             onClose={handleCloseForm}
             defaultTenantId={selectedTenant?.id}
             payment={editingPayment}
+        />
+      )}
+
+      {isApplyDepositOpen && selectedTenant && runningBalance !== null && (
+        <ApplyDepositDialog
+          isOpen={isApplyDepositOpen}
+          onClose={() => setIsApplyDepositOpen(false)}
+          tenant={selectedTenant}
+          currentBalance={runningBalance}
         />
       )}
 
