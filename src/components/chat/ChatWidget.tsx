@@ -48,14 +48,14 @@ export function ChatWidget() {
     if (!sessionId) return;
     localStorage.setItem(CHAT_SESSION_ID_KEY, sessionId);
 
-    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
+    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'desc'));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newMessages: ChatMessage[] = [];
       querySnapshot.forEach((doc) => {
         newMessages.push({ id: doc.id, ...doc.data() } as ChatMessage);
       });
-      setMessages(newMessages);
+      setMessages(newMessages.reverse());
     });
 
     return () => unsubscribe();
