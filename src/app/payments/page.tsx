@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext'; 
-import { cn } from '@/lib/utils';
+import { cn, calculateTenantBalanceBreakdown } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const { deletePayment } = useAppContext(); 
+  const { deletePayment, tenants, payments, additionalDues } = useAppContext(); 
   const { toast } = useToast();
   
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -83,11 +83,11 @@ export default function PaymentsPage() {
   const { tenant, balanceBreakdown, balanceInfo, canApplyDeposit } = useMemo(() => {
     if (!selectedTenantId) return { tenant: null, balanceBreakdown: null, balanceInfo: null, canApplyDeposit: false };
     
-    const tenant = window.AppContext.tenants.find(t => t.id === selectedTenantId) || null;
+    const tenant = tenants.find(t => t.id === selectedTenantId) || null;
     if (!tenant) return { tenant: null, balanceBreakdown: null, balanceInfo: null, canApplyDeposit: false };
     
     const today = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
-    const breakdown = window.AppContext.calculateTenantBalanceBreakdown(tenant, window.AppContext.payments, window.AppContext.additionalDues, today);
+    const breakdown = calculateTenantBalanceBreakdown(tenant, payments, additionalDues, today);
 
     const { total } = breakdown;
     let text = total > 0 ? "Current Amount Due:" : (total < 0 ? "Current Credit:" : "Current Balance:");
@@ -98,7 +98,7 @@ export default function PaymentsPage() {
     const canApply = tenant && (tenant.securityDeposit || 0) > 0 && breakdown.total > 0;
 
     return { tenant, balanceBreakdown: breakdown, balanceInfo, canApplyDeposit: canApply };
-  }, [selectedTenantId]);
+  }, [selectedTenantId, tenants, payments, additionalDues]);
 
   const handleSelectTenant = (tenant: Tenant) => {
     setSelectedTenantId(tenant.id);
