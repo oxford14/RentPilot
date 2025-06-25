@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatWidget } from '@/components/chat/ChatWidget';
+import { DemoBookingDialog } from '@/components/book-demo/DemoBookingDialog';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -142,6 +143,7 @@ export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [showLoginOnMobile, setShowLoginOnMobile] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -190,6 +192,9 @@ export default function LoginPage() {
                   <Feature icon={DollarSign} text="Seamless Payment Logs" />
               </div>
               <div className="flex gap-4 pt-6">
+                 <Button onClick={() => setIsDemoModalOpen(true)} size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
+                    Get Started
+                  </Button>
                   <a
                     href="https://www.facebook.com/rentpilotweb/"
                     target="_blank"
@@ -222,6 +227,7 @@ export default function LoginPage() {
         </div>
       </div>
       <ChatWidget />
+      <DemoBookingDialog isOpen={isDemoModalOpen} onClose={() => setIsDemoModalOpen(false)} />
     </>
   );
 }

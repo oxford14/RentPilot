@@ -158,6 +158,17 @@ export interface ChatMessage {
   timestamp: string; // ISO string
 }
 
+export interface DemoRequest {
+  id: string; // Firestore document ID
+  name: string;
+  email: string;
+  companyName: string;
+  preferredDate: string; // ISO string
+  preferredTime: string; // e.g., "09:00 AM"
+  status: 'pending' | 'confirmed' | 'completed';
+  createdAt: string; // ISO string
+}
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -289,9 +300,15 @@ export interface AppContextType {
   rawPayments: Payment[];
   rawExpenses: Expense[];
   rawAdditionalDues: AdditionalDue[];
+  rawDemoRequests: DemoRequest[];
   
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];
+
+  // Demo Booking
+  addDemoRequest: (request: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => Promise<void>;
+  updateDemoRequestStatus: (requestId: string, status: DemoRequest['status']) => Promise<void>;
+  deleteDemoRequest: (requestId: string) => Promise<void>;
 
   // Tenant Portal
   generateTenantInvitation: (tenantId: string) => Promise<string>;

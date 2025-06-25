@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +52,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
   const [rawChatSessionsState, setRawChatSessionsState] = useState<ChatSession[]>([]);
+  const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -85,6 +86,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawBusinessesState([]);
       setRawWeeklyIncomesState([]);
       setRawChatSessionsState([]);
+      setRawDemoRequestsState([]);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -104,6 +106,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
       { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
+      { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -1010,6 +1013,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const sessionRef = doc(db, 'chatSessions', sessionId);
     await updateDoc(sessionRef, { status: 'closed' });
   };
+  
+  const addDemoRequest = async (requestData: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => {
+    try {
+      await addDoc(collection(db, 'demoRequests'), {
+        ...requestData,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+      toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
+    } catch (error: any) {
+      console.error("Error adding demo request:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error.message}` });
+      throw error;
+    }
+  };
+  
+  const updateDemoRequestStatus = async (requestId: string, status: DemoRequest['status']) => {
+    if (!authUser?.isSuperAdmin) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'demoRequests', requestId), { status });
+      toast({ title: "Status Updated", description: "The demo request status has been updated."});
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: `Failed to update status: ${error.message}` });
+    }
+  };
+
+  const deleteDemoRequest = async (requestId: string) => {
+    if (!authUser?.isSuperAdmin) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'demoRequests', requestId));
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete request: ${error.message}` });
+    }
+  };
 
 
   const contextValue: AppContextType = {
@@ -1075,10 +1118,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawPayments: rawPaymentsState,
     rawExpenses: rawExpensesState,
     rawAdditionalDues: rawAdditionalDuesState,
+    rawDemoRequests: rawDemoRequestsState,
     
     rawBusinesses: rawBusinessesState,
     rawWeeklyIncomes: rawWeeklyIncomesState,
     
+    addDemoRequest,
+    updateDemoRequestStatus,
+    deleteDemoRequest,
+
     // Tenant Portal
     generateTenantInvitation,
     completeTenantSignup,
