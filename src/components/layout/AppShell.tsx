@@ -88,6 +88,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin/clients', label: 'Clients', icon: Building },
   { isGroup: false, href: '/admin/users', label: 'All Client Users', icon: UsersRound },
   { isGroup: false, href: '/admin/chat', label: 'Live Chat', icon: MessageSquare },
+  { isGroup: false, href: '/admin/maintenance/demo-requests', label: 'Demo Requests', icon: CalendarCheck },
   {
     isGroup: true,
     groupLabel: 'System',
@@ -95,15 +96,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
     items: [
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
       { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck },
-    ]
-  },
-  {
-    isGroup: true,
-    groupLabel: 'Maintenance',
-    groupIcon: Wrench,
-    items: [
       { href: '/admin/maintenance/backups', label: 'Backups', icon: DatabaseBackup },
-      { href: '/admin/maintenance/demo-requests', label: 'Demo Requests', icon: CalendarCheck },
     ]
   }
 ];
