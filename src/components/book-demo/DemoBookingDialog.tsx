@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -27,7 +28,7 @@ const demoBookingFormSchema = z.object({
   phone: z.string().min(7, "Please enter a valid phone number."),
   companyName: z.string().optional(),
   preferredDate: z.date({ required_error: "Please select a date." }),
-  preferredTime: z.string({ required_error: "Please select a time." }),
+  preferredSlot: z.string({ required_error: "Please select a time slot." }),
   visitorTimezone: z.string().optional(),
 }).refine((data) => {
     if (data.requesterType === 'company') {
@@ -41,24 +42,12 @@ const demoBookingFormSchema = z.object({
 
 type DemoBookingFormValues = z.infer<typeof demoBookingFormSchema>;
 
-const allTimeSlots = [
-  "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-  "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM",
-  "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM",
-  "09:00 PM", "10:00 PM"
-];
-
-function isSameDate(date1: Date, date2: Date) {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
-}
-
+// Admin's available hours in PHT (UTC+8) are 9am-10pm. This translates to UTC hours 1 through 14.
+const adminAvailableUTCHours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
 export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { addDemoRequest, rawDemoRequests } = useAppContext();
   const { toast } = useToast();
-  const [availableSlots, setAvailableSlots] = useState<string[]>(allTimeSlots);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -71,66 +60,73 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
       phone: '',
       companyName: '',
       preferredDate: undefined,
-      preferredTime: undefined,
+      preferredSlot: undefined,
       visitorTimezone: '',
     },
   });
 
   const selectedDate = form.watch('preferredDate');
   const requesterType = form.watch('requesterType');
+  
+  useEffect(() => {
+    // When date changes, clear the selected time slot
+    form.setValue('preferredSlot', '');
+  }, [selectedDate, form]);
 
-  const updateAvailableSlots = useCallback((date: Date | undefined) => {
-    if (!date) {
-        setAvailableSlots(allTimeSlots);
-        return;
-    }
+  const availableSlots = useMemo(() => {
+    if (!selectedDate) return [];
 
-    const bookingsForDay = rawDemoRequests.filter(req => isSameDate(new Date(req.preferredDate), date));
-    const bookedSlots = new Set(bookingsForDay.map(req => req.preferredTime));
-    let slots = allTimeSlots.filter(slot => !bookedSlots.has(slot));
+    const now = new Date();
+    const bookedSlots = new Set(rawDemoRequests.map(req => req.preferredDate));
 
-    const today = new Date();
-    if (isSameDate(date, today)) {
-        const currentHour = today.getHours();
-        slots = slots.filter(slot => {
-            const [time, period] = slot.split(' ');
-            let [hour] = time.split(':').map(Number);
-            if (period === 'PM' && hour !== 12) hour += 12;
-            if (period === 'AM' && hour === 12) hour = 0;
-            return hour > currentHour;
-        });
-    }
+    const generatedSlots = adminAvailableUTCHours
+        .map(hour => {
+            // Create a date object representing the potential slot in UTC
+            const slotTimeUTC = new Date(Date.UTC(selectedDate.getUTCFullYear(), selectedDate.getUTCMonth(), selectedDate.getUTCDate(), hour));
 
-    setAvailableSlots(slots);
-    const currentPreferredTime = form.getValues('preferredTime');
-    if (currentPreferredTime && !slots.includes(currentPreferredTime)) {
-        form.setValue('preferredTime', '');
-    }
-  }, [rawDemoRequests, form]);
+            // Don't show slots that are in the past for the visitor
+            if (slotTimeUTC < now) {
+                return null;
+            }
+            
+            // Check if this UTC slot is already booked
+            if (bookedSlots.has(slotTimeUTC.toISOString())) {
+                return null;
+            }
+            
+            // Return the slot's UTC ISO string as the value, and the formatted local time as the label
+            return {
+                value: slotTimeUTC.toISOString(),
+                label: slotTimeUTC.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+            };
+        })
+        .filter(Boolean); // Remove nulls from the array
+
+    return generatedSlots as { value: string; label: string }[];
+}, [selectedDate, rawDemoRequests]);
+
 
   useEffect(() => {
     if (isOpen) {
       form.reset();
-      updateAvailableSlots(undefined);
     }
-  }, [isOpen, form, updateAvailableSlots]);
+  }, [isOpen, form]);
 
-  useEffect(() => {
-    updateAvailableSlots(selectedDate);
-  }, [selectedDate, updateAvailableSlots]);
 
   const onSubmit = async (data: DemoBookingFormValues) => {
     setIsSubmitting(true);
     try {
-      const finalData = {
-          ...data,
+      // The `preferredSlot` from the form is the UTC ISO string we need to save.
+      const finalData: Omit<DemoRequest, 'id' | 'createdAt' | 'status'> = {
+          requesterType: data.requesterType,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
           companyName: data.requesterType === 'company' ? data.companyName : undefined,
           visitorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          preferredDate: data.preferredSlot, // Save the selected UTC ISO string
       };
-      await addDemoRequest({
-        ...finalData,
-        preferredDate: data.preferredDate.toISOString(),
-      });
+      await addDemoRequest(finalData);
       onClose();
     } catch (error) {
       console.error("Failed to submit demo request", error);
@@ -231,7 +227,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
 
                 <FormField
                   control={form.control}
-                  name="preferredTime"
+                  name="preferredSlot"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Time</FormLabel>
@@ -245,7 +241,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                         <SelectContent>
                           {availableSlots.length > 0 ? (
                              availableSlots.map(slot => (
-                                <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                                <SelectItem key={slot.value} value={slot.value}>{slot.label}</SelectItem>
                              ))
                           ) : (
                              <SelectItem value="no-slots" disabled>
@@ -259,10 +255,6 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                   )}
                 />
             </div>
-
-            <p className="text-xs text-muted-foreground text-center">
-              All times are shown in Philippine Standard Time (PHT).
-            </p>
 
             <DialogFooter className="pt-4">
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

@@ -165,8 +165,7 @@ export interface DemoRequest {
   email: string;
   phone: string;
   companyName?: string;
-  preferredDate: string; // ISO string
-  preferredTime: string; // e.g., "09:00 AM"
+  preferredDate: string; // Will store the full UTC ISO string of the selected slot
   status: 'pending' | 'confirmed' | 'completed';
   createdAt: string; // ISO string
   visitorTimezone?: string;

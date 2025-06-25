@@ -148,7 +148,17 @@ export default function DemoRequestsPage() {
                           <div className="text-sm text-muted-foreground mt-1">{req.companyName}</div>
                         )}
                       </TableCell>
-                      <TableCell>{format(new Date(req.preferredDate), 'PPP')} at {req.preferredTime}</TableCell>
+                      <TableCell>
+                        {new Date(req.preferredDate).toLocaleString('en-US', {
+                          timeZone: 'Asia/Manila',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true,
+                        })}
+                      </TableCell>
                       <TableCell>{req.visitorTimezone || 'N/A'}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className={cn("text-xs", getStatusBadgeVariant(req.status))}>
