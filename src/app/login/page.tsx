@@ -13,9 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, Send, ArrowLeft } from 'lucide-react';
+import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DemoBookingDialog } from '@/components/auth/DemoBookingDialog';
+import { ChatWidget } from '@/components/chat/ChatWidget';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -141,7 +141,6 @@ function LoginBox() {
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [isDemoDialogOpen, setIsDemoDialogOpen] = useState(false);
   const [showLoginOnMobile, setShowLoginOnMobile] = useState(false);
 
   useEffect(() => {
@@ -191,14 +190,6 @@ export default function LoginPage() {
                   <Feature icon={DollarSign} text="Seamless Payment Logs" />
               </div>
               <div className="flex gap-4 pt-6">
-                  <Button
-                    onClick={() => setIsDemoDialogOpen(true)}
-                    size="lg"
-                    className="shadow-lg hover:shadow-xl transition-shadow"
-                  >
-                    <Send className="mr-2 h-5 w-5"/>
-                    Get Started
-                  </Button>
                   <a
                     href="https://www.facebook.com/rentpilotweb/"
                     target="_blank"
@@ -206,7 +197,7 @@ export default function LoginPage() {
                     className={cn(buttonVariants({ variant: "outline", size: "lg" }), "shadow-lg hover:shadow-xl transition-shadow")}
                   >
                     <Facebook className="mr-2 h-5 w-5"/>
-                    Contact Us
+                    Visit our Page
                   </a>
               </div>
             </div>
@@ -230,7 +221,7 @@ export default function LoginPage() {
           
         </div>
       </div>
-      <DemoBookingDialog isOpen={isDemoDialogOpen} onOpenChange={setIsDemoDialogOpen} />
+      <ChatWidget />
     </>
   );
 }

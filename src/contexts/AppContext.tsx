@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, DemoBooking, AdditionalDue } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ import {
   getDoc,
   Timestamp,
   runTransaction,
+  limit,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
@@ -50,7 +51,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawAdditionalDuesState, setRawAdditionalDuesState] = useState<AdditionalDue[]>([]);
   const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
-  const [rawDemoBookingsState, setRawDemoBookingsState] = useState<DemoBooking[]>([]);
+  const [rawChatSessionsState, setRawChatSessionsState] = useState<ChatSession[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -83,7 +84,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawAdditionalDuesState([]);
       setRawBusinessesState([]);
       setRawWeeklyIncomesState([]);
-      setRawDemoBookingsState([]);
+      setRawChatSessionsState([]);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -102,7 +103,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'additionalDues', setter: setRawAdditionalDuesState, label: 'additional dues'},
       { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
-      { name: 'demo_bookings', setter: setRawDemoBookingsState, label: 'demo bookings'},
+      { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -937,34 +938,77 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addDemoBooking = async (bookingData: Omit<DemoBooking, 'id' | 'status' | 'createdAt'>) => {
-    const newBookingData = {
-      ...bookingData,
-      status: 'pending' as const,
-      createdAt: new Date().toISOString(),
-    };
-    try {
-      await addDoc(collection(db, 'demo_bookings'), newBookingData);
-    } catch (error: any) {
-      console.error("Error adding demo booking:", error);
-      toast({ variant: "destructive", title: "Booking Error", description: `Failed to save booking: ${error.message}` });
-      throw error; // Re-throw to be caught by the form
+  const startChatSession = async (visitorId: string, initialMessage: { text: string }): Promise<string> => {
+    // Check for an existing open session for this visitor
+    const q = query(collection(db, 'chatSessions'), where('visitorId', '==', visitorId), where('status', '==', 'open'), limit(1));
+    const existingSession = await getDocs(q);
+
+    if (!existingSession.empty) {
+      const sessionId = existingSession.docs[0].id;
+      // Send the initial message to the existing session
+      await sendChatMessage(sessionId, { sender: 'visitor', text: initialMessage.text });
+      return sessionId;
     }
+
+    // Create a new session
+    const now = new Date().toISOString();
+    const newSessionData: Omit<ChatSession, 'id'> = {
+      visitorId,
+      status: 'open',
+      createdAt: now,
+      lastMessageAt: now,
+      lastMessageSnippet: initialMessage.text,
+      adminUnread: true,
+      visitorUnread: false,
+    };
+
+    const sessionRef = await addDoc(collection(db, 'chatSessions'), newSessionData);
+    
+    // Add the first message
+    await addDoc(collection(db, 'chatMessages'), {
+      sessionId: sessionRef.id,
+      sender: 'visitor',
+      text: initialMessage.text,
+      timestamp: now,
+    });
+    
+    return sessionRef.id;
+  };
+  
+  const sendChatMessage = async (sessionId: string, message: Omit<ChatMessage, 'id' | 'sessionId' | 'timestamp'>) => {
+    const batch = writeBatch(db);
+    const sessionRef = doc(db, 'chatSessions', sessionId);
+    const now = new Date().toISOString();
+    
+    // Update session metadata
+    batch.update(sessionRef, {
+      lastMessageAt: now,
+      lastMessageSnippet: message.text,
+      status: 'open', // Re-open session if it was closed
+      adminUnread: message.sender === 'visitor',
+      visitorUnread: message.sender === 'admin',
+    });
+
+    // Add new message
+    const messageRef = doc(collection(db, 'chatMessages'));
+    batch.set(messageRef, {
+      ...message,
+      sessionId: sessionId,
+      timestamp: now,
+    });
+
+    await batch.commit();
   };
 
-  const markBookingAsDone = async (bookingId: string) => {
-    if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
-      return;
-    }
-    try {
-      const bookingRef = doc(db, 'demo_bookings', bookingId);
-      await updateDoc(bookingRef, { status: 'done' });
-      toast({ title: "Booking Updated", description: "The booking has been marked as done."});
-    } catch (error: any) {
-      console.error("Error updating booking status:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to update booking: ${error.message}` });
-    }
+  const markSessionAsRead = async (sessionId: string, userType: 'visitor' | 'admin') => {
+    const sessionRef = doc(db, 'chatSessions', sessionId);
+    const updateData = userType === 'visitor' ? { visitorUnread: false } : { adminUnread: false };
+    await updateDoc(sessionRef, updateData);
+  };
+  
+  const closeChatSession = async (sessionId: string) => {
+    const sessionRef = doc(db, 'chatSessions', sessionId);
+    await updateDoc(sessionRef, { status: 'closed' });
   };
 
 
@@ -981,7 +1025,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     systemTimezone: systemTimezoneState,
     businesses,
     weeklyIncomes,
-    rawDemoBookings: rawDemoBookingsState,
+    
+    chatSessions: rawChatSessionsState,
+    startChatSession,
+    sendChatMessage,
+    markSessionAsRead,
+    closeChatSession,
 
     setViewMode,
     updateSystemTimezone,
@@ -1035,10 +1084,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     completeTenantSignup,
     cleanClientData,
     restoreDataFromBackup,
-    
-    // Demo Bookings
-    addDemoBooking,
-    markBookingAsDone,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {

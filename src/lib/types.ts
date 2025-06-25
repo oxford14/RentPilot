@@ -139,16 +139,24 @@ export interface WeeklyIncome {
   remainingMoney: number;
 }
 
-export interface DemoBooking {
+export interface ChatSession {
   id: string; // Firestore document ID
-  name: string;
-  email: string;
-  phone: string;
-  scheduled_at: string; // ISO string
-  status: 'pending' | 'done';
+  visitorId: string; // A unique ID stored in localStorage for the visitor
+  status: 'open' | 'closed';
   createdAt: string; // ISO string
+  lastMessageAt: string; // ISO string
+  lastMessageSnippet: string;
+  adminUnread: boolean;
+  visitorUnread: boolean;
 }
 
+export interface ChatMessage {
+  id: string; // Firestore document ID
+  sessionId: string;
+  sender: 'visitor' | 'admin';
+  text: string;
+  timestamp: string; // ISO string
+}
 
 // Navigation item types
 interface AppNavSubItem {
@@ -230,7 +238,13 @@ export interface AppContextType {
   systemTimezone: string | null;
   businesses: Business[];
   weeklyIncomes: WeeklyIncome[];
-  rawDemoBookings: DemoBooking[];
+  
+  // Chat
+  chatSessions: ChatSession[];
+  startChatSession: (visitorId: string, initialMessage: { text: string }) => Promise<string>;
+  sendChatMessage: (sessionId: string, message: Omit<ChatMessage, 'id' | 'sessionId' | 'timestamp'>) => Promise<void>;
+  markSessionAsRead: (sessionId: string, userType: 'visitor' | 'admin') => Promise<void>;
+  closeChatSession: (sessionId: string) => Promise<void>;
 
   setViewMode: (clientId: string | null) => void;
   updateSystemTimezone: (timezone: string) => void;
@@ -284,8 +298,4 @@ export interface AppContextType {
   completeTenantSignup: (token: string, password: string) => Promise<{success: boolean, message: string}>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
   restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
-  
-  // Demo Bookings
-  addDemoBooking: (bookingData: Omit<DemoBooking, 'id' | 'status' | 'createdAt'>) => Promise<void>;
-  markBookingAsDone: (bookingId: string) => Promise<void>;
 }
