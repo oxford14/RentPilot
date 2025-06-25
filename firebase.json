@@ -1,6 +1,7 @@
 
 {
   "hosting": {
+    "site": "tenanttracker-u4wuw",
     "public": "public",
     "ignore": [
       "firebase.json",
