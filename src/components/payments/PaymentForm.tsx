@@ -36,7 +36,7 @@ const paymentFormSchema = z.object({
   discountApplied: z.coerce.number().nonnegative({ message: "Discount must be non-negative." }).optional(),
   discountDescription: z.string().max(100, { message: "Description should be 100 characters or less."}).optional(),
 }).superRefine((data, ctx) => {
-  if (data.amount > 0 && !data.paymentMethod) {
+  if ((data.amount ?? 0) > 0 && !data.paymentMethod) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Payment method is required when an amount is paid.",
@@ -48,6 +48,13 @@ const paymentFormSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Either amount paid or discount applied must be greater than zero.",
       path: ["amount"],
+    });
+  }
+  if ((data.discountApplied === 0 || data.discountApplied === undefined) && (data.discountDescription?.trim() ?? '') !== '') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Description cannot be provided if no discount is applied.",
+      path: ["discountDescription"],
     });
   }
 });
@@ -181,12 +188,6 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         return;
       }
     }
-    if (discount === 0 && discountDesc.trim() !== '') {
-        form.setError("discountDescription", {type: "manual", message: "Description cannot be provided if no discount is applied."});
-        toast({variant: "destructive", title: "Invalid Description", description: "Cannot add description if no discount is applied."});
-        return;
-    }
-
 
     try {
       const payload = {
@@ -194,7 +195,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         date: data.date.toISOString(), 
         discountApplied: discount, 
         discountDescription: discountDesc, 
-        paymentMethod: data.paymentMethod 
+        paymentMethod: (data.amount ?? 0) > 0 ? data.paymentMethod : undefined
       };
 
       if (isEditing && payment) {
@@ -491,8 +492,13 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                 name="paymentMethod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{(form.getValues("amount") || 0) > 0 ? 'Payment Method' : 'Payment Method (Optional)'}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormLabel>{currentAmountPaid > 0 ? 'Payment Method' : 'Payment Method (Not applicable)'}</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value} 
+                      defaultValue={field.value}
+                      disabled={currentAmountPaid === 0}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select payment method" />
@@ -540,7 +546,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                 <DialogClose asChild>
                   <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit" variant="default">{isEditing ? 'Save Changes' : 'Record Payment'}</Button>
+                <Button type="submit" variant="default" disabled={form.formState.isSubmitting}>{isEditing ? 'Save Changes' : 'Record Payment'}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -558,3 +564,5 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     </>
   );
 }
+
+    
