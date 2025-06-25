@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -20,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, CalendarCheck } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, CalendarCheck, ListPlus } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -61,6 +62,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
   { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
+  { isGroup: false, href: '/additional-dues', label: 'Additional Dues', icon: ListPlus },
   { isGroup: false, href: '/monitoring', label: 'Monitoring', icon: BellRing },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
   {
@@ -421,7 +423,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && item.href !== '/subscription' && item.href !== '/monitoring'}
+                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile'].includes(item.href)}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
@@ -543,7 +545,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && 'p-6')}>
-            {subscriptionExpired && pathname !== '/subscription' ? (
+            {subscriptionExpired && !['/subscription', '/profile', '/settings'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">
                   <CardHeader>
@@ -557,7 +559,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </CardHeader>
                   <CardContent>
                       <p className="text-muted-foreground">
-                          Please contact your administrator or RentPilot support to renew your plan and restore full access to your account and data.
+                          Please go to the <Link href="/subscription" className="font-semibold text-primary underline">Subscription</Link> page to renew your plan, or contact your administrator.
                       </p>
                   </CardContent>
                 </Card>

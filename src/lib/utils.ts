@@ -1,14 +1,15 @@
 
+
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { Tenant, Payment } from '@/lib/types';
+import type { Tenant, Payment, AdditionalDue } from '@/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 // All dates here are treated as UTC dates at midnight
-export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], upToDate: Date): number {
+export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], allDues: AdditionalDue[], upToDate: Date): number {
   // `upToDate` is the last day to be included. So we set our boundary to be the start of the *next* day in UTC.
   const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
   
@@ -59,13 +60,24 @@ export function calculateTenantBalance(tenant: Tenant, allPayments: Payment[], u
     return sum + paymentAmount + discountAmount;
   }, 0);
   
-  return totalExpectedBilled - totalCreditedToTenant;
+  const rentBalance = totalExpectedBilled - totalCreditedToTenant;
+
+  // --- Additional Dues Calculation ---
+  const totalUnpaidDues = allDues
+    .filter(due => {
+      const dueDate = new Date(due.dueDate); // due.dueDate is ISO string, parsed as UTC.
+      return due.tenantId === tenant.id && due.status === 'unpaid' && dueDate < boundaryDate;
+    })
+    .reduce((sum, due) => sum + due.amount, 0);
+
+  return rentBalance + totalUnpaidDues;
 }
 
 
 export const isTenantCurrentlyDueForRent = (
   tenant: Tenant,
   allPayments: Payment[],
+  allDues: AdditionalDue[],
   currentDate: Date // Assumed to be UTC start of day from caller
 ): boolean => {
   if (tenant.status !== 'active') {
@@ -87,6 +99,6 @@ export const isTenantCurrentlyDueForRent = (
 
   // To be "due", they must have a positive balance.
   // This now calls the fixed calculation logic.
-  const balance = calculateTenantBalance(tenant, allPayments, currentUTCDate);
+  const balance = calculateTenantBalance(tenant, allPayments, allDues, currentUTCDate);
   return balance > 0;
 };

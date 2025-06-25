@@ -1,4 +1,5 @@
 
+
 {
   "indexes": [
     {
@@ -43,6 +44,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "clientId", "order": "ASCENDING" }
+      ]
+    },
+     {
+      "collectionGroup": "additionalDues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "additionalDues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" }
       ]
     },
     {

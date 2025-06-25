@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, DemoBooking } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, DemoBooking, AdditionalDue } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,6 +46,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
   const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
+  const [rawAdditionalDuesState, setRawAdditionalDuesState] = useState<AdditionalDue[]>([]);
   const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
   const [rawDemoBookingsState, setRawDemoBookingsState] = useState<DemoBooking[]>([]);
@@ -77,6 +79,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawManagedUsersState([]);
       setRawSuperAdminUsersState([]);
       setRawExpensesState([]);
+      setRawAdditionalDuesState([]);
       setRawBusinessesState([]);
       setRawWeeklyIncomesState([]);
       setRawDemoBookingsState([]);
@@ -95,6 +98,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'managedUsers', setter: setRawManagedUsersState, label: 'managed users' },
       { name: 'superAdminUsers', setter: setRawSuperAdminUsersState, label: 'super admin users' },
       { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
+      { name: 'additionalDues', setter: setRawAdditionalDuesState, label: 'additional dues'},
       { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
       { name: 'demo_bookings', setter: setRawDemoBookingsState, label: 'demo bookings'},
@@ -141,36 +145,51 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSystemTimezoneState(timezone);
   };
 
+  const getScopedClientId = useCallback(() => {
+    if (!authIsAuthenticated) return undefined;
+    if (authUser?.isSuperAdmin) {
+      return viewingAsClientId ? viewingAsClientId : undefined;
+    }
+    return authUser?.clientId;
+  }, [authUser, authIsAuthenticated, viewingAsClientId]);
+
+
   // Filtered data based on auth user and view mode
   const tenants = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    if (authUser?.isSuperAdmin) {
-      return viewingAsClientId === null
-        ? rawTenantsState.filter(t => !t.clientId) // Global tenants
-        : rawTenantsState.filter(t => t.clientId === viewingAsClientId);
+    const clientId = getScopedClientId();
+    if (authUser?.isSuperAdmin && !clientId) {
+      return rawTenantsState.filter(t => !t.clientId);
     }
-    return rawTenantsState.filter(t => t.clientId === authUser?.clientId);
-  }, [rawTenantsState, viewingAsClientId, authUser, authIsAuthenticated]);
+    return rawTenantsState.filter(t => t.clientId === clientId);
+  }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated]);
 
   const payments = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    if (authUser?.isSuperAdmin) {
-      return viewingAsClientId === null
-        ? rawPaymentsState.filter(p => !p.clientId) // Global payments
-        : rawPaymentsState.filter(p => p.clientId === viewingAsClientId);
+    const clientId = getScopedClientId();
+     if (authUser?.isSuperAdmin && !clientId) {
+      return rawPaymentsState.filter(p => !p.clientId);
     }
-    return rawPaymentsState.filter(p => p.clientId === authUser?.clientId);
-  }, [rawPaymentsState, viewingAsClientId, authUser, authIsAuthenticated]);
+    return rawPaymentsState.filter(p => p.clientId === clientId);
+  }, [rawPaymentsState, getScopedClientId, authUser, authIsAuthenticated]);
   
   const expenses = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    if (authUser?.isSuperAdmin) {
-      return viewingAsClientId === null
-        ? rawExpensesState.filter(e => !e.clientId) // Global expenses
-        : rawExpensesState.filter(e => e.clientId === viewingAsClientId);
+    const clientId = getScopedClientId();
+    if (authUser?.isSuperAdmin && !clientId) {
+      return rawExpensesState.filter(e => !e.clientId);
     }
-    return rawExpensesState.filter(e => e.clientId === authUser?.clientId);
-  }, [rawExpensesState, viewingAsClientId, authUser, authIsAuthenticated]);
+    return rawExpensesState.filter(e => e.clientId === clientId);
+  }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated]);
+
+  const additionalDues = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    if (authUser?.isSuperAdmin && !clientId) {
+      return rawAdditionalDuesState.filter(d => !d.clientId);
+    }
+    return rawAdditionalDuesState.filter(d => d.clientId === clientId);
+  }, [rawAdditionalDuesState, getScopedClientId, authUser, authIsAuthenticated]);
 
   const managedUsers = useMemo(() => {
     if (!authIsAuthenticated) return [];
@@ -202,12 +221,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    let determinedClientId: string | undefined = undefined;
-    if (authUser?.isSuperAdmin && viewingAsClientId) {
-      determinedClientId = viewingAsClientId;
-    } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
-      determinedClientId = authUser.clientId;
-    }
+    let determinedClientId: string | undefined = getScopedClientId();
     const newTenantData: Omit<Tenant, 'id'> = {
       ...tenantData,
       hasAccount: false, // Initialize tenant-specific fields
@@ -251,9 +265,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const paymentsQuery = query(collection(db, 'payments'), where('tenantId', '==', tenantId));
       const paymentDocs = await getDocs(paymentsQuery);
-      const hasPaymentHistory = !paymentDocs.empty;
+      
+      const duesQuery = query(collection(db, 'additionalDues'), where('tenantId', '==', tenantId));
+      const dueDocs = await getDocs(duesQuery);
 
-      if (hasPaymentHistory) {
+      const hasHistory = !paymentDocs.empty || !dueDocs.empty;
+
+      if (hasHistory) {
         await updateDoc(tenantDocRef, { status: 'inactive' });
         return { success: true, message: `Tenant "${tenantData.name}" marked as inactive.`, action: 'inactivated' };
       } else {
@@ -272,12 +290,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    let determinedClientId: string | undefined = undefined;
-    if (authUser?.isSuperAdmin && viewingAsClientId) {
-      determinedClientId = viewingAsClientId;
-    } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
-      determinedClientId = authUser.clientId;
-    }
+    let determinedClientId: string | undefined = getScopedClientId();
      const newPaymentData: Omit<Payment, 'id'> = {
       tenantId: paymentData.tenantId,
       date: paymentData.date,
@@ -327,12 +340,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    let determinedClientId: string | undefined = undefined;
-    if (authUser?.isSuperAdmin && viewingAsClientId) {
-      determinedClientId = viewingAsClientId;
-    } else if (!authUser?.isSuperAdmin && authUser?.clientId) {
-      determinedClientId = authUser.clientId;
-    }
+    let determinedClientId: string | undefined = getScopedClientId();
     const newExpenseData: Omit<Expense, 'id'> = {
       ...expenseData,
       ...(determinedClientId && { clientId: determinedClientId })
@@ -369,6 +377,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error deleting expense from Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
+    }
+  };
+
+  const addAdditionalDue = async (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
+    let determinedClientId: string | undefined = getScopedClientId();
+    const newDueData = {
+      ...dueData,
+      createdAt: new Date().toISOString(),
+      ...(determinedClientId && { clientId: determinedClientId })
+    };
+    try {
+      await addDoc(collection(db, 'additionalDues'), newDueData);
+    } catch (error: any) {
+      console.error("Error adding additional due:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add due: ${error.message}` });
+    }
+  };
+  
+  const updateAdditionalDue = async (updatedDue: AdditionalDue) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
+    const { id, ...dataToUpdate } = updatedDue;
+    try {
+      await setDoc(doc(db, 'additionalDues', id), dataToUpdate, { merge: true });
+    } catch (error: any) {
+      console.error("Error updating additional due:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update due: ${error.message}` });
+    }
+  };
+  
+  const deleteAdditionalDue = async (dueId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'additionalDues', dueId));
+    } catch (error: any) {
+      console.error("Error deleting additional due:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete due: ${error.message}` });
     }
   };
 
@@ -435,7 +489,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
     try {
       batch.delete(doc(db, 'clients', clientId));
-      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'businesses', 'weeklyIncomes'];
+      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes'];
       for (const collName of collectionsToDelete) {
         const q = query(collection(db, collName), where('clientId', '==', clientId));
         const snapshot = await getDocs(q);
@@ -569,7 +623,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const batch = writeBatch(db);
-        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'businesses', 'weeklyIncomes'];
+        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes'];
         
         for (const collName of collectionsToDelete) {
           const q = query(collection(db, collName), where('clientId', '==', clientId));
@@ -605,9 +659,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     let collectionsToClear: string[];
     
     if (backupType === 'Full System Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers', 'businesses', 'weeklyIncomes'];
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers', 'businesses', 'weeklyIncomes', 'additionalDues'];
     } else if (backupType === 'All Client Data Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'businesses', 'weeklyIncomes'];
+        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'businesses', 'weeklyIncomes', 'additionalDues'];
     } else {
         return { success: false, message: `Unknown backup type: "${backupType}". Restore aborted.` };
     }
@@ -819,6 +873,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawSuperAdminUsers: rawSuperAdminUsersState,
     expenses,
     expenseCategories: definedExpenseCategories,
+    additionalDues,
     viewingAsClientId,
     systemTimezone: systemTimezoneState,
     businesses,
@@ -852,6 +907,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateExpense,
     deleteExpense,
     
+    addAdditionalDue,
+    updateAdditionalDue,
+    deleteAdditionalDue,
+
     addBusiness,
     updateBusiness,
     deleteBusiness,
@@ -862,6 +921,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawTenants: rawTenantsState,
     rawPayments: rawPaymentsState,
     rawExpenses: rawExpensesState,
+    rawAdditionalDues: rawAdditionalDuesState,
     
     rawBusinesses: rawBusinessesState,
     rawWeeklyIncomes: rawWeeklyIncomesState,

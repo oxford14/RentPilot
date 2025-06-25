@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -13,7 +14,7 @@ import { startOfDay } from 'date-fns';
 
 export function TenantDashboard() {
   const { user } = useAuth();
-  const { tenants, payments } = useAppContext();
+  const { tenants, payments, additionalDues } = useAppContext();
   const [balance, setBalance] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -28,10 +29,10 @@ export function TenantDashboard() {
 
   useEffect(() => {
     if (currentTenant && clientToday) {
-      const currentBalance = calculateTenantBalance(currentTenant, payments, clientToday);
+      const currentBalance = calculateTenantBalance(currentTenant, payments, additionalDues, clientToday);
       setBalance(currentBalance);
     }
-  }, [currentTenant, payments, clientToday]);
+  }, [currentTenant, payments, additionalDues, clientToday]);
 
   if (!currentTenant) {
     return (
@@ -101,7 +102,11 @@ export function TenantDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PaymentsTable tenantId={currentTenant.id} />
+          <PaymentsTable 
+            tenantId={currentTenant.id} 
+            onEdit={() => {}} 
+            onDelete={() => {}} 
+          />
         </CardContent>
       </Card>
     </div>

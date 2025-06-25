@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -32,7 +33,7 @@ export default function PaymentsPage() {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [amountDue, setAmountDue] = useState<number | null>(null); 
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
-  const { payments, tenants, deletePayment, systemTimezone } = useAppContext(); 
+  const { payments, tenants, deletePayment, systemTimezone, additionalDues } = useAppContext(); 
   const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -95,10 +96,10 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     if (selectedTenant && clientToday) {
-      const currentBalance = calculateTenantBalance(selectedTenant, payments, clientToday);
+      const currentBalance = calculateTenantBalance(selectedTenant, payments, additionalDues, clientToday);
       setAmountDue(currentBalance);
 
-      if (isTenantCurrentlyDueForRent(selectedTenant, payments, clientToday)) {
+      if (isTenantCurrentlyDueForRent(selectedTenant, payments, additionalDues, clientToday)) {
         setRentStatusMessage("Rent is due for the current period");
       } else {
         setRentStatusMessage(null);
@@ -108,7 +109,7 @@ export default function PaymentsPage() {
       setAmountDue(null); 
       setRentStatusMessage(null);
     }
-  }, [selectedTenant, payments, clientToday, tenants]); 
+  }, [selectedTenant, payments, additionalDues, clientToday, tenants]); 
 
   return (
     <div className="container mx-auto py-2 space-y-6">

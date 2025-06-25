@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -19,7 +20,7 @@ interface DelinquencyPredictionResult extends DelinquencyPredictionOutput {
 }
 
 export function DelinquencyCard() {
-  const { tenants, payments } = useAppContext();
+  const { tenants, payments, additionalDues } = useAppContext();
   const { toast } = useToast();
   const [selectedTenantId, setSelectedTenantId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +62,7 @@ export function DelinquencyCard() {
         paymentHistoryString = "No payment history found.";
       }
       
-      const currentBalance = calculateTenantBalance(tenant, payments, clientToday);
+      const currentBalance = calculateTenantBalance(tenant, payments, additionalDues, clientToday);
 
       const input: DelinquencyPredictionInput = {
         tenantName: tenant.name,

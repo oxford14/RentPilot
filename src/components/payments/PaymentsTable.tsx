@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -39,7 +40,7 @@ interface PaymentsTableProps {
 }
 
 export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps) {
-  const { payments: allPaymentsFromContext, tenants: allTenantsFromContext } = useAppContext();
+  const { payments: allPaymentsFromContext, tenants: allTenantsFromContext, additionalDues } = useAppContext();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -66,8 +67,8 @@ export function PaymentsTable({ tenantId, onEdit, onDelete }: PaymentsTableProps
     if (!tenantId || !clientToday) return false;
     const selectedTenant = allTenantsFromContext.find(t => t.id === tenantId);
     if (!selectedTenant) return false;
-    return isTenantCurrentlyDueForRent(selectedTenant, allPaymentsFromContext, clientToday);
-  }, [tenantId, clientToday, allTenantsFromContext, allPaymentsFromContext]);
+    return isTenantCurrentlyDueForRent(selectedTenant, allPaymentsFromContext, additionalDues, clientToday);
+  }, [tenantId, clientToday, allTenantsFromContext, allPaymentsFromContext, additionalDues]);
 
 
   if (!tenantId) {

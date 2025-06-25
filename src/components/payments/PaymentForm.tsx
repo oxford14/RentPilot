@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -57,7 +58,7 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
-  const { tenants, payments: allPayments, addPayment, updatePayment } = useAppContext();
+  const { tenants, payments: allPayments, additionalDues, addPayment, updatePayment } = useAppContext();
   const { toast } = useToast();
   const [amountDueForSelectedTenant, setAmountDueForSelectedTenant] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
@@ -112,7 +113,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     if (selectedTenantId && clientToday) {
       const tenant = tenants.find(t => t.id === selectedTenantId);
       if (tenant) {
-        const balance = calculateTenantBalance(tenant, allPayments, clientToday);
+        const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
         setAmountDueForSelectedTenant(balance);
       } else {
         setAmountDueForSelectedTenant(null);
@@ -120,7 +121,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     } else {
       setAmountDueForSelectedTenant(null);
     }
-  }, [selectedTenantId, tenants, allPayments, clientToday]);
+  }, [selectedTenantId, tenants, allPayments, additionalDues, clientToday]);
 
   useEffect(() => {
     if (isOpen) {
@@ -135,7 +136,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       if (defaultTenantId && clientToday) {
         const tenant = tenants.find(t => t.id === defaultTenantId);
         if (tenant) {
-            const balance = calculateTenantBalance(tenant, allPayments, clientToday);
+            const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
             setAmountDueForSelectedTenant(balance);
         }
       } else {
@@ -143,7 +144,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, defaultTenantId, form, clientToday, tenants, allPayments]);
+  }, [isOpen, defaultTenantId, form, clientToday, tenants, allPayments, additionalDues]);
 
 
   const onSubmit = (data: PaymentFormValues) => {
@@ -391,7 +392,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
               name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Payment Method {(form.getValues("amount") || 0) > 0 ? '' : '(Optional)'}</FormLabel>
+                  <FormLabel>{(form.getValues("amount") || 0) > 0 ? '' : '(Optional)'}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>

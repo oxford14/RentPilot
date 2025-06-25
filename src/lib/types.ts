@@ -1,4 +1,5 @@
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -92,6 +93,22 @@ export interface Expense {
   category: ExpenseCategory;
   clientId?: string; // Firestore document ID of the client, or undefined/null for global expenses
 }
+
+export type AdditionalDueType = 'Water Bill' | 'Electricity Bill' | 'CUSA' | 'Other';
+export const additionalDueTypes: AdditionalDueType[] = ['Water Bill', 'Electricity Bill', 'CUSA', 'Other'];
+
+export interface AdditionalDue {
+  id: string;
+  tenantId: string;
+  clientId?: string;
+  type: AdditionalDueType;
+  amount: number;
+  notes?: string;
+  dueDate: string; // ISO string
+  status: 'paid' | 'unpaid';
+  createdAt: string; // ISO string
+}
+
 
 export interface BreakdownRule {
   id: string; // uuid for local state management
@@ -200,6 +217,7 @@ export interface AppContextType {
   rawSuperAdminUsers: SuperAdminUser[]; // Full list for super admins
   expenses: Expense[]; 
   expenseCategories: ExpenseCategory[];
+  additionalDues: AdditionalDue[];
   viewingAsClientId: string | null;
   systemTimezone: string | null;
   businesses: Business[];
@@ -233,6 +251,10 @@ export interface AppContextType {
   updateExpense: (expense: Expense) => Promise<void>; 
   deleteExpense: (expenseId: string) => Promise<void>; 
   
+  addAdditionalDue: (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt'>) => Promise<void>;
+  updateAdditionalDue: (updatedDue: AdditionalDue) => Promise<void>;
+  deleteAdditionalDue: (dueId: string) => Promise<void>;
+
   addBusiness: (businessName: string) => Promise<void>;
   updateBusiness: (business: Business) => Promise<void>;
   deleteBusiness: (businessId: string) => Promise<void>;
@@ -243,6 +265,7 @@ export interface AppContextType {
   rawTenants: Tenant[];
   rawPayments: Payment[];
   rawExpenses: Expense[];
+  rawAdditionalDues: AdditionalDue[];
   
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];

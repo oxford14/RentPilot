@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -22,7 +23,7 @@ interface ReminderDialogProps {
 
 export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps) {
   const { toast } = useToast();
-  const { payments, clients } = useAppContext();
+  const { payments, additionalDues, clients } = useAppContext();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
@@ -35,7 +36,7 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
         setReminderMessage('');
         try {
           const today = startOfDay(new Date());
-          const balance = calculateTenantBalance(tenant, payments, today);
+          const balance = calculateTenantBalance(tenant, payments, additionalDues, today);
           setAmountDue(balance);
 
           if (balance <= 0) {
@@ -67,7 +68,7 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
       };
       fetchReminder();
     }
-  }, [isOpen, tenant, payments, clients, user?.clientId, toast]);
+  }, [isOpen, tenant, payments, additionalDues, clients, user?.clientId, toast]);
 
   const handleSendReminder = () => {
     console.log("--- SIMULATED SMS REMINDER ---");
