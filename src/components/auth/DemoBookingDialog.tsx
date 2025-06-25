@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, setHours, setMinutes, startOfDay } from 'date-fns';
+import { format, setHours, setMinutes, startOfDay, isToday as isTodayFns } from 'date-fns';
 import { CalendarIcon, Clock, CheckCircle, Send, Loader2 } from 'lucide-react';
 
 const bookingFormSchema = z.object({
@@ -28,7 +28,7 @@ const bookingFormSchema = z.object({
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>;
 
-const availableTimes = [
+const allAvailableTimes = [
   '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'
 ];
@@ -51,6 +51,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [timeSlots, setTimeSlots] = useState(allAvailableTimes);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
@@ -61,10 +62,43 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     },
   });
 
+  const selectedDate = form.watch('date');
+
+  useEffect(() => {
+    if (!selectedDate) {
+      setTimeSlots(allAvailableTimes);
+      return;
+    }
+
+    const now = new Date();
+    if (isTodayFns(selectedDate)) {
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+
+      const filteredTimes = allAvailableTimes.filter(time => {
+        const [hour, minute] = time.split(':').map(Number);
+        if (hour > currentHour) return true;
+        if (hour === currentHour && minute > currentMinute) return true;
+        return false;
+      });
+
+      setTimeSlots(filteredTimes);
+
+      // Reset selected time if it's no longer available
+      const currentSelectedTime = form.getValues('time');
+      if (currentSelectedTime && !filteredTimes.includes(currentSelectedTime)) {
+        form.setValue('time', undefined, { shouldValidate: true });
+      }
+    } else {
+      setTimeSlots(allAvailableTimes);
+    }
+  }, [selectedDate, form]);
+
   useEffect(() => {
     if (isOpen) {
       form.reset();
       setIsSubmitted(false);
+      setTimeSlots(allAvailableTimes);
     }
   }, [isOpen, form]);
 
@@ -205,7 +239,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Time</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <Clock className="mr-2 h-4 w-4 opacity-50" />
@@ -213,9 +247,15 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {availableTimes.map(time => (
-                            <SelectItem key={time} value={time}>{formatTime(time)}</SelectItem>
-                          ))}
+                          {timeSlots.length > 0 ? (
+                            timeSlots.map(time => (
+                              <SelectItem key={time} value={time}>{formatTime(time)}</SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              No available slots for today.
+                            </div>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
