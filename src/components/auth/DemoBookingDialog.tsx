@@ -209,7 +209,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                              className={cn("w-full pl-3 text-left font-normal bg-secondary", !field.value && "text-muted-foreground")}
                             >
                               {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
