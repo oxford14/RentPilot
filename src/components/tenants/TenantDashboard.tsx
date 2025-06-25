@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { calculateTenantBalance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { DollarSign, CheckCircle2, FileText, Info } from 'lucide-react';
+import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote } from 'lucide-react';
 import { startOfDay } from 'date-fns';
 
 export function TenantDashboard() {
@@ -54,7 +54,7 @@ export function TenantDashboard() {
         icon = <DollarSign className="h-5 w-5 text-destructive" />;
         amountColor = "text-destructive";
     } else if (balance < 0) {
-        text = "Current Credit/Deposit:";
+        text = "Current Credit:";
         icon = <CheckCircle2 className="h-5 w-5 text-green-500" />;
         amountColor = "text-green-600";
     } else {
@@ -75,16 +75,25 @@ export function TenantDashboard() {
       {balanceInfo && (
         <Card className="shadow-lg">
             <CardHeader>
-                <CardTitle className="font-headline text-lg">Your Balance</CardTitle>
+                <CardTitle className="font-headline text-lg">Your Account Summary</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
-                        {balanceInfo.icon}
-                        <span className="font-semibold text-xl">{balanceInfo.text}</span>
+                        <Banknote className="h-5 w-5 text-primary" />
+                        <span className="font-semibold text-lg">{balance > 0 ? 'Amount Due' : (balance < 0 ? 'Credit' : 'Balance')}</span>
                     </div>
-                    <span className={cn("font-bold text-2xl", balanceInfo.amountColor)}>
+                    <span className={cn("font-bold text-xl", balanceInfo.amountColor)}>
                         ₱{balanceInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                </div>
+                 <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5 text-primary" />
+                        <span className="font-semibold text-lg">Security Deposit</span>
+                    </div>
+                    <span className="font-bold text-xl text-primary">
+                        ₱{(currentTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                 </div>
             </CardContent>

@@ -8,7 +8,7 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant, Payment } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, CalendarClock, ShieldCheck, Banknote } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,7 @@ export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  const [amountDue, setAmountDue] = useState<number | null>(null); 
+  const [runningBalance, setRunningBalance] = useState<number | null>(null); 
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
   const { payments, tenants, deletePayment, systemTimezone, additionalDues } = useAppContext(); 
   const { toast } = useToast();
@@ -97,7 +97,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     if (selectedTenant && clientToday) {
       const currentBalance = calculateTenantBalance(selectedTenant, payments, additionalDues, clientToday);
-      setAmountDue(currentBalance);
+      setRunningBalance(currentBalance);
 
       if (isTenantCurrentlyDueForRent(selectedTenant, payments, additionalDues, clientToday)) {
         setRentStatusMessage("Rent is due for the current period");
@@ -106,7 +106,7 @@ export default function PaymentsPage() {
       }
 
     } else {
-      setAmountDue(null); 
+      setRunningBalance(null); 
       setRentStatusMessage(null);
     }
   }, [selectedTenant, payments, additionalDues, clientToday, tenants]); 
@@ -174,31 +174,38 @@ export default function PaymentsPage() {
             <CardDescription className="text-xs">
               {selectedTenant ? `Showing all payments for ${selectedTenant.name}.` : "Select a tenant from the list to view their payments."}
             </CardDescription>
-            {selectedTenant && amountDue !== null && clientToday && (
-              <div className="mt-3 p-3 border rounded-md bg-muted/50 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {amountDue > 0 && <DollarSign className="h-5 w-5 text-destructive" />}
-                    {amountDue < 0 && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                    {amountDue === 0 && <DollarSign className="h-5 w-5 text-muted-foreground" />}
-                    <span className="font-semibold text-md">
-                      {amountDue > 0 ? "Current Amount Due:" : amountDue < 0 ? "Current Credit/Deposit:" : "Current Balance:"}
-                    </span>
-                  </div>
-                  <span className={cn("font-bold text-lg", 
-                        amountDue > 0 ? "text-destructive" : 
-                        amountDue < 0 ? "text-green-600" : "text-foreground")}>
-                    ₱{Math.abs(amountDue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+            {selectedTenant && runningBalance !== null && clientToday && (
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 border rounded-md bg-muted/50 space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Banknote className="h-4 w-4"/>
+                        <span>Current Balance</span>
+                    </div>
+                    <div className={cn("font-bold text-lg", 
+                        runningBalance > 0 ? "text-destructive" : 
+                        runningBalance < 0 ? "text-green-600" : "text-foreground")}>
+                        {runningBalance > 0 ? '₱' + runningBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Due' 
+                         : runningBalance < 0 ? '₱' + Math.abs(runningBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Credit' 
+                         : '₱0.00 Settled'}
+                    </div>
+                     {rentStatusMessage && runningBalance > 0 && (
+                        <div className="flex items-center justify-start pt-1">
+                            <Badge variant="outline" className="bg-orange-500/20 text-orange-700 border-orange-500">
+                                <CalendarClock className="h-3 w-3 mr-1" />
+                                {rentStatusMessage}
+                            </Badge>
+                        </div>
+                    )}
                 </div>
-                {rentStatusMessage && amountDue > 0 && (
-                   <div className="flex items-center justify-start">
-                     <Badge variant="outline" className="bg-orange-500/20 text-orange-700 border-orange-500">
-                        <CalendarClock className="h-3 w-3 mr-1" />
-                        {rentStatusMessage}
-                    </Badge>
-                   </div>
-                )}
+                 <div className="p-3 border rounded-md bg-muted/50 space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ShieldCheck className="h-4 w-4"/>
+                        <span>Security Deposit on File</span>
+                    </div>
+                    <div className="font-bold text-lg text-primary">
+                        {'₱' + (selectedTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                </div>
               </div>
             )}
           </CardHeader>

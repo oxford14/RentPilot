@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { Payment, PaymentMethod, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { calculateTenantBalance } from '@/lib/utils';
@@ -60,7 +60,7 @@ interface PaymentFormProps {
 export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
   const { tenants, payments: allPayments, additionalDues, addPayment, updatePayment } = useAppContext();
   const { toast } = useToast();
-  const [amountDueForSelectedTenant, setAmountDueForSelectedTenant] = useState<number | null>(null);
+  const [runningBalanceForTenant, setRunningBalanceForTenant] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   const isEditing = !!payment;
@@ -108,20 +108,19 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   const currentDiscountApplied = form.watch('discountApplied') || 0;
   const showDiscountDescription = currentDiscountApplied > 0;
 
+  const selectedTenant = useMemo(() => {
+    return tenants.find(t => t.id === selectedTenantId)
+  }, [selectedTenantId, tenants]);
+
 
   useEffect(() => {
-    if (selectedTenantId && clientToday) {
-      const tenant = tenants.find(t => t.id === selectedTenantId);
-      if (tenant) {
-        const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
-        setAmountDueForSelectedTenant(balance);
-      } else {
-        setAmountDueForSelectedTenant(null);
-      }
+    if (selectedTenant && clientToday) {
+      const balance = calculateTenantBalance(selectedTenant, allPayments, additionalDues, clientToday);
+      setRunningBalanceForTenant(balance);
     } else {
-      setAmountDueForSelectedTenant(null);
+      setRunningBalanceForTenant(null);
     }
-  }, [selectedTenantId, tenants, allPayments, additionalDues, clientToday]);
+  }, [selectedTenant, allPayments, additionalDues, clientToday]);
 
   useEffect(() => {
     if (isOpen) {
@@ -137,10 +136,10 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         const tenant = tenants.find(t => t.id === defaultTenantId);
         if (tenant) {
             const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
-            setAmountDueForSelectedTenant(balance);
+            setRunningBalanceForTenant(balance);
         }
       } else {
-        setAmountDueForSelectedTenant(null);
+        setRunningBalanceForTenant(null);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,13 +151,13 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     const discountDesc = data.discountDescription || '';
 
     if (discount > 0 && !isEditing) {
-      if (amountDueForSelectedTenant === null || amountDueForSelectedTenant <= 0) {
+      if (runningBalanceForTenant === null || runningBalanceForTenant <= 0) {
         form.setError("discountApplied", { type: "manual", message: "Cannot apply discount when no amount is due or tenant has a credit." });
         toast({ variant: "destructive", title: "Invalid Discount", description: "Discount cannot be applied if there is no outstanding balance." });
         return;
       }
-      if (discount > amountDueForSelectedTenant) {
-        form.setError("discountApplied", { type: "manual", message: `Discount (₱${discount.toFixed(2)}) cannot exceed the amount due (₱${amountDueForSelectedTenant.toFixed(2)}).` });
+      if (discount > runningBalanceForTenant) {
+        form.setError("discountApplied", { type: "manual", message: `Discount (₱${discount.toFixed(2)}) cannot exceed the amount due (₱${runningBalanceForTenant.toFixed(2)}).` });
         toast({ variant: "destructive", title: "Invalid Discount", description: `Discount cannot exceed the amount due.` });
         return;
       }
@@ -194,31 +193,31 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   };
 
   const balanceInfo = useMemo(() => {
-    if (amountDueForSelectedTenant === null) return null;
+    if (runningBalanceForTenant === null) return null;
     
     let text = "";
     let icon = <Info className="h-4 w-4 text-muted-foreground" />;
     let amountColor = "text-foreground";
 
-    if (amountDueForSelectedTenant > 0) {
+    if (runningBalanceForTenant > 0) {
         text = "Amount Due Before This Transaction:";
-        icon = <DollarSign className="h-4 w-4 text-destructive" />;
+        icon = <Banknote className="h-4 w-4 text-destructive" />;
         amountColor = "text-destructive";
-    } else if (amountDueForSelectedTenant < 0) {
+    } else if (runningBalanceForTenant < 0) {
         text = "Credit Before This Transaction:";
         icon = <CheckCircle2 className="h-4 w-4 text-green-500" />;
         amountColor = "text-green-600";
     } else {
         text = "Balance Before This Transaction:";
-        icon = <DollarSign className="h-4 w-4 text-muted-foreground" />;
+        icon = <Banknote className="h-4 w-4 text-muted-foreground" />;
     }
-    return { text, icon, amount: Math.abs(amountDueForSelectedTenant), amountColor };
-  }, [amountDueForSelectedTenant]);
+    return { text, icon, amount: Math.abs(runningBalanceForTenant), amountColor };
+  }, [runningBalanceForTenant]);
 
   const transactionSummary = useMemo(() => {
-    if (amountDueForSelectedTenant === null) return null;
+    if (runningBalanceForTenant === null) return null;
     const totalCredited = Number(currentAmountPaid) + Number(currentDiscountApplied);
-    const remainingBalance = amountDueForSelectedTenant - totalCredited;
+    const remainingBalance = runningBalanceForTenant - totalCredited;
     
     let remainingBalanceText = "Remaining Balance:";
     let remainingBalanceColor = "text-foreground";
@@ -235,7 +234,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       remainingBalanceText,
       remainingBalanceColor,
     };
-  }, [amountDueForSelectedTenant, currentAmountPaid, currentDiscountApplied]);
+  }, [runningBalanceForTenant, currentAmountPaid, currentDiscountApplied]);
 
 
   return (
@@ -392,7 +391,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
               name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{(form.getValues("amount") || 0) > 0 ? '' : '(Optional)'}</FormLabel>
+                  <FormLabel>{(form.getValues("amount") || 0) > 0 ? 'Payment Method' : 'Payment Method (Optional)'}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -412,7 +411,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
               )}
             />
 
-            {!isEditing && transactionSummary && selectedTenantId && (amountDueForSelectedTenant !== null) && (
+            {!isEditing && transactionSummary && selectedTenantId && (runningBalanceForTenant !== null) && (
                 <div className="mt-2 p-3 border-t text-sm space-y-1">
                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">

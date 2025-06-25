@@ -34,6 +34,7 @@ export interface Tenant {
   email: string;
   phone: string;
   monthlyRentalRate: number;
+  securityDeposit?: number;
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
   clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants

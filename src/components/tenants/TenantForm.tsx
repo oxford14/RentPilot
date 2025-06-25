@@ -20,6 +20,7 @@ const tenantFormSchema = z.object({
   email: z.string().email({ message: "Invalid email format." }),
   phone: z.string().min(10, { message: "Phone must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
+  securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
 });
@@ -43,12 +44,14 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       ...tenant,
       email: tenant.email || '',
       phone: tenant.phone || '',
+      securityDeposit: tenant.securityDeposit || 0,
       joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
     } : {
       name: '',
       email: '',
       phone: '',
       monthlyRentalRate: 0,
+      securityDeposit: 0,
       status: 'active' as 'active' | 'inactive',
       joinDate: newTenantJoinDate,
     };
@@ -67,9 +70,10 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
             ...tenant,
             email: tenant.email || '',
             phone: tenant.phone || '',
+            securityDeposit: tenant.securityDeposit || 0,
             joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate
           }
-        : { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
+        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
       );
     }
   }, [tenant, isOpen, form, newTenantJoinDate]);
@@ -93,7 +97,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         addTenant({...submissionData, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
-      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
+      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
       form.reset(resetValues); 
       onClose();
     } catch (error) {
@@ -167,6 +171,20 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
               />
               <FormField
                 control={form.control}
+                name="securityDeposit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Security Deposit (₱)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g. 2400" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+             <FormField
+                control={form.control}
                 name="joinDate"
                 render={({ field }) => (
                   <FormItem>
@@ -178,7 +196,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
-            </div>
             
             <FormField
               control={form.control}
