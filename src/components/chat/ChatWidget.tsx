@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
 import { MessageSquare, X, Send, User, Shield } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, orderBy, doc } from 'firebase/firestore';
 
 const VISITOR_ID_KEY = 'rentpilot_visitorId';
 const CHAT_SESSION_ID_KEY = 'rentpilot_chatSessionId';
@@ -48,7 +48,7 @@ export function ChatWidget() {
     if (!sessionId) return;
     localStorage.setItem(CHAT_SESSION_ID_KEY, sessionId);
 
-    const q = query(collection(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
+    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newMessages: ChatMessage[] = [];
