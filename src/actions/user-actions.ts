@@ -182,6 +182,38 @@ export async function serverForceChangeTenantPassword(tenantId: string, newPassw
 }
 
 
+// Tenant self-service password change
+export async function serverChangeTenantPassword(
+  tenantId: string,
+  currentPasswordInput: string,
+  newPasswordInput: string
+): Promise<{ success: boolean; message: string }> {
+  const tenantDocRef = doc(db, 'tenants', tenantId);
+  const tenantSnapshot = await getDoc(tenantDocRef);
+
+  if (!tenantSnapshot.exists()) {
+    return { success: false, message: 'Tenant not found.' };
+  }
+
+  const tenantData = tenantSnapshot.data() as Tenant;
+
+  if (!tenantData.hasAccount) {
+    return { success: false, message: 'Account not active.' };
+  }
+  
+  const isMatch = await verifyPasswordAndMigrate(tenantDocRef, currentPasswordInput, tenantData.password);
+
+  if (!isMatch) {
+    return { success: false, message: 'Incorrect current password.' };
+  }
+
+  const newHashedPassword = await hashPassword(newPasswordInput);
+  await updateDoc(tenantDocRef, { password: newHashedPassword });
+
+  return { success: true, message: 'Password changed successfully.' };
+}
+
+
 // Login Verification Action
 export async function serverVerifyCredentials(usernameInput: string, passwordInput: string): Promise<User | null> {
     // 1. Check primary hardcoded super admin
