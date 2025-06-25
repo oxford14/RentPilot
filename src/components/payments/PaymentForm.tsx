@@ -17,10 +17,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { Payment, PaymentMethod, Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck } from 'lucide-react';
 import { format, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { calculateTenantBalance } from '@/lib/utils';
+import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
 
 const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Other'];
 
@@ -62,6 +63,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   const { toast } = useToast();
   const [runningBalanceForTenant, setRunningBalanceForTenant] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
 
   const isEditing = !!payment;
 
@@ -70,37 +72,46 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   }, []);
 
   const activeTenants = tenants.filter(t => t.status === 'active');
+  
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+  });
 
-  const defaultValues = React.useMemo(() => {
-    if (payment) {
-        return {
+  useEffect(() => {
+    if (isOpen) {
+       const resetValues = payment
+        ? {
             ...payment,
             date: new Date(payment.date),
             amount: Number(payment.amount),
             discountApplied: Number(payment.discountApplied || 0),
             discountDescription: payment.discountDescription || '',
         }
-    }
-    return {
-      tenantId: defaultTenantId || '',
-      amount: 0,
-      date: new Date(),
-      paymentMethod: undefined,
-      discountApplied: 0, 
-      discountDescription: '',
-    };
-  }, [payment, defaultTenantId]);
+        : {
+          tenantId: defaultTenantId || '',
+          amount: 0,
+          date: new Date(),
+          paymentMethod: undefined,
+          discountApplied: 0, 
+          discountDescription: '',
+        };
+      
+      form.reset(resetValues);
 
-  const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentFormSchema),
-    defaultValues,
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      form.reset(defaultValues);
+      const tenantIdForBalance = resetValues.tenantId;
+      if (tenantIdForBalance && clientToday) {
+        const tenant = tenants.find(t => t.id === tenantIdForBalance);
+        if (tenant) {
+          const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
+          setRunningBalanceForTenant(balance);
+        } else {
+          setRunningBalanceForTenant(null);
+        }
+      } else {
+        setRunningBalanceForTenant(null);
+      }
     }
-  }, [isOpen, defaultValues, form]);
+  }, [isOpen, payment, defaultTenantId, form, clientToday, tenants, allPayments, additionalDues]);
 
 
   const selectedTenantId = form.watch('tenantId');
@@ -112,39 +123,14 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     return tenants.find(t => t.id === selectedTenantId)
   }, [selectedTenantId, tenants]);
 
-
   useEffect(() => {
     if (selectedTenant && clientToday) {
       const balance = calculateTenantBalance(selectedTenant, allPayments, additionalDues, clientToday);
       setRunningBalanceForTenant(balance);
-    } else {
-      setRunningBalanceForTenant(null);
+    } else if (!selectedTenant) {
+        setRunningBalanceForTenant(null);
     }
   }, [selectedTenant, allPayments, additionalDues, clientToday]);
-
-  useEffect(() => {
-    if (isOpen) {
-      form.reset({
-        tenantId: defaultTenantId || '',
-        amount: 0,
-        date: new Date(),
-        paymentMethod: undefined,
-        discountApplied: 0, 
-        discountDescription: '',
-      });
-      if (defaultTenantId && clientToday) {
-        const tenant = tenants.find(t => t.id === defaultTenantId);
-        if (tenant) {
-            const balance = calculateTenantBalance(tenant, allPayments, additionalDues, clientToday);
-            setRunningBalanceForTenant(balance);
-        }
-      } else {
-        setRunningBalanceForTenant(null);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, defaultTenantId, form, clientToday, tenants, allPayments, additionalDues]);
-
 
   const onSubmit = (data: PaymentFormValues) => {
     const discount = data.discountApplied || 0;
@@ -235,216 +221,256 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       remainingBalanceColor,
     };
   }, [runningBalanceForTenant, currentAmountPaid, currentDiscountApplied]);
-
+  
+  const canApplyDeposit = selectedTenant && (selectedTenant.securityDeposit || 0) > 0 && runningBalanceForTenant !== null && runningBalanceForTenant > 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
-        <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">{isEditing ? 'Edit Payment' : 'Record New Payment'}</DialogTitle>
-          <DialogDescription>{isEditing ? 'Update the details for this payment record.' : 'Enter the details for the new payment record. Discounts can be applied against the current amount due.'}</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
-            <FormField
-              control={form.control}
-              name="tenantId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tenant</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value} 
-                    defaultValue={field.value}
-                    disabled={isEditing}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a tenant" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeTenants.map(tenant => (
-                        <SelectItem key={tenant.id} value={tenant.id}>
-                          {tenant.name} (Rent: ₱{tenant.monthlyRentalRate.toLocaleString()})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {!isEditing && balanceInfo && (
-                <div className="mt-2 p-3 border rounded-md bg-muted/50 text-sm space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                            {balanceInfo.icon}
-                            <span className="font-medium">{balanceInfo.text}</span>
-                        </div>
-                        <span className={cn("font-semibold", balanceInfo.amountColor)}>
-                            ₱{balanceInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-                </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+          setIsApplyDepositOpen(false); // Ensure child dialog also closes
+        }
+      }}>
+        <DialogContent className="sm:max-w-[520px] bg-card shadow-xl rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl">{isEditing ? 'Edit Payment' : 'Record New Payment'}</DialogTitle>
+            <DialogDescription>{isEditing ? 'Update the details for this payment record.' : 'Enter the details for the new payment record. Discounts can be applied against the current amount due.'}</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
               <FormField
                 control={form.control}
-                name="amount"
+                name="tenantId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount Paid (₱)</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                          <span className="text-muted-foreground">₱</span>
-                        </span>
-                        <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-7" />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="discountApplied"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Discount Applied (₱)</FormLabel>
-                    <FormControl>
-                       <div className="relative">
-                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                          <span className="text-muted-foreground">₱</span>
-                        </span>
-                        <Input type="number" step="0.01" placeholder="e.g. 50" {...field} className="pl-7" />
-                       </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {showDiscountDescription && (
-                 <FormField
-                    control={form.control}
-                    name="discountDescription"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Discount Description</FormLabel>
-                        <FormControl>
-                            <Textarea placeholder="e.g., Early payment incentive, Loyalty bonus" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                 />
-            )}
-            
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Payment Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
+                    <FormLabel>Tenant</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value} 
+                      defaultValue={field.value}
+                      disabled={isEditing}
+                    >
                       <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a tenant" />
+                        </SelectTrigger>
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      <SelectContent>
+                        {activeTenants.map(tenant => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.name} (Rent: ₱{tenant.monthlyRentalRate.toLocaleString()})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{(form.getValues("amount") || 0) > 0 ? 'Payment Method' : 'Payment Method (Optional)'}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {paymentMethods.map(method => (
-                        <SelectItem key={method} value={method}>
-                          {method}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {!isEditing && transactionSummary && selectedTenantId && (runningBalanceForTenant !== null) && (
-                <div className="mt-2 p-3 border-t text-sm space-y-1">
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                            <BadgeDollarSign className="h-4 w-4 text-blue-500" />
-                            <span className="font-medium">Total Credited This Transaction:</span>
+              {!isEditing && (
+                <div className="mt-2 space-y-2">
+                    {balanceInfo && (
+                        <div className="p-3 border rounded-md bg-muted/50 text-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    {balanceInfo.icon}
+                                    <span className="font-medium">{balanceInfo.text}</span>
+                                </div>
+                                <span className={cn("font-semibold", balanceInfo.amountColor)}>
+                                    ₱{balanceInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
                         </div>
-                        <span className="font-semibold text-blue-600">
-                            ₱{transactionSummary.totalCredited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                             {transactionSummary.remainingBalance === 0 && !transactionSummary.remainingBalanceColor.includes('destructive') && !transactionSummary.remainingBalanceColor.includes('green') && <CheckCircle2 className="h-4 w-4 text-muted-foreground"/> }
-                             {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('destructive') && <TrendingDown className="h-4 w-4 text-destructive"/> }
-                             {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('green') && <TrendingUp className="h-4 w-4 text-green-500"/> }
-                            <span className="font-medium">{transactionSummary.remainingBalanceText}</span>
+                    )}
+                    {selectedTenant && (
+                       <div className="p-3 border rounded-md bg-muted/50 text-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                              <ShieldCheck className="h-4 w-4 text-primary" />
+                              <span className="font-medium">Security Deposit on File:</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-primary">
+                                ₱{(selectedTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <Button type="button" variant="secondary" size="sm" className="h-7" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit}>
+                              Apply
+                            </Button>
+                          </div>
                         </div>
-                        <span className={cn("font-semibold", transactionSummary.remainingBalanceColor)}>
-                            ₱{transactionSummary.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
+                       </div>
+                    )}
                 </div>
-            )}
-            
-            <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-              </DialogClose>
-              <Button type="submit" variant="default">{isEditing ? 'Save Changes' : 'Record Payment'}</Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount Paid (₱)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span className="text-muted-foreground">₱</span>
+                          </span>
+                          <Input type="number" step="0.01" placeholder="e.g. 500" {...field} className="pl-7" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="discountApplied"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount Applied (₱)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span className="text-muted-foreground">₱</span>
+                          </span>
+                          <Input type="number" step="0.01" placeholder="e.g. 50" {...field} className="pl-7" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {showDiscountDescription && (
+                  <FormField
+                      control={form.control}
+                      name="discountDescription"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormLabel>Discount Description</FormLabel>
+                          <FormControl>
+                              <Textarea placeholder="e.g., Early payment incentive, Loyalty bonus" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+              )}
+              
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Payment Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{(form.getValues("amount") || 0) > 0 ? 'Payment Method' : 'Payment Method (Optional)'}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {paymentMethods.map(method => (
+                          <SelectItem key={method} value={method}>
+                            {method}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {!isEditing && transactionSummary && selectedTenantId && (runningBalanceForTenant !== null) && (
+                  <div className="mt-2 p-3 border-t text-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                              <BadgeDollarSign className="h-4 w-4 text-blue-500" />
+                              <span className="font-medium">Total Credited This Transaction:</span>
+                          </div>
+                          <span className="font-semibold text-blue-600">
+                              ₱{transactionSummary.totalCredited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                              {transactionSummary.remainingBalance === 0 && !transactionSummary.remainingBalanceColor.includes('destructive') && !transactionSummary.remainingBalanceColor.includes('green') && <CheckCircle2 className="h-4 w-4 text-muted-foreground"/> }
+                              {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('destructive') && <TrendingDown className="h-4 w-4 text-destructive"/> }
+                              {transactionSummary.remainingBalance > 0 && transactionSummary.remainingBalanceColor.includes('green') && <TrendingUp className="h-4 w-4 text-green-500"/> }
+                              <span className="font-medium">{transactionSummary.remainingBalanceText}</span>
+                          </div>
+                          <span className={cn("font-semibold", transactionSummary.remainingBalanceColor)}>
+                              ₱{transactionSummary.remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                      </div>
+                  </div>
+              )}
+              
+              <DialogFooter className="pt-4">
+                <DialogClose asChild>
+                  <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                </DialogClose>
+                <Button type="submit" variant="default">{isEditing ? 'Save Changes' : 'Record Payment'}</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {isApplyDepositOpen && selectedTenant && runningBalanceForTenant !== null && (
+        <ApplyDepositDialog
+          isOpen={isApplyDepositOpen}
+          onClose={() => setIsApplyDepositOpen(false)}
+          tenant={selectedTenant}
+          currentBalance={runningBalanceForTenant}
+        />
+      )}
+    </>
   );
 }
