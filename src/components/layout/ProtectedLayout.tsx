@@ -19,8 +19,8 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const publicRoutes = ['/login', '/forgot-password', '/tenant-signup'];
-    const isPublicRoute = publicRoutes.includes(pathname);
+    const publicRoutes = ['/login', '/forgot-password', '/tenant-signup', '/terms', '/privacy-policy'];
+    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
     // If not authenticated and not on a public route, redirect to login
     if (!isAuthenticated && !isPublicRoute) {
@@ -98,7 +98,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   // If page is public, render it without the shell
-  const isPublicRoute = ['/login', '/forgot-password', '/tenant-signup'].includes(pathname);
+  const isPublicRoute = ['/login', '/forgot-password', '/tenant-signup', '/terms', '/privacy-policy'].some(route => pathname.startsWith(route));
   if (isPublicRoute) {
     return <>{children}</>;
   }
