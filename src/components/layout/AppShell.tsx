@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -33,6 +33,9 @@ import { useAppContext } from '@/contexts/AppContext';
 import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; 
 import { cn } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -171,6 +174,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode } = useAppContext();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
+
+  // Notification State
+  const [notifications, setNotifications] = React.useState([
+    { id: 1, title: 'Rent Reminder', description: 'Your rent for July is due in 3 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 2) },
+    { id: 2, title: 'Maintenance Update', description: 'The elevator will be serviced tomorrow from 10 AM to 12 PM.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24) },
+    { id: 3, title: 'Welcome!', description: 'Welcome to your new tenant portal. Explore your dashboard.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
+  ]);
+  const [notificationFilter, setNotificationFilter] = React.useState<'all' | 'unread'>('unread');
+  const unreadCount = React.useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
+  const filteredNotifications = React.useMemo(() => {
+    return notifications
+      .filter(n => notificationFilter === 'all' || !n.read)
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [notifications, notificationFilter]);
+
+  const handleMarkAsRead = (id: number) => {
+    setNotifications(currentNotifications => 
+      currentNotifications.map(n => n.id === id ? { ...n, read: true } : n)
+    );
+  };
+  const handleMarkAllAsRead = () => {
+    setNotifications(currentNotifications =>
+      currentNotifications.map(n => ({ ...n, read: true }))
+    );
+  };
 
   const isAdminSection = pathname.startsWith('/admin');
   const isTenantSection = authUser?.role === 'tenant';
@@ -480,14 +508,57 @@ export function AppShell({ children }: { children: ReactNode }) {
                  {viewingClient && !isAdminSection && ` - ${viewingClient.name}`}
               </h1>
             </div>
-            <Button variant="ghost" size="icon" className="relative rounded-full">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
-                </span>
-                <span className="sr-only">View notifications</span>
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative rounded-full">
+                        <Bell className="h-5 w-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
+                            </span>
+                        )}
+                        <span className="sr-only">View notifications</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 sm:w-96">
+                    <DropdownMenuLabel className="flex justify-between items-center">
+                        Notifications
+                        <Badge variant="secondary">{unreadCount} unread</Badge>
+                    </DropdownMenuLabel>
+                     <Tabs defaultValue="unread" className="w-full" onValueChange={(value) => setNotificationFilter(value as any)}>
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="unread">Unread</TabsTrigger>
+                            <TabsTrigger value="all">All</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="h-64">
+                        {filteredNotifications.length > 0 ? (
+                            filteredNotifications.map((notif) => (
+                                <DropdownMenuItem key={notif.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkAsRead(notif.id); }}>
+                                    {!notif.read && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                                    <div className={cn("flex-1 space-y-1", notif.read && "pl-5")}>
+                                        <p className="text-sm font-medium leading-none">{notif.title}</p>
+                                        <p className="text-sm text-muted-foreground">{notif.description}</p>
+                                        <p className="text-xs text-muted-foreground">{notif.date.toLocaleDateString()}</p>
+                                    </div>
+                                </DropdownMenuItem>
+                            ))
+                        ) : (
+                            <div className="text-center text-sm text-muted-foreground py-10">
+                                <p>No {notificationFilter} notifications.</p>
+                            </div>
+                        )}
+                    </ScrollArea>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center">
+                        <Check className="mr-2 h-4 w-4" />
+                        Mark all as read
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
