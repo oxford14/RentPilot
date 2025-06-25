@@ -296,7 +296,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                                 ₱{(selectedTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                             <Button type="button" variant="secondary" size="sm" className="h-7" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit}>
-                              Apply
+                              Use
                             </Button>
                           </div>
                         </div>

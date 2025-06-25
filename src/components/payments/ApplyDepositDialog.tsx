@@ -59,7 +59,7 @@ export function ApplyDepositDialog({ isOpen, onClose, tenant, currentBalance }: 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Apply Security Deposit</DialogTitle>
+          <DialogTitle>Use Security Deposit</DialogTitle>
           <DialogDescription>
             Use {tenant.name}'s security deposit to pay off their outstanding balance.
           </DialogDescription>
@@ -103,7 +103,7 @@ export function ApplyDepositDialog({ isOpen, onClose, tenant, currentBalance }: 
             </div>
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-              <Button type="submit" variant="destructive" disabled={form.formState.isSubmitting}>Apply Deposit</Button>
+              <Button type="submit" variant="destructive" disabled={form.formState.isSubmitting}>Use Deposit</Button>
             </DialogFooter>
           </form>
         </Form>
