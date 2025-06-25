@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -31,9 +30,6 @@ export function TenantListItem({ tenant, balance, daysUntilDue }: TenantListItem
       <div className="text-sm text-white/80 mt-1">
         <span>Amount Due: </span>
         <span className="font-medium text-white">{formatCurrency(balance)}</span>
-      </div>
-       <div className="text-xs text-white/60 mt-1">
-        Monthly Rent: {formatCurrency(tenant.monthlyRentalRate)}
       </div>
     </div>
   );
