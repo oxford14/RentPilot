@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import type { BackupScheduleSettings } from '@/lib/types';
 
 export default function AdminBackupsPage() {
   const {
@@ -38,6 +39,8 @@ export default function AdminBackupsPage() {
     rawBusinesses,
     rawWeeklyIncomes,
     restoreDataFromBackup,
+    backupScheduleSettings,
+    updateBackupScheduleSettings,
   } = useAppContext();
   const { toast } = useToast();
   const [isSystemBackupLoading, setIsSystemBackupLoading] = useState(false);
@@ -51,10 +54,26 @@ export default function AdminBackupsPage() {
   const [isClientCloudBackupLoading, setIsClientCloudBackupLoading] = useState(false);
 
   const [isScheduleEnabled, setIsScheduleEnabled] = useState(false);
-  const [frequency, setFrequency] = useState('daily');
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'bi-monthly'>('daily');
   const [dayOfWeek, setDayOfWeek] = useState('0'); // Sunday
   const [dayOfMonth, setDayOfMonth] = useState('1');
   const [backupTime, setBackupTime] = useState('02:00');
+  
+  useEffect(() => {
+    if (backupScheduleSettings) {
+        setIsScheduleEnabled(backupScheduleSettings.isScheduleEnabled);
+        setFrequency(backupScheduleSettings.frequency || 'daily');
+        if (backupScheduleSettings.dayOfWeek !== undefined) {
+            setDayOfWeek(String(backupScheduleSettings.dayOfWeek));
+        }
+        if (backupScheduleSettings.dayOfMonth !== undefined) {
+            setDayOfMonth(String(backupScheduleSettings.dayOfMonth));
+        }
+        if (backupScheduleSettings.backupTime) {
+            setBackupTime(backupScheduleSettings.backupTime);
+        }
+    }
+  }, [backupScheduleSettings]);
 
   const weekDays = [
     { label: 'Sunday', value: '0' },
@@ -289,10 +308,18 @@ export default function AdminBackupsPage() {
   };
 
   const handleSaveSchedule = () => {
-    toast({
-        title: "Schedule Configuration Saved",
-        description: "Your backup schedule settings have been saved. Make sure your backend function is deployed to use them.",
-    });
+    const settingsToSave: BackupScheduleSettings = {
+        isScheduleEnabled,
+        frequency,
+        backupTime,
+    };
+    if (frequency === 'weekly') {
+        settingsToSave.dayOfWeek = Number(dayOfWeek);
+    }
+    if (frequency === 'monthly') {
+        settingsToSave.dayOfMonth = Number(dayOfMonth);
+    }
+    updateBackupScheduleSettings(settingsToSave);
   };
 
   return (
@@ -435,7 +462,7 @@ export default function AdminBackupsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div className="space-y-2">
                   <Label htmlFor="frequency-select">Frequency</Label>
-                  <Select value={frequency} onValueChange={setFrequency}>
+                  <Select value={frequency} onValueChange={(v) => setFrequency(v as 'daily' | 'weekly' | 'monthly' | 'bi-monthly')}>
                     <SelectTrigger id="frequency-select">
                       <SelectValue placeholder="Select frequency..." />
                     </SelectTrigger>
@@ -443,6 +470,7 @@ export default function AdminBackupsPage() {
                       <SelectItem value="daily">Daily</SelectItem>
                       <SelectItem value="weekly">Weekly</SelectItem>
                       <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="bi-monthly">Bi-monthly (15th &amp; Last Day)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -550,5 +578,3 @@ export default function AdminBackupsPage() {
     </div>
   );
 }
-
-    

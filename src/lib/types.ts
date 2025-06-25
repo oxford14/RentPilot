@@ -1,5 +1,6 @@
 
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -172,6 +173,14 @@ export interface DemoRequest {
   visitorTimezone?: string;
 }
 
+export interface BackupScheduleSettings {
+  isScheduleEnabled: boolean;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'bi-monthly';
+  weeklyDay?: number;
+  dayOfMonth?: number;
+  backupTime?: string;
+}
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -252,6 +261,7 @@ export interface AppContextType {
   systemTimezone: string | null;
   businesses: Business[];
   weeklyIncomes: WeeklyIncome[];
+  backupScheduleSettings: BackupScheduleSettings | null;
   
   // Chat
   chatSessions: ChatSession[];
@@ -262,6 +272,7 @@ export interface AppContextType {
 
   setViewMode: (clientId: string | null) => void;
   updateSystemTimezone: (timezone: string) => void;
+  updateBackupScheduleSettings: (settings: BackupScheduleSettings) => Promise<void>;
 
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => Promise<void>;
   updateTenant: (tenant: Tenant) => Promise<void>;

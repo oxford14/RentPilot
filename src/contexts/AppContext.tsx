@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -54,6 +54,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
   const [rawChatSessionsState, setRawChatSessionsState] = useState<ChatSession[]>([]);
   const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
+  const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -88,6 +89,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawWeeklyIncomesState([]);
       setRawChatSessionsState([]);
       setRawDemoRequestsState([]);
+      setBackupScheduleSettings(null);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -124,6 +126,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
       )
     );
+
+    // Listener for single system settings document
+    const settingsDocRef = doc(db, 'systemSettings', 'main');
+    const unsubSettings = onSnapshot(settingsDocRef, (doc) => {
+      if (isMounted) {
+        if (doc.exists()) {
+          setBackupScheduleSettings(doc.data() as BackupScheduleSettings);
+        } else {
+          setBackupScheduleSettings({ isScheduleEnabled: false, frequency: 'daily', backupTime: '02:00' });
+        }
+      }
+    }, (error) => {
+      if (isMounted) console.error("Error fetching system settings:", error);
+    });
+    unsubs.push(unsubSettings);
+
 
     Promise.all(collectionsToListen.map(c => getDocs(query(collection(db, c.name))))).then(() => {
         if (isMounted) {
@@ -1056,6 +1074,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateBackupScheduleSettings = async (settings: BackupScheduleSettings) => {
+    if (!authUser?.isSuperAdmin) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    try {
+        const settingsDocRef = doc(db, 'systemSettings', 'main');
+        await setDoc(settingsDocRef, settings, { merge: true });
+        toast({ title: "Schedule Saved", description: "Backup schedule has been saved successfully." });
+    } catch (error: any) {
+        console.error("Error updating backup schedule:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to save schedule: ${error.message}` });
+    }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -1070,6 +1103,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     systemTimezone: systemTimezoneState,
     businesses,
     weeklyIncomes,
+    backupScheduleSettings,
     
     chatSessions: rawChatSessionsState,
     startChatSession,
@@ -1079,6 +1113,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     setViewMode,
     updateSystemTimezone,
+    updateBackupScheduleSettings,
 
     addTenant,
     updateTenant,
