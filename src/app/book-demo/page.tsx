@@ -1,3 +1,4 @@
+
 "use client";
 
 // This page is no longer used directly for booking.
