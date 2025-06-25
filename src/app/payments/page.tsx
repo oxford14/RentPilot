@@ -32,6 +32,7 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [runningBalance, setRunningBalance] = useState<number | null>(null); 
+  const [balanceForForm, setBalanceForForm] = useState<number | null>(null);
   const [rentStatusMessage, setRentStatusMessage] = useState<string | null>(null);
   const { payments, tenants, deletePayment, systemTimezone, additionalDues } = useAppContext(); 
   const { toast } = useToast();
@@ -72,6 +73,18 @@ export default function PaymentsPage() {
 
   const handleOpenForm = (payment?: Payment) => {
     setEditingPayment(payment || null);
+    if (runningBalance !== null) {
+      if (payment) {
+        // Editing: calculate balance *before* this payment was made.
+        const totalCreditedByThisPayment = (payment.amount || 0) + (payment.discountApplied || 0);
+        setBalanceForForm(runningBalance + totalCreditedByThisPayment);
+      } else {
+        // New payment: use the current running balance.
+        setBalanceForForm(runningBalance);
+      }
+    } else {
+      setBalanceForForm(null);
+    }
     setIsFormOpen(true);
   };
   const handleCloseForm = () => {
@@ -238,6 +251,7 @@ export default function PaymentsPage() {
             onClose={handleCloseForm}
             defaultTenantId={selectedTenantId}
             payment={editingPayment}
+            balanceBeforeTransaction={balanceForForm}
         />
       )}
 
