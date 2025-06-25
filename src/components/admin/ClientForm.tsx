@@ -9,7 +9,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -21,12 +21,14 @@ import 'react-image-crop/dist/ReactCrop.css';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Switch } from '../ui/switch';
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
   logoFile: z.any().optional(),
   subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
   subscriptionEndDate: z.date().optional(),
+  allowUserDiscount: z.boolean().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -97,6 +99,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       logoFile: undefined,
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+      allowUserDiscount: client?.allowUserDiscount || false,
     },
   });
 
@@ -107,6 +110,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         logoFile: undefined,
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+        allowUserDiscount: client?.allowUserDiscount || false,
       });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
@@ -165,6 +169,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       name: data.name,
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
+      allowUserDiscount: data.allowUserDiscount,
     };
 
     try {
@@ -217,7 +222,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   <FormItem>
                     <FormLabel>Client Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Acme Corp Rentals" {...field} />
+                      <Input placeholder="e.g. Acme Corp Rentals" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -287,6 +292,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                     type="file"
                     accept="image/*"
                     onChange={onFileChange}
+                    autoComplete="off"
                   />
                 </FormControl>
                 <FormMessage />
@@ -300,6 +306,27 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   </div>
                 </div>
               )}
+
+              <FormField
+                control={form.control}
+                name="allowUserDiscount"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/50">
+                    <div className="space-y-0.5">
+                      <FormLabel>Allow Discount for Users</FormLabel>
+                      <FormDescription className="text-xs">
+                        Allow regular users (non-admins) to apply discounts to payments.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <DialogFooter className="pt-4">
                 <DialogClose asChild>

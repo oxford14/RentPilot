@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from '@/components/ui/separator';
-import type { Payment, PaymentMethod, Tenant, BalanceBreakdown } from '@/lib/types';
+import type { Payment, PaymentMethod, Tenant, BalanceBreakdown, Client } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home, Send } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home, Send, PercentCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
@@ -63,9 +64,11 @@ interface PaymentFormProps {
 const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
-  const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment } = useAppContext();
+  const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment, clients } = useAppContext();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
+  const [showDiscountFields, setShowDiscountFields] = useState(false);
   
   const [balanceBreakdown, setBalanceBreakdown] = useState<BalanceBreakdown | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
@@ -119,8 +122,10 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         };
       
       form.reset(resetValues);
+      setShowDiscountFields(!!(payment?.discountApplied && payment.discountApplied > 0));
     } else {
         setBalanceBreakdown(null);
+        setShowDiscountFields(false);
     }
   }, [isOpen, payment, defaultTenantId, form]);
 
@@ -128,11 +133,18 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   const selectedTenantId = form.watch('tenantId');
   const currentAmountPaid = form.watch('amount') || 0;
   const currentDiscountApplied = form.watch('discountApplied') || 0;
-  const showDiscountDescription = currentDiscountApplied > 0;
 
   const selectedTenant = useMemo(() => {
     return tenants.find(t => t.id === selectedTenantId)
   }, [selectedTenantId, tenants]);
+
+  const client = useMemo(() => {
+    if (!selectedTenant) return null;
+    return clients.find(c => c.id === selectedTenant.clientId);
+  }, [selectedTenant, clients]);
+
+  const canApplyDiscount = user?.isSuperAdmin || user?.role === 'admin' || (client?.allowUserDiscount && user?.role === 'user');
+
 
   useEffect(() => {
     if (!selectedTenantId || !clientToday) {
@@ -361,8 +373,8 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                     )}
                 </div>
               )}
-
-              <div className="grid grid-cols-2 gap-4">
+              
+              <div className="space-y-4">
                 <FormField
                   control={form.control}
                   name="amount"
@@ -381,41 +393,56 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="discountApplied"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Discount Applied (₱)</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span className="text-muted-foreground">₱</span>
-                          </span>
-                          <Input type="number" step="0.01" placeholder="e.g. 50" {...field} className="pl-7" autoComplete="off"/>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              {showDiscountDescription && (
-                  <FormField
-                      control={form.control}
-                      name="discountDescription"
-                      render={({ field }) => (
-                          <FormItem>
-                          <FormLabel>Discount Description</FormLabel>
-                          <FormControl>
-                              <Textarea placeholder="e.g., Early payment incentive, Loyalty bonus" {...field} autoComplete="off"/>
-                          </FormControl>
-                          <FormMessage />
-                          </FormItem>
-                      )}
-                  />
-              )}
+                {canApplyDiscount && !showDiscountFields && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setShowDiscountFields(true)}
+                        disabled={isEditing}
+                    >
+                        <PercentCircle className="mr-2 h-4 w-4" />
+                        Apply Discount
+                    </Button>
+                )}
+
+                {showDiscountFields && (
+                    <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                        <FormField
+                            control={form.control}
+                            name="discountApplied"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Discount Applied (₱)</FormLabel>
+                                <FormControl>
+                                <div className="relative">
+                                    <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <span className="text-muted-foreground">₱</span>
+                                    </span>
+                                    <Input type="number" step="0.01" placeholder="e.g. 50" {...field} className="pl-7 bg-background" autoComplete="off"/>
+                                </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="discountDescription"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Discount Description</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="e.g., Early payment incentive, Loyalty bonus" {...field} autoComplete="off" className="bg-background" />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                )}
+              </div>
               
               <FormField
                 control={form.control}

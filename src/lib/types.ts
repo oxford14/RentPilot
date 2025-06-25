@@ -63,6 +63,7 @@ export interface Client {
   logoUrl?: string | null;
   subscriptionStatus?: 'active' | 'inactive';
   subscriptionEndDate?: string; // ISO string
+  allowUserDiscount?: boolean;
 }
 
 export type ExpenseCategory = 
