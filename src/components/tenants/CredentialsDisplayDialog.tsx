@@ -22,9 +22,10 @@ interface CredentialsDisplayDialogProps {
   onClose: () => void;
   username: string;
   password?: string;
+  clientName: string;
 }
 
-export function CredentialsDisplayDialog({ isOpen, onClose, username, password }: CredentialsDisplayDialogProps) {
+export function CredentialsDisplayDialog({ isOpen, onClose, username, password, clientName }: CredentialsDisplayDialogProps) {
   const { toast } = useToast();
   const [copiedField, setCopiedField] = React.useState<'username' | 'password' | 'all' | null>(null);
 
@@ -37,16 +38,18 @@ export function CredentialsDisplayDialog({ isOpen, onClose, username, password }
 
   const handleCopyAll = () => {
     if (!password) return;
-    const loginUrl = `${window.location.origin}/login`;
+    const loginUrl = `https://rent-pilot.net/login`;
     const fullMessage = `
-Welcome to RentPilot!
+Welcome from ${clientName}!
 
 You can log in to your tenant portal here: ${loginUrl}
 Username: ${username}
 Temporary Password: ${password}
 
 You will be required to change your password on your first login.
-    `.trim();
+
+Powered by Rent-Pilot
+    `.trim().replace(/^\s+/gm, '');
 
     navigator.clipboard.writeText(fullMessage);
     setCopiedField('all');

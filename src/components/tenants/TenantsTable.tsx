@@ -38,7 +38,7 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -120,6 +120,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     }
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [tenants, showInactiveTenants]);
+
+  const clientNameForGreeting = useMemo(() => {
+    const firstTenant = displayedTenants.length > 0 ? displayedTenants[0] : null;
+    if (firstTenant && firstTenant.clientId) {
+        const client = clients.find(c => c.id === firstTenant.clientId);
+        return client?.name || "your landlord";
+    }
+    return "your landlord"; // Fallback for tenants without a client or if client not found
+  }, [displayedTenants, clients]);
 
   const formatUtcDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -241,6 +250,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           onClose={() => setCredentials(null)}
           username={credentials.username}
           password={credentials.password}
+          clientName={clientNameForGreeting}
         />
       )}
     </>
