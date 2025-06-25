@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -64,7 +63,6 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     },
   });
 
-  const { getValues, setValue } = form; // Destructure for stable dependency array
   const selectedDate = form.watch('date');
 
   useEffect(() => {
@@ -102,11 +100,11 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     
     setTimeSlots(finalAvailableTimes);
 
-    const currentSelectedTime = getValues('time');
+    const currentSelectedTime = form.getValues('time');
     if (currentSelectedTime && !finalAvailableTimes.includes(currentSelectedTime)) {
-      setValue('time', undefined, { shouldValidate: true });
+      form.setValue('time', undefined, { shouldValidate: true });
     }
-  }, [selectedDate, rawDemoBookings, getValues, setValue]);
+  }, [selectedDate, rawDemoBookings, form]);
 
   useEffect(() => {
     if (isOpen) {
@@ -145,7 +143,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
 
   const emptySlotsMessage = selectedDate
     ? 'No more slots available for this date.'
-    : 'No available slots for this date.';
+    : 'Please select a date to see available times.';
     
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
