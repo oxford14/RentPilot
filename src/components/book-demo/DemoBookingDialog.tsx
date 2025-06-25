@@ -28,6 +28,7 @@ const demoBookingFormSchema = z.object({
   companyName: z.string().optional(),
   preferredDate: z.date({ required_error: "Please select a date." }),
   preferredTime: z.string({ required_error: "Please select a time." }),
+  visitorTimezone: z.string().optional(),
 }).refine((data) => {
     if (data.requesterType === 'company') {
         return !!data.companyName && data.companyName.length >= 2;
@@ -71,6 +72,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
       companyName: '',
       preferredDate: undefined,
       preferredTime: undefined,
+      visitorTimezone: '',
     },
   });
 
@@ -123,6 +125,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
       const finalData = {
           ...data,
           companyName: data.requesterType === 'company' ? data.companyName : undefined,
+          visitorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
       await addDemoRequest({
         ...finalData,
@@ -246,7 +249,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                              ))
                           ) : (
                              <SelectItem value="no-slots" disabled>
-                                {selectedDate ? 'No more slots available for today' : 'Select a date first'}
+                                {selectedDate ? 'No slots for this day' : 'Select a date first'}
                             </SelectItem>
                           )}
                         </SelectContent>
@@ -256,6 +259,10 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                   )}
                 />
             </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+              All times are shown in Philippine Standard Time (PHT).
+            </p>
 
             <DialogFooter className="pt-4">
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>

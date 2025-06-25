@@ -169,6 +169,7 @@ export interface DemoRequest {
   preferredTime: string; // e.g., "09:00 AM"
   status: 'pending' | 'confirmed' | 'completed';
   createdAt: string; // ISO string
+  visitorTimezone?: string;
 }
 
 // Navigation item types

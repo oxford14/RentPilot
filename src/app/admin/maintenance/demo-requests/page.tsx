@@ -127,8 +127,8 @@ export default function DemoRequestsPage() {
                 <TableRow>
                   <TableHead>Visitor</TableHead>
                   <TableHead>Type / Company</TableHead>
-                  <TableHead>Requested Slot</TableHead>
-                  <TableHead>Submitted On</TableHead>
+                  <TableHead>Requested Slot (PHT)</TableHead>
+                  <TableHead>Visitor Timezone</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -149,7 +149,7 @@ export default function DemoRequestsPage() {
                         )}
                       </TableCell>
                       <TableCell>{format(new Date(req.preferredDate), 'PPP')} at {req.preferredTime}</TableCell>
-                      <TableCell>{format(new Date(req.createdAt), 'PPp')}</TableCell>
+                      <TableCell>{req.visitorTimezone || 'N/A'}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline" className={cn("text-xs", getStatusBadgeVariant(req.status))}>
                            {getStatusIcon(req.status)}
