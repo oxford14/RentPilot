@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -65,36 +64,42 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
   const selectedDate = form.watch('date');
 
   useEffect(() => {
+    // This effect runs when the selectedDate changes.
+    // It recalculates the available time slots.
     if (!selectedDate) {
       setTimeSlots(allAvailableTimes);
       return;
     }
 
     const now = new Date();
+    
+    // Check if the selected date is today
     if (isTodayFns(selectedDate)) {
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
 
-      const filteredTimes = allAvailableTimes.filter(time => {
+      // Filter out past time slots for today
+      const futureTimes = allAvailableTimes.filter(time => {
         const [hour, minute] = time.split(':').map(Number);
         if (hour > currentHour) return true;
         if (hour === currentHour && minute > currentMinute) return true;
         return false;
       });
-
-      setTimeSlots(filteredTimes);
+      setTimeSlots(futureTimes);
 
       // Reset selected time if it's no longer available
       const currentSelectedTime = form.getValues('time');
-      if (currentSelectedTime && !filteredTimes.includes(currentSelectedTime)) {
+      if (currentSelectedTime && !futureTimes.includes(currentSelectedTime)) {
         form.setValue('time', undefined, { shouldValidate: true });
       }
     } else {
+      // If the selected date is in the future, all slots are available
       setTimeSlots(allAvailableTimes);
     }
-  }, [selectedDate, form]);
+  }, [selectedDate, form]); // Dependency array ensures this runs when date changes
 
   useEffect(() => {
+    // This effect resets the form when the dialog is opened.
     if (isOpen) {
       form.reset();
       setIsSubmitted(false);
@@ -129,6 +134,10 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     }
   };
 
+  const emptySlotsMessage = selectedDate && isTodayFns(selectedDate)
+    ? 'No more slots available for today.'
+    : 'No available slots for this date.';
+    
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -253,7 +262,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                             ))
                           ) : (
                             <div className="p-4 text-center text-sm text-muted-foreground">
-                              No available slots for today.
+                              {emptySlotsMessage}
                             </div>
                           )}
                         </SelectContent>
