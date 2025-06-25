@@ -14,14 +14,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import type { Payment, PaymentMethod, Tenant } from '@/lib/types';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Separator } from '@/components/ui/separator';
+import type { Payment, PaymentMethod, Tenant, BalanceBreakdown } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
-import { calculateTenantBalance } from '@/lib/utils';
+import { calculateTenantBalanceBreakdown } from '@/lib/utils';
 
 const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Other'];
 
@@ -58,12 +60,14 @@ interface PaymentFormProps {
   payment?: Payment | null;
 }
 
+const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
   const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment } = useAppContext();
   const { toast } = useToast();
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
   
-  const [balanceBeforeTransaction, setBalanceBeforeTransaction] = useState<number | null>(null);
+  const [balanceBreakdown, setBalanceBreakdown] = useState<BalanceBreakdown | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
   const isEditing = !!payment;
@@ -116,7 +120,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       
       form.reset(resetValues);
     } else {
-        setBalanceBeforeTransaction(null);
+        setBalanceBreakdown(null);
     }
   }, [isOpen, payment, defaultTenantId, form]);
 
@@ -132,33 +136,35 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
 
   useEffect(() => {
     if (!selectedTenantId || !clientToday) {
-      setBalanceBeforeTransaction(null);
+      setBalanceBreakdown(null);
       return;
     }
 
     const tenantForBalance = tenants.find(t => t.id === selectedTenantId);
     if (tenantForBalance) {
-      let balance = calculateTenantBalance(tenantForBalance, payments, additionalDues, clientToday);
+      let breakdown = calculateTenantBalanceBreakdown(tenantForBalance, payments, additionalDues, clientToday);
       if (isEditing && payment && payment.tenantId === selectedTenantId) {
         const totalCredited = (payment.amount || 0) + (payment.discountApplied || 0);
-        balance += totalCredited;
+        breakdown.total += totalCredited;
+        breakdown.rentDue += totalCredited; 
       }
-      setBalanceBeforeTransaction(balance);
+      setBalanceBreakdown(breakdown);
     }
   }, [selectedTenantId, clientToday, tenants, payments, additionalDues, isEditing, payment]);
 
   const onSubmit = (data: PaymentFormValues) => {
     const discount = data.discountApplied || 0;
     const discountDesc = data.discountDescription || '';
+    const balanceBefore = balanceBreakdown?.total ?? 0;
 
     if (discount > 0 && !isEditing) {
-      if (balanceBeforeTransaction === null || balanceBeforeTransaction <= 0) {
+      if (balanceBefore === null || balanceBefore <= 0) {
         form.setError("discountApplied", { type: "manual", message: "Cannot apply discount when no amount is due or tenant has a credit." });
         toast({ variant: "destructive", title: "Invalid Discount", description: "Discount cannot be applied if there is no outstanding balance." });
         return;
       }
-      if (discount > balanceBeforeTransaction) {
-        form.setError("discountApplied", { type: "manual", message: `Discount (₱${discount.toFixed(2)}) cannot exceed the amount due (₱${balanceBeforeTransaction.toFixed(2)}).` });
+      if (discount > balanceBefore) {
+        form.setError("discountApplied", { type: "manual", message: `Discount (₱${discount.toFixed(2)}) cannot exceed the amount due (₱${balanceBefore.toFixed(2)}).` });
         toast({ variant: "destructive", title: "Invalid Discount", description: `Discount cannot exceed the amount due.` });
         return;
       }
@@ -194,17 +200,18 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   };
 
   const balanceInfo = useMemo(() => {
-    if (balanceBeforeTransaction === null) return null;
-    
+    if (balanceBreakdown === null) return null;
+    const { total } = balanceBreakdown;
+
     let text = "";
     let icon = <Info className="h-4 w-4 text-muted-foreground" />;
     let amountColor = "text-foreground";
 
-    if (balanceBeforeTransaction > 0) {
+    if (total > 0) {
         text = "Amount Due Before This Transaction:";
         icon = <Banknote className="h-4 w-4 text-destructive" />;
         amountColor = "text-destructive";
-    } else if (balanceBeforeTransaction < 0) {
+    } else if (total < 0) {
         text = "Credit Before This Transaction:";
         icon = <CheckCircle2 className="h-4 w-4 text-green-500" />;
         amountColor = "text-green-600";
@@ -212,13 +219,13 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         text = "Balance Before This Transaction:";
         icon = <Banknote className="h-4 w-4 text-muted-foreground" />;
     }
-    return { text, icon, amount: Math.abs(balanceBeforeTransaction), amountColor };
-  }, [balanceBeforeTransaction]);
+    return { text, icon, amount: Math.abs(total), amountColor };
+  }, [balanceBreakdown]);
 
   const transactionSummary = useMemo(() => {
-    if (balanceBeforeTransaction === null) return null;
+    if (balanceBreakdown === null) return null;
     const totalCredited = Number(currentAmountPaid) + Number(currentDiscountApplied);
-    const remainingBalance = balanceBeforeTransaction - totalCredited;
+    const remainingBalance = balanceBreakdown.total - totalCredited;
     
     let remainingBalanceText = "Remaining Balance:";
     let remainingBalanceColor = "text-foreground";
@@ -235,9 +242,9 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
       remainingBalanceText,
       remainingBalanceColor,
     };
-  }, [balanceBeforeTransaction, currentAmountPaid, currentDiscountApplied]);
+  }, [balanceBreakdown, currentAmountPaid, currentDiscountApplied]);
   
-  const canApplyDeposit = selectedTenant && (selectedTenant.securityDeposit || 0) > 0 && balanceBeforeTransaction !== null && balanceBeforeTransaction > 0;
+  const canApplyDeposit = selectedTenant && (selectedTenant.securityDeposit || 0) > 0 && balanceBreakdown !== null && balanceBreakdown.total > 0;
 
   return (
     <>
@@ -287,17 +294,44 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
               {!isEditing && selectedTenantId && (
                 <div className="mt-2 space-y-2">
                     {balanceInfo && (
-                        <div className="p-3 border rounded-md bg-muted/50 text-sm">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                    {balanceInfo.icon}
-                                    <span className="font-medium">{balanceInfo.text}</span>
-                                </div>
-                                <span className={cn("font-semibold", balanceInfo.amountColor)}>
-                                    ₱{balanceInfo.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </span>
-                            </div>
-                        </div>
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="item-1" className="border rounded-md bg-muted/50 overflow-hidden">
+                                <AccordionTrigger className="p-3 text-sm hover:no-underline [&[data-state=open]>svg]:text-primary">
+                                    <div className="flex items-center justify-between w-full">
+                                        <div className="flex items-center gap-1.5">
+                                            {balanceInfo.icon}
+                                            <span className="font-medium">{balanceInfo.text}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn("font-semibold", balanceInfo.amountColor)}>
+                                                ₱{formatCurrency(balanceInfo.amount)}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                                        </div>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="p-3 border-t bg-background">
+                                    <div className="space-y-2 text-sm">
+                                        <h4 className="font-semibold">Balance Breakdown</h4>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
+                                            <span>₱{formatCurrency(balanceBreakdown?.rentDue ?? 0)}</span>
+                                        </div>
+                                        {balanceBreakdown?.unpaidDues.map(due => (
+                                            <div key={due.id} className="flex justify-between items-center">
+                                                <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
+                                                <span>₱{formatCurrency(due.amount)}</span>
+                                            </div>
+                                        ))}
+                                        <Separator className="my-2"/>
+                                        <div className="flex justify-between items-center font-bold">
+                                            <span>Total Due</span>
+                                            <span>₱{formatCurrency(balanceBreakdown?.total ?? 0)}</span>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
                     )}
                     {selectedTenant && (
                        <div className="p-3 border rounded-md bg-muted/50 text-sm">
@@ -442,7 +476,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                 )}
               />
 
-              {!isEditing && transactionSummary && selectedTenantId && (balanceBeforeTransaction !== null) && (
+              {!isEditing && transactionSummary && selectedTenantId && (balanceBreakdown !== null) && (
                   <div className="mt-2 p-3 border-t text-sm space-y-1">
                       <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
@@ -478,12 +512,12 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
         </DialogContent>
       </Dialog>
       
-      {isApplyDepositOpen && selectedTenant && balanceBeforeTransaction !== null && (
+      {isApplyDepositOpen && selectedTenant && balanceBreakdown !== null && (
         <ApplyDepositDialog
           isOpen={isApplyDepositOpen}
           onClose={() => setIsApplyDepositOpen(false)}
           tenant={selectedTenant}
-          currentBalance={balanceBeforeTransaction}
+          currentBalance={balanceBreakdown.total}
         />
       )}
     </>

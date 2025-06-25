@@ -191,6 +191,12 @@ export interface MonitoredTenant {
   daysUntilDue?: number;
 }
 
+export interface BalanceBreakdown {
+  rentDue: number;
+  unpaidDues: AdditionalDue[];
+  total: number;
+}
+
 
 export interface AuthContextType {
   isAuthenticated: boolean;
