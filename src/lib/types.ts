@@ -160,9 +160,11 @@ export interface ChatMessage {
 
 export interface DemoRequest {
   id: string; // Firestore document ID
+  requesterType: 'individual' | 'company';
   name: string;
   email: string;
-  companyName: string;
+  phone: string;
+  companyName?: string;
   preferredDate: string; // ISO string
   preferredTime: string; // e.g., "09:00 AM"
   status: 'pending' | 'confirmed' | 'completed';

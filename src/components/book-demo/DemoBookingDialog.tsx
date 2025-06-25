@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useAppContext } from '@/contexts/AppContext';
@@ -20,11 +21,21 @@ import { cn } from '@/lib/utils';
 import type { DemoRequest } from '@/lib/types';
 
 const demoBookingFormSchema = z.object({
+  requesterType: z.enum(['individual', 'company'], { required_error: "Please select if you are an individual or a company."}),
   name: z.string().min(2, "Name is required."),
   email: z.string().email("Please enter a valid email."),
-  companyName: z.string().min(2, "Company name is required."),
+  phone: z.string().min(7, "Please enter a valid phone number."),
+  companyName: z.string().optional(),
   preferredDate: z.date({ required_error: "Please select a date." }),
   preferredTime: z.string({ required_error: "Please select a time." }),
+}).refine((data) => {
+    if (data.requesterType === 'company') {
+        return !!data.companyName && data.companyName.length >= 2;
+    }
+    return true;
+}, {
+    message: "Company name is required for companies.",
+    path: ['companyName'],
 });
 
 type DemoBookingFormValues = z.infer<typeof demoBookingFormSchema>;
@@ -53,8 +64,10 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
   const form = useForm<DemoBookingFormValues>({
     resolver: zodResolver(demoBookingFormSchema),
     defaultValues: {
+      requesterType: 'individual',
       name: '',
       email: '',
+      phone: '',
       companyName: '',
       preferredDate: undefined,
       preferredTime: undefined,
@@ -62,53 +75,57 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
   });
 
   const selectedDate = form.watch('preferredDate');
+  const requesterType = form.watch('requesterType');
+
+  const updateAvailableSlots = useCallback((date: Date | undefined) => {
+    if (!date) {
+        setAvailableSlots(allTimeSlots);
+        return;
+    }
+
+    const bookingsForDay = rawDemoRequests.filter(req => isSameDate(new Date(req.preferredDate), date));
+    const bookedSlots = new Set(bookingsForDay.map(req => req.preferredTime));
+    let slots = allTimeSlots.filter(slot => !bookedSlots.has(slot));
+
+    const today = new Date();
+    if (isSameDate(date, today)) {
+        const currentHour = today.getHours();
+        slots = slots.filter(slot => {
+            const [time, period] = slot.split(' ');
+            let [hour] = time.split(':').map(Number);
+            if (period === 'PM' && hour !== 12) hour += 12;
+            if (period === 'AM' && hour === 12) hour = 0;
+            return hour > currentHour;
+        });
+    }
+
+    setAvailableSlots(slots);
+    const currentPreferredTime = form.getValues('preferredTime');
+    if (currentPreferredTime && !slots.includes(currentPreferredTime)) {
+        form.setValue('preferredTime', '');
+    }
+  }, [rawDemoRequests, form]);
 
   useEffect(() => {
     if (isOpen) {
       form.reset();
+      updateAvailableSlots(undefined);
     }
-  }, [isOpen, form]);
+  }, [isOpen, form, updateAvailableSlots]);
 
   useEffect(() => {
-    if (selectedDate) {
-      // Get bookings for the selected day
-      const bookingsForDay = rawDemoRequests.filter(req => 
-        isSameDate(new Date(req.preferredDate), selectedDate)
-      );
-      const bookedSlots = new Set(bookingsForDay.map(req => req.preferredTime));
-
-      // Filter out booked slots
-      let slots = allTimeSlots.filter(slot => !bookedSlots.has(slot));
-
-      // If selected date is today, filter out past slots
-      const today = new Date();
-      if (isSameDate(selectedDate, today)) {
-        const currentHour = today.getHours();
-        slots = slots.filter(slot => {
-          const [time, period] = slot.split(' ');
-          let [hour] = time.split(':').map(Number);
-          if (period === 'PM' && hour !== 12) hour += 12;
-          if (period === 'AM' && hour === 12) hour = 0; // Midnight case
-          return hour > currentHour;
-        });
-      }
-      
-      setAvailableSlots(slots);
-      // Reset preferredTime if it's no longer available
-      const currentPreferredTime = form.getValues('preferredTime');
-      if (currentPreferredTime && !slots.includes(currentPreferredTime)) {
-          form.resetField('preferredTime');
-      }
-    } else {
-        setAvailableSlots(allTimeSlots);
-    }
-  }, [selectedDate, rawDemoRequests, form]);
+    updateAvailableSlots(selectedDate);
+  }, [selectedDate, updateAvailableSlots]);
 
   const onSubmit = async (data: DemoBookingFormValues) => {
     setIsSubmitting(true);
     try {
+      const finalData = {
+          ...data,
+          companyName: data.requesterType === 'company' ? data.companyName : undefined,
+      };
       await addDemoRequest({
-        ...data,
+        ...finalData,
         preferredDate: data.preferredDate.toISOString(),
       });
       onClose();
@@ -130,14 +147,46 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+            <FormField
+              control={form.control}
+              name="requesterType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>I am a...</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl><RadioGroupItem value="individual" /></FormControl>
+                        <FormLabel className="font-normal">Individual</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl><RadioGroupItem value="company" /></FormControl>
+                        <FormLabel className="font-normal">Company</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
-            <FormField control={form.control} name="email" render={({ field }) => (
+            {requesterType === 'company' && (
+              <FormField control={form.control} name="companyName" render={({ field }) => (
+                <FormItem><FormLabel>Company Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )}/>
+            )}
+             <FormField control={form.control} name="email" render={({ field }) => (
               <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
-            <FormField control={form.control} name="companyName" render={({ field }) => (
-              <FormItem><FormLabel>Company Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            <FormField control={form.control} name="phone" render={({ field }) => (
+              <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
@@ -152,7 +201,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                           <FormControl>
                             <Button
                               variant={"outline"}
-                              className={cn("w-full justify-start text-left font-normal h-11",!field.value && "text-muted-foreground")}
+                              className={cn("w-full justify-start text-left font-normal h-11 bg-muted/50",!field.value && "text-muted-foreground")}
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
@@ -183,9 +232,9 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Preferred Time</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDate || availableSlots.length === 0}>
+                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!selectedDate || availableSlots.length === 0}>
                         <FormControl>
-                          <SelectTrigger className="h-11">
+                          <SelectTrigger className="h-11 bg-muted/50">
                             <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                             <SelectValue placeholder="Select a time slot" />
                           </SelectTrigger>
@@ -197,7 +246,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
                              ))
                           ) : (
                              <SelectItem value="no-slots" disabled>
-                                {selectedDate ? 'No available slots for today' : 'Select a date first'}
+                                {selectedDate ? 'No more slots available for today' : 'Select a date first'}
                             </SelectItem>
                           )}
                         </SelectContent>

@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppContext } from '@/contexts/AppContext';
 import { MoreHorizontal, CalendarCheck, Check, Clock, Trash2, ShieldCheck, ListFilter } from 'lucide-react';
@@ -126,7 +126,7 @@ export default function DemoRequestsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Visitor</TableHead>
-                  <TableHead>Company</TableHead>
+                  <TableHead>Type / Company</TableHead>
                   <TableHead>Requested Slot</TableHead>
                   <TableHead>Submitted On</TableHead>
                   <TableHead className="text-center">Status</TableHead>
@@ -140,8 +140,14 @@ export default function DemoRequestsPage() {
                       <TableCell>
                           <div className="font-medium">{req.name}</div>
                           <div className="text-xs text-muted-foreground">{req.email}</div>
+                          <div className="text-xs text-muted-foreground">{req.phone}</div>
                       </TableCell>
-                      <TableCell>{req.companyName}</TableCell>
+                       <TableCell>
+                        <Badge variant="outline" className="capitalize">{req.requesterType}</Badge>
+                        {req.requesterType === 'company' && req.companyName && (
+                          <div className="text-sm text-muted-foreground mt-1">{req.companyName}</div>
+                        )}
+                      </TableCell>
                       <TableCell>{format(new Date(req.preferredDate), 'PPP')} at {req.preferredTime}</TableCell>
                       <TableCell>{format(new Date(req.createdAt), 'PPp')}</TableCell>
                       <TableCell className="text-center">
