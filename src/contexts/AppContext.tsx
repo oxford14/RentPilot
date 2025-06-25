@@ -968,7 +968,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const sessionRef = await addDoc(collection(db, 'chatSessions'), newSessionData);
     
     // Add the first message
-    await addDoc(collection(db, `chatSessions/${sessionRef.id}/chatMessages`), {
+    const messageRef = doc(collection(db, `chatSessions/${sessionRef.id}/chatMessages`));
+    await setDoc(messageRef, {
       sessionId: sessionRef.id,
       sender: 'visitor',
       text: initialMessage.text,

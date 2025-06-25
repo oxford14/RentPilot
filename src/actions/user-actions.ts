@@ -79,6 +79,7 @@ export async function serverAddManagedUser(userData: Omit<ManagedUser, 'id'>): P
         clientId: userData.clientId,
         role: userData.role,
         password: hashedPassword,
+        canApplyDiscount: userData.canApplyDiscount || false,
     });
 }
 
@@ -88,6 +89,7 @@ export async function serverUpdateManagedUser(userId: string, userData: Partial<
         email: userData.email,
         role: userData.role,
         clientId: userData.clientId,
+        canApplyDiscount: userData.canApplyDiscount,
     };
     if (userData.password) {
         dataToUpdate.password = await hashPassword(userData.password);
@@ -182,6 +184,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
                 clientId: managedUserData.clientId,
                 isSuperAdmin: false,
                 role: managedUserData.role,
+                canApplyDiscount: managedUserData.canApplyDiscount,
             };
         }
     }

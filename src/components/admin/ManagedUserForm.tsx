@@ -8,12 +8,13 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ManagedUser, ClientUserRole } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 const clientUserRoles: ClientUserRole[] = ['admin', 'user'];
 
@@ -24,6 +25,7 @@ const managedUserFormSchema = z.object({
   role: z.enum(clientUserRoles as [ClientUserRole, ...ClientUserRole[]], {
     required_error: "User role is required.",
   }),
+  canApplyDiscount: z.boolean().optional(),
 });
 
 type ManagedUserFormValues = z.infer<typeof managedUserFormSchema>;
@@ -43,8 +45,8 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
 
   const defaultFormValues = React.useMemo(() => (
     user
-      ? { username: user.username, email: user.email, password: '', role: user.role }
-      : { username: '', email: '', password: '', role: 'user' as ClientUserRole }
+      ? { username: user.username, email: user.email, password: '', role: user.role, canApplyDiscount: user.canApplyDiscount || false }
+      : { username: '', email: '', password: '', role: 'user' as ClientUserRole, canApplyDiscount: false }
   ), [user]);
 
   const form = useForm<ManagedUserFormValues>({
@@ -56,8 +58,8 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
     if (isOpen) {
       form.reset(
         user
-          ? { username: user.username, email: user.email, password: '', role: user.role }
-          : { username: '', email: '', password: '', role: 'user' as ClientUserRole }
+          ? { username: user.username, email: user.email, password: '', role: user.role, canApplyDiscount: user.canApplyDiscount || false }
+          : { username: '', email: '', password: '', role: 'user' as ClientUserRole, canApplyDiscount: false }
       );
       setShowPassword(false);
     }
@@ -92,6 +94,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
         email: data.email,
         clientId: targetClientId,
         role: data.role,
+        canApplyDiscount: data.canApplyDiscount || false,
       };
 
       if (user) {
@@ -105,7 +108,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
         addManagedUser(userDataPayload as Omit<ManagedUser, 'id'>);
         toast({ title: "User Added", description: `${data.username} has been added to ${targetClientName}.` });
       }
-      form.reset({ username: '', email: '', password: '', role: 'user' });
+      form.reset({ username: '', email: '', password: '', role: 'user', canApplyDiscount: false });
       onClose();
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save user information." });
@@ -197,6 +200,26 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                 </FormItem>
               )}
             />
+            <FormField
+                control={form.control}
+                name="canApplyDiscount"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/50">
+                    <div className="space-y-0.5">
+                      <FormLabel>Can Apply Discounts</FormLabel>
+                      <FormDescription className="text-xs">
+                        Allow this user to apply discounts to payments.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

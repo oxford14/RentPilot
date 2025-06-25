@@ -28,7 +28,6 @@ const clientFormSchema = z.object({
   logoFile: z.any().optional(),
   subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
   subscriptionEndDate: z.date().optional(),
-  allowUserDiscount: z.boolean().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -100,7 +99,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       logoFile: undefined,
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
-      allowUserDiscount: client?.allowUserDiscount || false,
     },
   });
 
@@ -111,7 +109,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         logoFile: undefined,
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
-        allowUserDiscount: client?.allowUserDiscount || false,
       });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
@@ -170,7 +167,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       name: data.name,
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
-      allowUserDiscount: data.allowUserDiscount,
     };
 
     try {
@@ -315,27 +311,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   </div>
                 </div>
               )}
-
-              <FormField
-                control={form.control}
-                name="allowUserDiscount"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/50">
-                    <div className="space-y-0.5">
-                      <FormLabel>Allow Discount for Users</FormLabel>
-                      <FormDescription className="text-xs">
-                        Allow regular users (non-admins) to apply discounts to payments.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
 
               <DialogFooter className="pt-4">
                 <DialogClose asChild>

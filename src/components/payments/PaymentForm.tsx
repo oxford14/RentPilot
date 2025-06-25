@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from '@/components/ui/separator';
-import type { Payment, PaymentMethod, Tenant, BalanceBreakdown, Client } from '@/lib/types';
+import type { Payment, PaymentMethod, Tenant, BalanceBreakdown } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -70,7 +70,7 @@ interface PaymentFormProps {
 const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: PaymentFormProps) {
-  const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment, clients } = useAppContext();
+  const { tenants, payments, additionalDues, systemTimezone, addPayment, updatePayment } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
@@ -145,12 +145,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     return tenants.find(t => t.id === selectedTenantId)
   }, [selectedTenantId, tenants]);
 
-  const client = useMemo(() => {
-    if (!selectedTenant) return null;
-    return clients.find(c => c.id === selectedTenant.clientId);
-  }, [selectedTenant, clients]);
-
-  const canApplyDiscount = user?.isSuperAdmin || user?.role === 'admin' || (client?.allowUserDiscount && user?.role === 'user');
+  const canApplyDiscount = user?.isSuperAdmin || user?.role === 'admin' || !!user?.canApplyDiscount;
 
 
   useEffect(() => {

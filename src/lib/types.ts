@@ -10,6 +10,7 @@ export interface User { // For AuthContext user
   role?: UserRole; 
   tenantId?: string; // Firestore document ID of the tenant if user is a tenant
   email?: string; // Add email to user object
+  canApplyDiscount?: boolean;
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
@@ -19,6 +20,7 @@ export interface ManagedUser { // For client-specific users managed by SuperAdmi
   clientId: string; // Firestore document ID of the client
   password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
   role: ClientUserRole; 
+  canApplyDiscount?: boolean;
 }
 
 export interface SuperAdminUser {
@@ -63,7 +65,6 @@ export interface Client {
   logoUrl?: string | null;
   subscriptionStatus?: 'active' | 'inactive';
   subscriptionEndDate?: string; // ISO string
-  allowUserDiscount?: boolean;
 }
 
 export type ExpenseCategory = 
