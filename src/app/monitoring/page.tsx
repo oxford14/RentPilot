@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,7 +10,7 @@ import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-r
 import Image from 'next/image';
 
 export default function MonitoringPage() {
-  const { tenants, payments, systemTimezone } = useAppContext();
+  const { tenants, payments, additionalDues, systemTimezone } = useAppContext();
   const [categorizedTenants, setCategorizedTenants] = useState<{
     pastDue: MonitoredTenant[];
     dueToday: MonitoredTenant[];
@@ -58,7 +57,7 @@ export default function MonitoringPage() {
     };
 
     activeTenants.forEach(tenant => {
-      const balanceToday = calculateTenantBalance(tenant, payments, today);
+      const balanceToday = calculateTenantBalance(tenant, payments, additionalDues, today);
       const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
 
       if (balanceToday > 0) {
@@ -104,7 +103,7 @@ export default function MonitoringPage() {
     setCategorizedTenants({ pastDue: newPastDue, dueToday: newDueToday, upcoming: newUpcoming });
     setIsLoading(false);
 
-  }, [activeTenants, payments, systemTimezone]);
+  }, [activeTenants, payments, additionalDues, systemTimezone]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] w-full flex flex-col items-center justify-center p-4">
