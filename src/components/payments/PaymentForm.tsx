@@ -20,7 +20,7 @@ import type { Payment, PaymentMethod, Tenant, BalanceBreakdown, Client } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home, Send, PercentCircle } from 'lucide-react';
+import { CalendarIcon, DollarSign, Info, CheckCircle2, TrendingDown, TrendingUp, BadgeDollarSign, Banknote, ShieldCheck, ChevronDown, ListPlus, Home, Send, PercentCircle, MinusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
@@ -259,6 +259,12 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   
   const canApplyDeposit = selectedTenant && (selectedTenant.securityDeposit || 0) > 0 && balanceBreakdown !== null && balanceBreakdown.total > 0;
 
+  const handleCancelDiscount = () => {
+    setShowDiscountFields(false);
+    form.setValue('discountApplied', 0);
+    form.setValue('discountDescription', '');
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => {
@@ -410,6 +416,19 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
 
                 {showDiscountFields && (
                     <div className="space-y-4 p-4 border rounded-md bg-muted/50">
+                        <div className="flex justify-between items-center mb-2">
+                            <FormLabel>Discount Details</FormLabel>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelDiscount}
+                                className="h-auto px-2 py-1 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                                <MinusCircle className="mr-1 h-3 w-3" />
+                                Cancel Discount
+                            </Button>
+                        </div>
                         <FormField
                             control={form.control}
                             name="discountApplied"
@@ -564,5 +583,3 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
     </>
   );
 }
-
-    
