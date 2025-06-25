@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email format." }),
-  phone: z.string().min(10, { message: "Phone must be at least 10 digits." }).regex(/^\S*$/, { message: "Phone number cannot contain spaces." }),
+  phone: z.string().min(7, { message: "Please enter a valid phone number." }),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
@@ -121,7 +121,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. John Doe" {...field} autoComplete="off" />
+                    <Input {...field} autoComplete="off" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -135,7 +135,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="e.g. john.doe@example.com" {...field} autoComplete="off" />
+                      <Input type="email" placeholder="user@example.com" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -148,7 +148,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 123-456-7890" {...field} autoComplete="off" />
+                      <Input {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -163,7 +163,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Monthly Rental Rate (₱)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g. 1200" {...field} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -176,7 +176,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Security Deposit (₱)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g. 2400" {...field} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

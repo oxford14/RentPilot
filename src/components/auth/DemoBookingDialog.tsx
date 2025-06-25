@@ -18,12 +18,10 @@ import { cn } from '@/lib/utils';
 import { format, setHours, setMinutes, addDays } from 'date-fns';
 import { CalendarIcon, Clock, CheckCircle, Send, Loader2 } from 'lucide-react';
 
-const phoneRegex = new RegExp(/^(\+63|0)9\d{9}$/);
-
 const bookingFormSchema = z.object({
   name: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
-  phone: z.string().regex(phoneRegex, 'Please enter a valid PH mobile number (e.g., 09xxxxxxxxx or +639xxxxxxxxx).'),
+  phone: z.string().min(7, { message: "Please enter a valid phone number." }),
   date: z.date({ required_error: "Please select a date." }),
   time: z.string({ required_error: "Please select a time." }),
 });
@@ -133,7 +131,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Juan Dela Cruz" {...field} autoComplete="off" />
+                        <Input {...field} autoComplete="off" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -159,7 +157,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="09xxxxxxxxx" {...field} autoComplete="off" />
+                        <Input {...field} autoComplete="off" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
