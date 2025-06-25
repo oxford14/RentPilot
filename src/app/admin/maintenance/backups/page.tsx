@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export default function AdminBackupsPage() {
   const {
@@ -30,6 +31,9 @@ export default function AdminBackupsPage() {
     rawExpenses,
     rawManagedUsers,
     rawSuperAdminUsers,
+    rawAdditionalDues,
+    rawBusinesses,
+    rawWeeklyIncomes,
     restoreDataFromBackup,
   } = useAppContext();
   const { toast } = useToast();
@@ -39,6 +43,9 @@ export default function AdminBackupsPage() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [isSystemCloudBackupLoading, setIsSystemCloudBackupLoading] = useState(false);
+  const [isClientCloudBackupLoading, setIsClientCloudBackupLoading] = useState(false);
 
   const handleDownloadJson = (data: object, filename: string) => {
     try {
@@ -79,6 +86,9 @@ export default function AdminBackupsPage() {
         tenants: rawTenants,
         payments: rawPayments,
         expenses: rawExpenses,
+        additionalDues: rawAdditionalDues,
+        businesses: rawBusinesses,
+        weeklyIncomes: rawWeeklyIncomes
       },
     };
     handleDownloadJson(systemData, `rentpilot_full-system-backup_${timestamp}.json`);
@@ -97,10 +107,99 @@ export default function AdminBackupsPage() {
         tenants: rawTenants,
         payments: rawPayments,
         expenses: rawExpenses,
+        additionalDues: rawAdditionalDues,
+        businesses: rawBusinesses,
+        weeklyIncomes: rawWeeklyIncomes
       },
     };
     handleDownloadJson(clientData, `rentpilot_all-client-data-backup_${timestamp}.json`);
     setIsClientDataBackupLoading(false);
+  };
+
+  const handleUploadToDrive = async (data: object, filename: string, setLoading: (isLoading: boolean) => void) => {
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("file", JSON.stringify(data, null, 2));
+    formData.append("filename", filename);
+    formData.append("mimeType", "application/json");
+
+    try {
+      const response = await fetch("https://script.google.com/macros/s/AKfycbxIchCAjfTDrP4ir9JeYSzigEQkEWVLMXNaiFkw_kydkzeJWlmAx60haJ8f1ttYP5nM/exec", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Network response was not ok, status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.fileUrl) {
+         toast({
+          title: "Cloud Backup Successful",
+          description: "Your data has been backed up to Google Drive.",
+          action: (
+            <Link href={result.fileUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+              View File
+            </Link>
+          ),
+         });
+      } else {
+         throw new Error(result.error || 'The script did not return a file URL.');
+      }
+    } catch (err: any) {
+      console.error("Cloud backup failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Cloud Backup Failed",
+        description: err.message || "An unknown error occurred during upload.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleSystemBackupToDrive = () => {
+    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+    const systemData = {
+      appCode: "RP-SYSTEM",
+      backupType: 'Full System Backup',
+      timestamp: new Date().toISOString(),
+      data: {
+        clients,
+        superAdminUsers: rawSuperAdminUsers,
+        managedUsers: rawManagedUsers,
+        tenants: rawTenants,
+        payments: rawPayments,
+        expenses: rawExpenses,
+        additionalDues: rawAdditionalDues,
+        businesses: rawBusinesses,
+        weeklyIncomes: rawWeeklyIncomes
+      },
+    };
+    handleUploadToDrive(systemData, `rentpilot_full-system-backup_${timestamp}.json`, setIsSystemCloudBackupLoading);
+  };
+  
+  const handleClientDataBackupToDrive = () => {
+    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
+    const clientData = {
+      appCode: "RP-CLIENT",
+      backupType: 'All Client Data Backup',
+      timestamp: new Date().toISOString(),
+      data: {
+        clients,
+        managedUsers: rawManagedUsers,
+        tenants: rawTenants,
+        payments: rawPayments,
+        expenses: rawExpenses,
+        additionalDues: rawAdditionalDues,
+        businesses: rawBusinesses,
+        weeklyIncomes: rawWeeklyIncomes
+      },
+    };
+    handleUploadToDrive(clientData, `rentpilot_all-client-data-backup_${timestamp}.json`, setIsClientCloudBackupLoading);
   };
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,13 +277,13 @@ export default function AdminBackupsPage() {
           Data Backup & Restore
         </h1>
         <p className="text-muted-foreground">
-          Create and download backups of your system and client data.
+          Create and download local backups or upload to your configured cloud storage.
         </p>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Create Backup</CardTitle>
+          <CardTitle>Local Backup</CardTitle>
           <CardDescription>
             Download a JSON file containing a snapshot of your data. Keep these files in a safe place.
           </CardDescription>
@@ -233,6 +332,57 @@ export default function AdminBackupsPage() {
         </CardContent>
       </Card>
       
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Cloud Backup to Google Drive</CardTitle>
+          <CardDescription>
+            Upload a backup directly to your configured Google Drive via a Google Apps Script. This provides an off-site copy of your data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
+            <div>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                 <UploadCloud className="h-5 w-5 text-primary" />
+                 Full System Backup to Drive
+              </h3>
+              <p className="text-muted-foreground text-sm mt-1">
+                Backs up all data, including clients, all user types, tenants, payments, and expenses to your Google Drive.
+              </p>
+            </div>
+            <Button 
+              onClick={handleSystemBackupToDrive} 
+              disabled={isSystemCloudBackupLoading}
+              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
+            >
+              {isSystemCloudBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+              {isSystemCloudBackupLoading ? 'Backing Up...' : 'Backup System to Drive'}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
+             <div>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <UploadCloud className="h-5 w-5 text-primary" />
+                Client Data Backup to Drive
+              </h3>
+              <p className="text-muted-foreground text-sm mt-1">
+                Backs up all client-related data. It excludes super admin accounts.
+              </p>
+            </div>
+            <Button 
+              onClick={handleClientDataBackupToDrive} 
+              disabled={isClientCloudBackupLoading}
+              variant="secondary"
+              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
+            >
+              {isClientCloudBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+              {isClientCloudBackupLoading ? 'Backing Up...' : 'Backup Client Data to Drive'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="shadow-lg border-destructive/50">
         <CardHeader>
           <CardTitle>Restore from Backup</CardTitle>
