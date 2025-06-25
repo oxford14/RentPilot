@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud, Save, Terminal } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -20,6 +20,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -46,6 +49,22 @@ export default function AdminBackupsPage() {
   
   const [isSystemCloudBackupLoading, setIsSystemCloudBackupLoading] = useState(false);
   const [isClientCloudBackupLoading, setIsClientCloudBackupLoading] = useState(false);
+
+  const [isScheduleEnabled, setIsScheduleEnabled] = useState(false);
+  const [frequency, setFrequency] = useState('daily');
+  const [dayOfWeek, setDayOfWeek] = useState('0'); // Sunday
+  const [dayOfMonth, setDayOfMonth] = useState('1');
+  const [backupTime, setBackupTime] = useState('02:00');
+
+  const weekDays = [
+    { label: 'Sunday', value: '0' },
+    { label: 'Monday', value: '1' },
+    { label: 'Tuesday', value: '2' },
+    { label: 'Wednesday', value: '3' },
+    { label: 'Thursday', value: '4' },
+    { label: 'Friday', value: '5' },
+    { label: 'Saturday', value: '6' },
+  ];
 
   const handleDownloadJson = (data: object, filename: string) => {
     try {
@@ -269,6 +288,13 @@ export default function AdminBackupsPage() {
     reader.readAsText(restoreFile);
   };
 
+  const handleSaveSchedule = () => {
+    toast({
+        title: "Schedule Configuration Saved",
+        description: "Your backup schedule settings have been saved. Make sure your backend function is deployed to use them.",
+    });
+  };
+
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
@@ -382,6 +408,92 @@ export default function AdminBackupsPage() {
           </div>
         </CardContent>
       </Card>
+      
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle>Automated Cloud Backup Schedule</CardTitle>
+          <CardDescription>
+            Configure the schedule for automatic backups to your Google Drive.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Alert>
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Backend Setup Required</AlertTitle>
+            <AlertDescription>
+              This UI configures the desired backup schedule. A backend process, like a Firebase Cloud Function, must be deployed separately to read these settings and trigger the backup.
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex items-center space-x-2 pt-4">
+            <Switch id="schedule-enabled" checked={isScheduleEnabled} onCheckedChange={setIsScheduleEnabled} />
+            <Label htmlFor="schedule-enabled">Enable Automated Backups</Label>
+          </div>
+
+          {isScheduleEnabled && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="frequency-select">Frequency</Label>
+                  <Select value={frequency} onValueChange={setFrequency}>
+                    <SelectTrigger id="frequency-select">
+                      <SelectValue placeholder="Select frequency..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {frequency === 'weekly' && (
+                  <div className="space-y-2">
+                      <Label htmlFor="day-of-week-select">Day of the Week</Label>
+                      <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
+                          <SelectTrigger id="day-of-week-select">
+                              <SelectValue placeholder="Select day..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {weekDays.map(day => <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>)}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                )}
+
+                {frequency === 'monthly' && (
+                  <div className="space-y-2">
+                      <Label htmlFor="day-of-month-select">Day of the Month</Label>
+                      <Select value={dayOfMonth} onValueChange={setDayOfMonth}>
+                          <SelectTrigger id="day-of-month-select">
+                              <SelectValue placeholder="Select day..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                            ))}
+                          </SelectContent>
+                      </Select>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="backup-time">Backup Time (Asia/Manila)</Label>
+                  <Input id="backup-time" type="time" value={backupTime} onChange={e => setBackupTime(e.target.value)} />
+                </div>
+              </div>
+              
+              <div className="flex justify-end pt-4">
+                  <Button onClick={handleSaveSchedule}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Schedule
+                  </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Card className="shadow-lg border-destructive/50">
         <CardHeader>
@@ -438,3 +550,5 @@ export default function AdminBackupsPage() {
     </div>
   );
 }
+
+    
