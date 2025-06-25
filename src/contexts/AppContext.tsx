@@ -25,6 +25,7 @@ import {
   Timestamp,
   runTransaction,
   limit,
+  orderBy,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
@@ -967,7 +968,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const sessionRef = await addDoc(collection(db, 'chatSessions'), newSessionData);
     
-    // Add the first message
+    // Add the first message to the subcollection
     const messageRef = doc(collection(db, `chatSessions/${sessionRef.id}/chatMessages`));
     await setDoc(messageRef, {
       sessionId: sessionRef.id,

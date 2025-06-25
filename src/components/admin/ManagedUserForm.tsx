@@ -53,6 +53,8 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
     resolver: zodResolver(managedUserFormSchema),
     defaultValues: defaultFormValues,
   });
+  
+  const watchedRole = form.watch("role");
 
   useEffect(() => {
     if (isOpen) {
@@ -89,19 +91,21 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
         }
       }
       
+      const canApplyDiscountValue = data.role === 'admin' ? true : (data.canApplyDiscount || false);
+
       const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
         username: data.username,
         email: data.email,
         clientId: targetClientId,
         role: data.role,
-        canApplyDiscount: data.canApplyDiscount || false,
+        canApplyDiscount: canApplyDiscountValue,
       };
 
       if (user) {
         if (data.password) {
           userDataPayload.password = data.password;
         }
-        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId, role: data.role });
+        updateManagedUser({ ...user, ...userDataPayload, clientId: targetClientId, role: data.role, canApplyDiscount: canApplyDiscountValue });
         toast({ title: "User Updated", description: `${data.username} for ${targetClientName} has been updated.` });
       } else {
         userDataPayload.password = data.password!; // Password is required for new users (validated above)
@@ -200,26 +204,28 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                 </FormItem>
               )}
             />
-            <FormField
-                control={form.control}
-                name="canApplyDiscount"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/50">
-                    <div className="space-y-0.5">
-                      <FormLabel>Can Apply Discounts</FormLabel>
-                      <FormDescription className="text-xs">
-                        Allow this user to apply discounts to payments.
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+            {watchedRole === 'user' && (
+              <FormField
+                  control={form.control}
+                  name="canApplyDiscount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-muted/50">
+                      <div className="space-y-0.5">
+                        <FormLabel>Can Apply Discounts</FormLabel>
+                        <FormDescription className="text-xs">
+                          Allow this user to apply discounts to payments.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+            )}
             <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
