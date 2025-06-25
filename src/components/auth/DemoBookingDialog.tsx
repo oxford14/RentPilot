@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { format, setHours, setMinutes, startOfDay, isToday as isTodayFns } from 'date-fns';
+import { format, setHours, setMinutes, startOfDay, isToday as isTodayFns, isSameDay } from 'date-fns';
 import { CalendarIcon, Clock, CheckCircle, Send, Loader2 } from 'lucide-react';
 
 const bookingFormSchema = z.object({
@@ -64,34 +64,28 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     },
   });
 
+  const { getValues, setValue } = form; // Destructure for stable dependency array
   const selectedDate = form.watch('date');
 
   useEffect(() => {
-    // This effect runs when the selectedDate changes.
-    // It recalculates the available time slots.
     if (!selectedDate) {
       setTimeSlots(allAvailableTimes);
       return;
     }
 
-    // 1. Get booked slots for the selected day
     const bookedSlotsForDay = new Set(
       rawDemoBookings
         .filter(booking => {
-          // Compare dates by ignoring time part
-          return format(new Date(booking.scheduled_at), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+          return isSameDay(new Date(booking.scheduled_at), selectedDate);
         })
         .map(booking => {
-          // Extract HH:mm from the ISO string
           return format(new Date(booking.scheduled_at), 'HH:mm');
         })
     );
 
-    // 2. Start with all possible times
     let availableTimes = [...allAvailableTimes];
     
     const now = new Date();
-    // 3. If it's today, filter out past times
     if (isTodayFns(selectedDate)) {
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
@@ -104,20 +98,17 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
       });
     }
 
-    // 4. Filter out already booked slots
     const finalAvailableTimes = availableTimes.filter(time => !bookedSlotsForDay.has(time));
     
     setTimeSlots(finalAvailableTimes);
 
-    // 5. Reset selected time if it's no longer available
-    const currentSelectedTime = form.getValues('time');
+    const currentSelectedTime = getValues('time');
     if (currentSelectedTime && !finalAvailableTimes.includes(currentSelectedTime)) {
-      form.setValue('time', undefined, { shouldValidate: true });
+      setValue('time', undefined, { shouldValidate: true });
     }
-  }, [selectedDate, form, rawDemoBookings]);
+  }, [selectedDate, rawDemoBookings, getValues, setValue]);
 
   useEffect(() => {
-    // This effect resets the form when the dialog is opened.
     if (isOpen) {
       form.reset();
       setIsSubmitted(false);
@@ -268,7 +259,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                       <FormLabel>Preferred Time</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-secondary">
                             <Clock className="mr-2 h-4 w-4 opacity-50" />
                             <SelectValue placeholder="Select a time slot" />
                           </SelectTrigger>
