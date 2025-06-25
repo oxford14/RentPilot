@@ -185,6 +185,40 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
+  const [installPrompt, setInstallPrompt] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleDownloadApp = () => {
+    if (!installPrompt) {
+      toast({
+        title: "Installation Not Available",
+        description: "Your browser doesn't support app installation, or the app isn't ready. Please try again later or use a supported browser like Chrome.",
+      });
+      return;
+    }
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+      if (choiceResult.outcome === 'accepted') {
+        toast({ title: 'App Installed!', description: 'RentPilot has been added to your home screen.' });
+      } else {
+        toast({ title: 'Installation Cancelled', description: 'You can install the app later from the menu.' });
+      }
+      setInstallPrompt(null);
+    });
+  };
+
   // Notification State
   const [notifications, setNotifications] = React.useState<AppNotification[]>([]);
   const [notificationFilter, setNotificationFilter] = React.useState<'all' | 'unread'>('unread');
@@ -498,7 +532,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton
                         tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
                         className="justify-start"
-                        onClick={() => toast({ title: "Feature not available", description: "PWA installation is not yet implemented."})}
+                        onClick={handleDownloadApp}
                         >
                         <Download className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Download App</span>
