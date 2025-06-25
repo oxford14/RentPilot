@@ -61,9 +61,9 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/', label: 'Dashboard', icon: Home },
   { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
   { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
-  { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
   { isGroup: false, href: '/additional-dues', label: 'Additional Dues', icon: ListPlus },
   { isGroup: false, href: '/monitoring', label: 'Monitoring', icon: BellRing },
+  { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
