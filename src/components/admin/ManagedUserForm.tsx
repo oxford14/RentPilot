@@ -122,7 +122,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2">
             <FormField
               control={form.control}
               name="username"

@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email format." }),
-  phone: z.string().min(7, { message: "Please enter a valid phone number." }),
+  phone: z.string().min(1, { message: "Phone number is required." }),
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
@@ -113,7 +113,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
           <DialogTitle className="font-headline text-2xl">{tenant ? 'Edit Tenant' : 'Add New Tenant'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2 max-h-[70vh] overflow-y-auto">
             <FormField
               control={form.control}
               name="name"
@@ -135,7 +135,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="user@example.com" {...field} autoComplete="off" />
+                      <Input type="email" placeholder="" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

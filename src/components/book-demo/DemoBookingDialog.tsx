@@ -146,7 +146,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
             <FormField
               control={form.control}
               name="requesterType"

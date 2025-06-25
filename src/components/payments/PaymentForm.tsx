@@ -279,7 +279,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
             <DialogDescription>{isEditing ? 'Update the details for this payment record.' : 'Enter the details for the new payment record. Discounts can be applied against the current amount due.'}</DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-4 p-2 max-h-[80vh] overflow-y-auto">
               <FormField
                 control={form.control}
                 name="tenantId"

@@ -103,7 +103,7 @@ export default function UserAccountSettingsPage() {
           <CardDescription>Update your login password. Choose a strong, unique password.</CardDescription>
         </CardHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
             <CardContent className="space-y-6">
               <FormField
                 control={form.control}

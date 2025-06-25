@@ -93,7 +93,7 @@ export function ExpenseForm({ isOpen, onClose, expense }: ExpenseFormProps) {
           <DialogTitle className="font-headline text-2xl">{expense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2 max-h-[70vh] overflow-y-auto">
             <FormField
               control={form.control}
               name="description"

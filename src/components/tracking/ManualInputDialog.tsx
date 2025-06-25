@@ -59,7 +59,7 @@ export function ManualInputDialog({ isOpen, onClose, rules, totalIncome, onSubmi
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} autoComplete="off">
             <ScrollArea className="max-h-[50vh] my-4 pr-4">
               <div className="space-y-4">
                 {rules.map((rule) => (

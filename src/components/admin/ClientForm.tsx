@@ -215,7 +215,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
             <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2 max-h-[80vh] overflow-y-auto">
               <FormField
                 control={form.control}
                 name="name"

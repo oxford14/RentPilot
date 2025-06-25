@@ -103,7 +103,7 @@ export function SuperAdminUserForm({ isOpen, onClose, user }: SuperAdminUserForm
           <DialogTitle className="font-headline text-2xl">{user ? 'Edit Super Admin' : 'Add New Super Admin'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2">
             <FormField
               control={form.control}
               name="username"
