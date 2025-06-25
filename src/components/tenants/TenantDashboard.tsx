@@ -63,6 +63,44 @@ export function TenantDashboard() {
       .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
   }, [currentTenant, additionalDues]);
 
+  const monthlyRentHistory = useMemo(() => {
+    if (!currentTenant || !clientToday) return [];
+
+    const history = [];
+    const startDate = new Date(currentTenant.joinDate);
+    // Start loop from the first day of the month the tenant joined
+    let loopMonthStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
+    let monthsBilledCounter = 0;
+
+    const tenantPayments = payments
+      .filter(p => p.tenantId === currentTenant.id)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    while(loopMonthStart <= clientToday) {
+        monthsBilledCounter++;
+        const totalRentBilled = monthsBilledCounter * currentTenant.monthlyRentalRate;
+
+        // Get the end of the current month in the loop
+        const loopMonthEnd = new Date(Date.UTC(loopMonthStart.getUTCFullYear(), loopMonthStart.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+        const totalPaidByEndOfMonth = tenantPayments
+            .filter(p => new Date(p.date) <= loopMonthEnd)
+            .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
+        
+        const status = totalPaidByEndOfMonth >= totalRentBilled ? 'Paid' : 'Not Paid';
+        
+        history.push({
+            month: loopMonthStart.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+            rent: currentTenant.monthlyRentalRate,
+            status: status,
+        });
+
+        // Move to next month
+        loopMonthStart.setUTCMonth(loopMonthStart.getUTCMonth() + 1);
+    }
+    return history.reverse();
+  }, [currentTenant, payments, clientToday]);
+
 
   if (!currentTenant) {
     return (
@@ -151,6 +189,50 @@ export function TenantDashboard() {
             </CardContent>
         </Card>
       </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Banknote className="h-5 w-5 text-primary" />
+            <CardTitle className="font-headline text-lg">Monthly Rent History</CardTitle>
+          </div>
+          <CardDescription>A summary of your monthly rent payments and status.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {monthlyRentHistory.length > 0 ? (
+            <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Month</TableHead>
+                    <TableHead className="text-right">Rent Amount (₱)</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {monthlyRentHistory.map((entry) => (
+                    <TableRow key={entry.month}>
+                      <TableCell className="font-medium">{entry.month}</TableCell>
+                      <TableCell className="text-right">
+                        {entry.rent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={entry.status === 'Paid' ? 'default' : 'destructive'} className={cn(entry.status === 'Paid' ? 'bg-green-500/20 text-green-700 border-green-400' : '')}>
+                          {entry.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              <p>No rent history to display yet.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
        <Card className="shadow-lg">
         <CardHeader>
@@ -236,7 +318,8 @@ export function TenantDashboard() {
           <PaymentsTable 
             tenantId={currentTenant.id} 
             onEdit={() => {}} 
-            onDelete={() => {}} 
+            onDelete={() => {}}
+            showActions={false} 
           />
         </CardContent>
       </Card>

@@ -41,9 +41,10 @@ interface PaymentsTableProps {
   onEdit: (payment: Payment) => void;
   onDelete: (payment: Payment) => void;
   filterPeriod?: 'all' | 'today' | 'this_week' | 'this_month' | 'last_month';
+  showActions?: boolean;
 }
 
-export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all' }: PaymentsTableProps) {
+export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all', showActions = true }: PaymentsTableProps) {
   const { payments: allPaymentsFromContext, tenants: allTenantsFromContext, additionalDues } = useAppContext();
   const [clientToday, setClientToday] = useState<Date | null>(null);
 
@@ -133,7 +134,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
               <TableHead className="text-right">Amount Paid (₱)</TableHead>
               <TableHead className="text-right">Discount (₱)</TableHead>
               <TableHead className="text-center">Method</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              {showActions && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -179,24 +180,26 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                         )}
                    </Tooltip>
                 </TableCell>
-                <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(payment)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                {showActions && (
+                  <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit(payment)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
