@@ -49,7 +49,7 @@ interface DemoBookingDialogProps {
 }
 
 export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogProps) {
-  const { addDemoBooking } = useAppContext();
+  const { addDemoBooking, rawDemoBookings } = useAppContext();
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -74,32 +74,47 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
       return;
     }
 
-    const now = new Date();
+    // 1. Get booked slots for the selected day
+    const bookedSlotsForDay = new Set(
+      rawDemoBookings
+        .filter(booking => {
+          // Compare dates by ignoring time part
+          return format(new Date(booking.scheduled_at), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+        })
+        .map(booking => {
+          // Extract HH:mm from the ISO string
+          return format(new Date(booking.scheduled_at), 'HH:mm');
+        })
+    );
+
+    // 2. Start with all possible times
+    let availableTimes = [...allAvailableTimes];
     
-    // Check if the selected date is today
+    const now = new Date();
+    // 3. If it's today, filter out past times
     if (isTodayFns(selectedDate)) {
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
 
-      // Filter out past time slots for today
-      const futureTimes = allAvailableTimes.filter(time => {
+      availableTimes = availableTimes.filter(time => {
         const [hour, minute] = time.split(':').map(Number);
         if (hour > currentHour) return true;
         if (hour === currentHour && minute > currentMinute) return true;
         return false;
       });
-      setTimeSlots(futureTimes);
-
-      // Reset selected time if it's no longer available
-      const currentSelectedTime = form.getValues('time');
-      if (currentSelectedTime && !futureTimes.includes(currentSelectedTime)) {
-        form.setValue('time', undefined, { shouldValidate: true });
-      }
-    } else {
-      // If the selected date is in the future, all slots are available
-      setTimeSlots(allAvailableTimes);
     }
-  }, [selectedDate, form]); // Dependency array ensures this runs when date changes
+
+    // 4. Filter out already booked slots
+    const finalAvailableTimes = availableTimes.filter(time => !bookedSlotsForDay.has(time));
+    
+    setTimeSlots(finalAvailableTimes);
+
+    // 5. Reset selected time if it's no longer available
+    const currentSelectedTime = form.getValues('time');
+    if (currentSelectedTime && !finalAvailableTimes.includes(currentSelectedTime)) {
+      form.setValue('time', undefined, { shouldValidate: true });
+    }
+  }, [selectedDate, form, rawDemoBookings]);
 
   useEffect(() => {
     // This effect resets the form when the dialog is opened.
@@ -137,8 +152,8 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
     }
   };
 
-  const emptySlotsMessage = selectedDate && isTodayFns(selectedDate)
-    ? 'No more slots available for today.'
+  const emptySlotsMessage = selectedDate
+    ? 'No more slots available for this date.'
     : 'No available slots for this date.';
     
   return (
