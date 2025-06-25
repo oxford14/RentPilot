@@ -52,6 +52,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
   const { addDemoBooking } = useAppContext();
   const { toast } = useToast();
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
@@ -171,7 +172,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Preferred Date</FormLabel>
-                      <Popover>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -187,7 +188,10 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setIsCalendarOpen(false);
+                            }}
                             disabled={(date) => date < addDays(new Date(), 1) || date.getDay() === 0 || date.getDay() === 6}
                             initialFocus
                           />

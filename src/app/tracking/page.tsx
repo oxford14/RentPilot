@@ -40,6 +40,7 @@ export default function TrackingPage() {
   
   const [weeklyIncomeInput, setWeeklyIncomeInput] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const [latestBreakdown, setLatestBreakdown] = useState<Omit<WeeklyIncome, 'id'|'clientId'> | null>(null);
 
@@ -320,7 +321,7 @@ export default function TrackingPage() {
                 </div>
                 <div className="w-full md:w-auto">
                   <Label>Date</Label>
-                  <Popover>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -328,7 +329,16 @@ export default function TrackingPage() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} disabled={isDateDisabled} initialFocus />
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          setIsCalendarOpen(false);
+                        }}
+                        disabled={isDateDisabled}
+                        initialFocus
+                      />
                     </PopoverContent>
                   </Popover>
                 </div>

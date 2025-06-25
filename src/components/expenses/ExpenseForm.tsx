@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -40,6 +40,7 @@ interface ExpenseFormProps {
 export function ExpenseForm({ isOpen, onClose, expense }: ExpenseFormProps) {
   const { addExpense, updateExpense: contextUpdateExpense } = useAppContext();
   const { toast } = useToast();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const defaultValues = React.useMemo(() => {
     return expense
@@ -129,7 +130,7 @@ export function ExpenseForm({ isOpen, onClose, expense }: ExpenseFormProps) {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Date of Expense</FormLabel>
-                    <Popover>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -148,7 +149,10 @@ export function ExpenseForm({ isOpen, onClose, expense }: ExpenseFormProps) {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            setIsCalendarOpen(false);
+                          }}
                           disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
                           initialFocus
                         />

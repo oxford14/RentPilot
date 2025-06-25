@@ -90,6 +90,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
 
   const form = useForm<ClientFormValues>({
@@ -262,7 +263,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Subscription End Date</FormLabel>
-                      <Popover>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -275,7 +276,15 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setIsCalendarOpen(false);
+                            }}
+                            initialFocus
+                          />
                         </PopoverContent>
                       </Popover>
                       <FormMessage />

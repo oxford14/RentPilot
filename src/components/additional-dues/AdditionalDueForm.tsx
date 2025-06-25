@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -42,6 +42,7 @@ export function AdditionalDueForm({ isOpen, onClose, due, tenantId }: Additional
   const { addAdditionalDue, updateAdditionalDue } = useAppContext();
   const { toast } = useToast();
   const isEditing = !!due;
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const defaultValues = React.useMemo(() => {
     return due
@@ -150,7 +151,7 @@ export function AdditionalDueForm({ isOpen, onClose, due, tenantId }: Additional
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Due Date</FormLabel>
-                    <Popover>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -163,7 +164,15 @@ export function AdditionalDueForm({ isOpen, onClose, due, tenantId }: Additional
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus/>
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            setIsCalendarOpen(false);
+                          }}
+                          initialFocus
+                        />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />

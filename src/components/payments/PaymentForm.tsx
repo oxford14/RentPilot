@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -76,6 +75,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   const { toast } = useToast();
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
   const [showDiscountFields, setShowDiscountFields] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const [balanceBreakdown, setBalanceBreakdown] = useState<BalanceBreakdown | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
@@ -470,7 +470,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Payment Date</FormLabel>
-                    <Popover>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -493,7 +493,10 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            setIsCalendarOpen(false);
+                          }}
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
