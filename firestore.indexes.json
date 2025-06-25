@@ -92,7 +92,7 @@
     },
     {
       "collectionGroup": "chatMessages",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         { "fieldPath": "sessionId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "ASCENDING" }

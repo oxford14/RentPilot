@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import type { ChatMessage } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Send, User, Shield, Power } from 'lucide-react';
@@ -27,7 +27,7 @@ export function ChatWindow({ sessionId }: ChatWindowProps) {
 
   useEffect(() => {
     if (!sessionId) return;
-    const q = query(collection(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
+    const q = query(collectionGroup(db, 'chatMessages'), where('sessionId', '==', sessionId), orderBy('timestamp', 'asc'));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const newMessages: ChatMessage[] = [];
