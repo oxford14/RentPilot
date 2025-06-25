@@ -113,7 +113,7 @@ export default function UserAccountSettingsPage() {
                     <FormLabel>Current Password</FormLabel>
                     <div className="relative">
                       <FormControl>
-                        <Input type={showCurrentPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                        <Input type={showCurrentPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                       </FormControl>
                       <Button
                         type="button"
@@ -137,7 +137,7 @@ export default function UserAccountSettingsPage() {
                     <FormLabel>New Password</FormLabel>
                     <div className="relative">
                       <FormControl>
-                        <Input type={showNewPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                        <Input type={showNewPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                       </FormControl>
                       <Button
                         type="button"
@@ -161,7 +161,7 @@ export default function UserAccountSettingsPage() {
                     <FormLabel>Confirm New Password</FormLabel>
                     <div className="relative">
                       <FormControl>
-                        <Input type={showConfirmNewPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                        <Input type={showConfirmNewPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                       </FormControl>
                       <Button
                         type="button"

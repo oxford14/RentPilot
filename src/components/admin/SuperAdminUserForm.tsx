@@ -111,7 +111,7 @@ export function SuperAdminUserForm({ isOpen, onClose, user }: SuperAdminUserForm
                 <FormItem>
                   <FormLabel>Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. global_admin" {...field} disabled={!!user} />
+                    <Input placeholder="e.g. global_admin" {...field} disabled={!!user} autoComplete="off" />
                   </FormControl>
                   <FormMessage />
                   {user && <p className="text-xs text-muted-foreground pt-1">Username cannot be changed after creation.</p>}
@@ -126,7 +126,7 @@ export function SuperAdminUserForm({ isOpen, onClose, user }: SuperAdminUserForm
                   <FormLabel>{user ? 'New Password (optional)' : 'Password'}</FormLabel>
                   <div className="relative">
                     <FormControl>
-                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                     </FormControl>
                     <Button
                       type="button"

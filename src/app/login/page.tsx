@@ -78,7 +78,7 @@ function LoginBox() {
                   <FormItem>
                     <FormLabel>Username or Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. admin" {...field} />
+                      <Input placeholder="e.g. admin" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -92,7 +92,7 @@ function LoginBox() {
                     <FormLabel>Password</FormLabel>
                     <div className="relative">
                       <FormControl>
-                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                       </FormControl>
                       <Button
                         type="button"

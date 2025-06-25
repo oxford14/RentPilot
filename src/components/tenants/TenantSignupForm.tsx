@@ -113,7 +113,7 @@ export function TenantSignupForm() {
                   <FormLabel>Password</FormLabel>
                   <div className="relative">
                     <FormControl>
-                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} autoComplete="off" />
                     </FormControl>
                     <Button
                         type="button"
@@ -137,7 +137,7 @@ export function TenantSignupForm() {
                   <FormLabel>Confirm Password</FormLabel>
                    <div className="relative">
                     <FormControl>
-                        <Input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                        <Input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" {...field} autoComplete="off" />
                     </FormControl>
                     <Button
                         type="button"

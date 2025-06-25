@@ -130,7 +130,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                 <FormItem>
                   <FormLabel>Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. client_admin" {...field} />
+                    <Input placeholder="e.g. client_admin" {...field} autoComplete="off" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -143,7 +143,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="e.g. user@client.com" {...field} />
+                    <Input type="email" placeholder="e.g. user@client.com" {...field} autoComplete="off" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -157,7 +157,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                   <FormLabel>{user ? 'New Password (optional to change)' : 'Password'}</FormLabel>
                   <div className="relative">
                     <FormControl>
-                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" />
+                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="pr-10" autoComplete="off" />
                     </FormControl>
                      <Button
                         type="button"

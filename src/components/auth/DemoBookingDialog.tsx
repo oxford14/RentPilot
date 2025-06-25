@@ -132,7 +132,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Juan Dela Cruz" {...field} />
+                        <Input placeholder="e.g., Juan Dela Cruz" {...field} autoComplete="off" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -145,7 +145,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                     <FormItem>
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input type="email" placeholder="you@example.com" {...field} autoComplete="off" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -158,7 +158,7 @@ export function DemoBookingDialog({ isOpen, onOpenChange }: DemoBookingDialogPro
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="09xxxxxxxxx" {...field} />
+                        <Input placeholder="09xxxxxxxxx" {...field} autoComplete="off" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

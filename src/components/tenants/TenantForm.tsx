@@ -121,7 +121,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. John Doe" {...field} />
+                    <Input placeholder="e.g. John Doe" {...field} autoComplete="off" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -135,7 +135,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="e.g. john.doe@example.com" {...field} />
+                      <Input type="email" placeholder="e.g. john.doe@example.com" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -148,7 +148,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 123-456-7890" {...field} />
+                      <Input placeholder="e.g. 123-456-7890" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
