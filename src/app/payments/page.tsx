@@ -48,7 +48,7 @@ export default function PaymentsPage() {
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
-  const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'this_week' | 'this_month'>('all');
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'last_month'>('all');
   const [tenantBalanceInfo, setTenantBalanceInfo] = useState<{tenant: Tenant, breakdown: BalanceBreakdown} | null>(null);
 
 
@@ -247,6 +247,7 @@ export default function PaymentsPage() {
                         <SelectItem value="today">Today</SelectItem>
                         <SelectItem value="this_week">This Week</SelectItem>
                         <SelectItem value="this_month">This Month</SelectItem>
+                        <SelectItem value="last_month">Last Month</SelectItem>
                     </SelectContent>
                 </Select>
               </div>
@@ -269,8 +270,6 @@ export default function PaymentsPage() {
             onClose={handleCloseForm}
             defaultTenantId={selectedTenantId}
             payment={editingPayment}
-            tenant={tenantBalanceInfo?.tenant}
-            balanceBreakdown={tenantBalanceInfo?.breakdown}
         />
       )}
 

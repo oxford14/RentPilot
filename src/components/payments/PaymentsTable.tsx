@@ -18,7 +18,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -40,7 +40,7 @@ interface PaymentsTableProps {
   tenantId?: string | null;
   onEdit: (payment: Payment) => void;
   onDelete: (payment: Payment) => void;
-  filterPeriod?: 'all' | 'today' | 'this_week' | 'this_month';
+  filterPeriod?: 'all' | 'today' | 'this_week' | 'this_month' | 'last_month';
 }
 
 export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all' }: PaymentsTableProps) {
@@ -75,6 +75,10 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
         break;
       case 'this_month':
         interval = { start: startOfMonth(today), end: endOfMonth(today) };
+        break;
+      case 'last_month':
+        const lastMonth = subMonths(today, 1);
+        interval = { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
         break;
       case 'all':
       default:
@@ -201,4 +205,3 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
     </TooltipProvider>
   );
 }
-

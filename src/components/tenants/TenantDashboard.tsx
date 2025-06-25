@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { calculateTenantBalance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home } from 'lucide-react';
+import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock } from 'lucide-react';
 import { startOfDay } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
@@ -57,14 +57,12 @@ export function TenantDashboard() {
     }
   }, [currentTenant, payments, additionalDues, clientToday]);
   
-  const unpaidDues = useMemo(() => {
-    if (!currentTenant || !clientToday) return [];
-    return additionalDues.filter(due => 
-        due.tenantId === currentTenant.id && 
-        due.status === 'unpaid' && 
-        new Date(due.dueDate) < new Date(Date.UTC(clientToday.getFullYear(), clientToday.getMonth(), clientToday.getDate() + 1))
-    );
-  }, [currentTenant, additionalDues, clientToday]);
+  const allTenantDues = useMemo(() => {
+    if (!currentTenant) return [];
+    return additionalDues
+      .filter(due => due.tenantId === currentTenant.id)
+      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+  }, [currentTenant, additionalDues]);
 
 
   if (!currentTenant) {
@@ -104,40 +102,53 @@ export function TenantDashboard() {
         <p className="text-muted-foreground">Welcome, {currentTenant.name}. Here is your payment summary.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1 shadow-lg">
-          <CardHeader>
-              <CardTitle className="flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" /> Next Rent Due</CardTitle>
-          </CardHeader>
-          <CardContent>
-              <p className="text-3xl font-bold text-center">
-                  {nextDueDate ? new Date(nextDueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : 'N/A'}
-              </p>
-          </CardContent>
-        </Card>
-        <Card className="md:col-span-2 shadow-lg">
-            <CardHeader>
-                <CardTitle className="font-headline text-lg">Your Account Summary</CardTitle>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{balanceInfo?.text.replace(':', '')}</CardTitle>
+                {balanceInfo?.icon}
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-2">
-                        <Banknote className="h-5 w-5 text-primary" />
-                        <span className="font-semibold text-lg">{balance > 0 ? 'Amount Due' : (balance < 0 ? 'Credit' : 'Balance')}</span>
-                    </div>
-                    <span className={cn("font-bold text-xl", balanceInfo?.amountColor)}>
-                        ₱{balanceInfo?.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+            <CardContent>
+                <div className={cn("text-2xl font-bold", balanceInfo?.amountColor)}>
+                    ₱{balanceInfo?.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                 <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-primary" />
-                        <span className="font-semibold text-lg">Security Deposit</span>
-                    </div>
-                    <span className="font-bold text-xl text-primary">
-                        ₱{(currentTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
+                <p className="text-xs text-muted-foreground">as of today</p>
+            </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Next Rent Due</CardTitle>
+                <CalendarClock className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    {nextDueDate ? new Date(nextDueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : 'N/A'}
                 </div>
+                 <p className="text-xs text-muted-foreground">based on your join date</p>
+            </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Start Date</CardTitle>
+                <Calendar className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    {new Date(currentTenant.joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
+                </div>
+                 <p className="text-xs text-muted-foreground">Your official contract start</p>
+            </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Security Deposit</CardTitle>
+                <ShieldCheck className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    ₱{(currentTenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                 <p className="text-xs text-muted-foreground">on file with your landlord</p>
             </CardContent>
         </Card>
       </div>
@@ -146,14 +157,14 @@ export function TenantDashboard() {
         <CardHeader>
            <div className="flex items-center gap-2">
               <ListChecks className="h-5 w-5 text-primary" />
-              <CardTitle className="font-headline text-lg">Outstanding Additional Dues</CardTitle>
+              <CardTitle className="font-headline text-lg">Additional Dues History</CardTitle>
            </div>
           <CardDescription>
-            A record of your unpaid additional charges.
+            A record of all your additional charges.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {unpaidDues.length > 0 ? (
+          {allTenantDues.length > 0 ? (
             <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
               <Table>
                 <TableHeader>
@@ -162,10 +173,13 @@ export function TenantDashboard() {
                         <TableHead>Type</TableHead>
                         <TableHead>Notes</TableHead>
                         <TableHead className="text-right">Amount (₱)</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {unpaidDues.map(due => (
+                    {allTenantDues.map(due => {
+                      const isEffectivelyPaid = due.status === 'paid' || (balance !== null && balance <= 0);
+                      return (
                         <TableRow key={due.id}>
                             <TableCell>{new Date(due.dueDate).toLocaleDateString()}</TableCell>
                             <TableCell>
@@ -175,16 +189,34 @@ export function TenantDashboard() {
                             <TableCell className="text-right font-medium">
                                 {due.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
+                            <TableCell className="text-center">
+                                {due.status === 'paid' ? (
+                                    <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Paid
+                                    </Badge>
+                                ) : (balance !== null && balance <= 0) ? (
+                                    <Badge variant="default" className="bg-blue-500/20 text-blue-700 border-blue-400">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Covered
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="destructive" className="bg-yellow-500/20 text-yellow-700 border-yellow-400">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        Unpaid
+                                    </Badge>
+                                )}
+                            </TableCell>
                         </TableRow>
-                    ))}
+                    )})}
                 </TableBody>
               </Table>
             </div>
           ) : (
             <div className="text-center text-muted-foreground py-8">
               <Home className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-lg">No Outstanding Dues</p>
-              <p className="text-sm">You have no unpaid additional charges.</p>
+              <p className="text-lg">No Additional Dues</p>
+              <p className="text-sm">You have no additional charges recorded.</p>
             </div>
           )}
         </CardContent>
