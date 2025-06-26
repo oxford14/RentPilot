@@ -37,7 +37,7 @@ import {
   markSessionAsRead,
   closeChatSession,
 } from '@/actions/chat-actions';
-import { serverAddDemoRequest } from '@/actions/demo-actions';
+import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
 import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -193,7 +193,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawTenantsState.filter(t => !t.clientId);
+      return rawTenantsState; // Super admin in global view sees all tenants
     }
     return rawTenantsState.filter(t => t.clientId === clientId);
   }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -202,7 +202,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
      if (authUser?.isSuperAdmin && !clientId) {
-      return rawPaymentsState.filter(p => !p.clientId);
+      return rawPaymentsState; // Super admin in global view sees all payments
     }
     return rawPaymentsState.filter(p => p.clientId === clientId);
   }, [rawPaymentsState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -211,7 +211,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawExpensesState.filter(e => !e.clientId);
+      return rawExpensesState; // Super admin in global view sees all expenses
     }
     return rawExpensesState.filter(e => e.clientId === clientId);
   }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -220,7 +220,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawAdditionalDuesState.filter(d => !d.clientId);
+      return rawAdditionalDuesState; // Super admin in global view sees all additional dues
     }
     return rawAdditionalDuesState.filter(d => d.clientId === clientId);
   }, [rawAdditionalDuesState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -1241,3 +1241,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
