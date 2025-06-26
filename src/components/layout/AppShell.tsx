@@ -229,11 +229,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (authUser.isSuperAdmin) {
         // Super admins do not see announcements in their bell. They manage them from their page.
     } else if (authUser.role === 'admin' || authUser.role === 'user') {
-        relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin');
-    } else if (authUser.role === 'tenant' && authUser.clientId) {
-        relevant = announcements.filter(a => a.scope === authUser.clientId && a.audience === 'tenant');
+        // Client admins only see global announcements, not targeted ones.
+        relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin' && !a.recipientId);
+    } else if (authUser.role === 'tenant' && authUser.clientId && authUser.tenantId) {
+        // Tenants see broadcasts for their client AND messages sent directly to them.
+        relevant = announcements.filter(a => 
+            a.audience === 'tenant' &&
+            a.scope === authUser.clientId &&
+            (
+                !a.recipientId || // It's a broadcast for their client
+                a.recipientId === authUser.tenantId // OR it's a message specifically for them
+            )
+        );
     }
     
+    // Sort all relevant announcements by date
+    relevant.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     setFilteredAnnouncements(relevant);
   }, [announcements, authUser]);
 

@@ -192,6 +192,8 @@ export interface Announcement {
   senderId: string;
   senderName: string;
   readBy: string[]; // Array of usernames who have read it
+  recipientId?: string; // NEW: Firestore document ID of the specific tenant recipient
+  recipientUsername?: string; // NEW: username of the specific tenant recipient
 }
 
 // Navigation item types

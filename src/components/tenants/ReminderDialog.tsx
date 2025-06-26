@@ -23,11 +23,11 @@ interface ReminderDialogProps {
 
 export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps) {
   const { toast } = useToast();
-  const { payments, additionalDues, clients } = useAppContext();
+  const { addAnnouncement, payments, additionalDues, clients } = useAppContext();
   const { user } = useAuth();
   
   const [activeTab, setActiveTab] = useState('balance');
-  const [isLoading, setIsLoading] = useState(false); // To show loading state on buttons
+  const [isLoading, setIsLoading] = useState(false);
   const [customMessage, setCustomMessage] = useState('');
 
   const { balance, nextDueDate } = useMemo(() => {
@@ -68,30 +68,61 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
     }
   }, [isOpen, balance]);
 
-  const sendReminder = (message: string) => {
+  const sendReminder = async (message: string, title: string) => {
     setIsLoading(true);
-    // Simulate sending the message
-    console.log("--- SIMULATED SMS REMINDER ---");
-    console.log(`To: ${tenant?.phone} (${tenant?.name})`);
-    console.log(`Message: ${message}`);
-    console.log("------------------------------");
+    if (!tenant || !user) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot send reminder without tenant or user context.' });
+      setIsLoading(false);
+      return;
+    }
+    
+    if (!tenant.clientId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot send reminder to a tenant without an assigned client.' });
+      setIsLoading(false);
+      return;
+    }
 
-    setTimeout(() => {
-        toast({
-            title: "Reminder Sent (Simulation)",
-            description: `A reminder text has been logged to the console for ${tenant?.name}.`,
-        });
+    if (!tenant.username) {
+        toast({ variant: 'destructive', title: 'Error', description: 'This tenant does not have a user account to receive notifications.' });
         setIsLoading(false);
-        onClose();
-    }, 500);
+        return;
+    }
+
+    try {
+      await addAnnouncement({
+        title: title,
+        content: message,
+        scope: tenant.clientId,
+        audience: 'tenant',
+        senderId: user.username,
+        senderName: user.username,
+        recipientId: tenant.id,
+        recipientUsername: tenant.username,
+      });
+
+      toast({
+        title: "Reminder Sent",
+        description: `A notification has been sent to ${tenant.name}.`,
+      });
+    } catch (error) {
+      console.error("Failed to send reminder announcement:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to Send",
+        description: "There was an error sending the reminder.",
+      });
+    } finally {
+      setIsLoading(false);
+      onClose();
+    }
   };
   
   const handleSendBalanceReminder = () => {
     if (!tenant || balance <= 0) return;
     const client = user?.clientId ? clients.find(c => c.id === user.clientId) : null;
     const landlordName = client?.name || "your landlord";
-    const message = `Hi ${tenant.name.split(' ')[0]}, just a friendly reminder from ${landlordName} that your rent payment of ₱${balance.toFixed(2)} is due. Please let us know if you have any questions. Thank you!`;
-    sendReminder(message);
+    const message = `Hi ${tenant.name.split(' ')[0]}, just a friendly reminder from ${landlordName} that you have an outstanding balance of ₱${balance.toFixed(2)}. Please let us know if you have any questions. Thank you!`;
+    sendReminder(message, "Outstanding Balance Reminder");
   };
 
   const handleSendUpcomingReminder = () => {
@@ -99,7 +130,7 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
     const client = user?.clientId ? clients.find(c => c.id === user.clientId) : null;
     const landlordName = client?.name || "your landlord";
     const message = `Hi ${tenant.name.split(' ')[0]}, this is a friendly reminder from ${landlordName} that your next rent payment is due on ${format(nextDueDate, 'MMMM do')}. Thank you!`;
-    sendReminder(message);
+    sendReminder(message, "Upcoming Due Date Reminder");
   };
 
   const handleSendCustomReminder = () => {
@@ -107,7 +138,7 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
       toast({ variant: 'destructive', title: 'Empty Message', description: 'Cannot send an empty message.' });
       return;
     }
-    sendReminder(customMessage);
+    sendReminder(customMessage, "A message from your landlord");
   };
 
   return (
@@ -116,7 +147,7 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
         <DialogHeader>
           <DialogTitle>Send Reminder to {tenant?.name}</DialogTitle>
           <DialogDescription>
-            Choose a reminder type to send to the tenant.
+            Choose a reminder type to send to the tenant's notification inbox.
           </DialogDescription>
         </DialogHeader>
         
