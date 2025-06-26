@@ -193,7 +193,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawTenantsState; // Super admin in global view sees all tenants
+      // Super admin in global view sees only tenants without a clientId
+      return rawTenantsState.filter(t => !t.clientId);
     }
     return rawTenantsState.filter(t => t.clientId === clientId);
   }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -202,7 +203,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
      if (authUser?.isSuperAdmin && !clientId) {
-      return rawPaymentsState; // Super admin in global view sees all payments
+      // Super admin in global view sees only payments without a clientId
+      return rawPaymentsState.filter(p => !p.clientId);
     }
     return rawPaymentsState.filter(p => p.clientId === clientId);
   }, [rawPaymentsState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -211,7 +213,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawExpensesState; // Super admin in global view sees all expenses
+      // Super admin in global view sees only expenses without a clientId
+      return rawExpensesState.filter(e => !e.clientId);
     }
     return rawExpensesState.filter(e => e.clientId === clientId);
   }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -220,7 +223,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
     if (authUser?.isSuperAdmin && !clientId) {
-      return rawAdditionalDuesState; // Super admin in global view sees all additional dues
+      // Super admin in global view sees only additional dues without a clientId
+      return rawAdditionalDuesState.filter(d => !d.clientId);
     }
     return rawAdditionalDuesState.filter(d => d.clientId === clientId);
   }, [rawAdditionalDuesState, getScopedClientId, authUser, authIsAuthenticated]);
@@ -1241,5 +1245,7 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
 
     
