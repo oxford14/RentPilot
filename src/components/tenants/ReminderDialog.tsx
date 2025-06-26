@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wallet, CalendarClock, MessageCircle } from 'lucide-react';
+import { Loader2, Send, Wallet, CalendarClock } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
@@ -76,16 +76,16 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
       return;
     }
     
+    if (!tenant.hasAccount || !tenant.username) {
+        toast({ variant: 'destructive', title: 'Account Not Found', description: 'This tenant does not have an online account to receive notifications.' });
+        setIsLoading(false);
+        return;
+    }
+    
     if (!tenant.clientId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Cannot send reminder to a tenant without an assigned client.' });
       setIsLoading(false);
       return;
-    }
-
-    if (!tenant.username) {
-        toast({ variant: 'destructive', title: 'Error', description: 'This tenant does not have a user account to receive notifications.' });
-        setIsLoading(false);
-        return;
     }
 
     try {
