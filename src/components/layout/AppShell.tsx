@@ -36,6 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { AnnouncementViewerDialog } from './AnnouncementViewerDialog';
 
 
 interface AdminTopLevelNavItem {
@@ -180,6 +181,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const [installPrompt, setInstallPrompt] = React.useState<any>(null);
+  const [isAnnouncementViewerOpen, setAnnouncementViewerOpen] = React.useState(false);
 
   React.useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -598,7 +600,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                                       {!announcement.readBy.includes(authUser?.username || '') && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
                                       <div className={cn("flex-1 space-y-1", (announcement.readBy.includes(authUser?.username || '')) && "pl-5")}>
                                           <p className="text-sm font-medium leading-none">{announcement.title}</p>
-                                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{announcement.content}</p>
+                                          <p className="text-sm text-muted-foreground truncate">{announcement.content}</p>
                                           <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })} by {announcement.senderName}</p>
                                       </div>
                                   </DropdownMenuItem>
@@ -610,7 +612,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                           )}
                       </ScrollArea>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center">
+                      <DropdownMenuItem onSelect={() => setAnnouncementViewerOpen(true)} className="flex justify-center cursor-pointer">
+                          <Eye className="mr-2 h-4 w-4" />
+                          View All
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center cursor-pointer">
                           <Check className="mr-2 h-4 w-4" />
                           Mark all as read
                       </DropdownMenuItem>
@@ -705,6 +711,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </main>
         </SidebarInset>
       </div>
+      <AnnouncementViewerDialog
+        isOpen={isAnnouncementViewerOpen}
+        onClose={() => setAnnouncementViewerOpen(false)}
+        announcements={filteredAnnouncements}
+        onMarkAsRead={handleMarkOneAsRead}
+        currentUserId={authUser?.username || ''}
+      />
     </SidebarProvider>
   );
 }
