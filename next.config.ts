@@ -6,10 +6,7 @@ const pwaConfig = withPWA({
     dest: 'public',
     register: true,
     skipWaiting: true,
-    disable: false,
-    fallbacks: {
-        document: '/offline',
-    }
+    disable: false
 });
 
 const nextConfig: NextConfig = {
