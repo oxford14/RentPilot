@@ -61,9 +61,11 @@ Powered by Rent-Pilot
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tenant Account Credentials</DialogTitle>
+          <DialogTitle>{password ? 'Tenant Account Credentials' : 'View Tenant Username'}</DialogTitle>
           <DialogDescription>
-            Please provide these temporary credentials to the tenant. They will be required to change their password upon first login.
+            {password
+              ? "Please provide these temporary credentials to the tenant. They will be required to change their password upon first login."
+              : "Here is the tenant's username for your reference. You can reset their password if needed from the tenants table."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">

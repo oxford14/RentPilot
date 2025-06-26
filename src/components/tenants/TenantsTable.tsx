@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -108,6 +108,18 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     }
   };
 
+  const handleViewCredentials = (tenant: Tenant) => {
+    if (tenant.username) {
+      setCredentials({ username: tenant.username });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Account Not Found",
+        description: "This tenant does not have a login account yet. Please generate one first.",
+      });
+    }
+  };
+
   const handleOpenReminder = (tenant: Tenant) => {
     setTenantForReminder(tenant);
     setIsReminderOpen(true);
@@ -190,20 +202,26 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                             <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
                         {tenant.hasAccount ? (
-                           <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
-                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem onClick={() => handleViewCredentials(tenant)}>
+                              <UserSearch className="mr-2 h-4 w-4" /> View Credentials
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
+                              <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
+                            </DropdownMenuItem>
+                          </>
                         ) : (
                           <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
                             <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
                           {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                           Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </DropdownMenuItem>
