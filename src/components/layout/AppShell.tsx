@@ -659,10 +659,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <UserCircle className="mr-2 h-4 w-4" />
                     Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                </DropdownMenuItem>
+                {authUser?.role !== 'tenant' && (
+                    <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                    </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
