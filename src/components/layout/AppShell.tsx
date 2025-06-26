@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -29,9 +29,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import type { AppSidebarNavItem, AppNavGroup } from '@/lib/types'; 
+import type { AppSidebarNavItem, AppNavGroup, Announcement } from '@/lib/types'; 
 import { cn } from '@/lib/utils';
-import { startOfDay } from 'date-fns';
+import { startOfDay, formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/additional-dues', label: 'Additional Dues', icon: ListPlus },
   { isGroup: false, href: '/monitoring', label: 'Monitoring', icon: BellRing },
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
+  { isGroup: false, href: '/announcements', label: 'Announcements', icon: Megaphone, clientAdminOnly: true },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
@@ -91,6 +92,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
   { isGroup: false, href: '/admin/clients', label: 'Clients', icon: Building },
   { isGroup: false, href: '/admin/users', label: 'All Client Users', icon: UsersRound },
+  { isGroup: false, href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { isGroup: false, href: '/admin/chat', label: 'Live Chat', icon: MessageSquare },
   { isGroup: false, href: '/admin/maintenance/demo-requests', label: 'Demo Requests', icon: CalendarCheck },
   {
@@ -107,14 +109,6 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
-
-interface AppNotification {
-  id: number;
-  title: string;
-  description: string;
-  read: boolean;
-  date: Date;
-}
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
@@ -181,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
-  const { viewingAsClientId, clients, setViewMode } = useAppContext();
+  const { viewingAsClientId, clients, setViewMode, announcements, markAnnouncementAsRead } = useAppContext();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
@@ -219,52 +213,43 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   };
 
-  // Notification State
-  const [notifications, setNotifications] = React.useState<AppNotification[]>([]);
-  const [notificationFilter, setNotificationFilter] = React.useState<'all' | 'unread'>('unread');
+  // Announcement logic
+  const [filteredAnnouncements, setFilteredAnnouncements] = React.useState<Announcement[]>([]);
   
   React.useEffect(() => {
-    const tenantNotifications: AppNotification[] = [
-      { id: 1, title: 'Rent Reminder', description: 'Your rent for July is due in 3 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-      { id: 2, title: 'Maintenance Update', description: 'The elevator will be serviced tomorrow from 10 AM to 12 PM.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24) },
-      { id: 3, title: 'Welcome!', description: 'Welcome to your new tenant portal. Explore your dashboard.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
-    ];
-
-    const clientNotifications: AppNotification[] = [
-      { id: 1, title: 'Subscription Renewal', description: 'Your RentPilot subscription is due for renewal in 15 days.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15) },
-      { id: 2, title: 'New Feature: Business Tracker', description: 'We have launched a new module to track income and expenses for multiple businesses.', read: false, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2) },
-      { id: 3, title: 'Scheduled Maintenance', description: 'RentPilot will be undergoing scheduled maintenance on July 1st from 2-4 AM PHT.', read: true, date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5) },
-    ];
-      
-    if (authUser?.role === 'tenant') {
-      setNotifications(tenantNotifications);
-    } else if (!authUser?.isSuperAdmin) {
-      // For clients
-      setNotifications(clientNotifications);
-    } else {
-        // For super admins, no notifications
-        setNotifications([]);
+    if (!authUser || !announcements) {
+      setFilteredAnnouncements([]);
+      return;
     }
-  }, [authUser]);
+    
+    let relevant: Announcement[] = [];
+    if (authUser.isSuperAdmin) {
+        // Super admins do not see announcements in their bell. They manage them from their page.
+    } else if (authUser.role === 'admin' || authUser.role === 'user') {
+        relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin');
+    } else if (authUser.role === 'tenant' && authUser.clientId) {
+        relevant = announcements.filter(a => a.scope === authUser.clientId && a.audience === 'tenant');
+    }
+    
+    setFilteredAnnouncements(relevant);
+  }, [announcements, authUser]);
 
+  const unreadCount = React.useMemo(() => {
+    if (!authUser) return 0;
+    return filteredAnnouncements.filter(a => !a.readBy.includes(authUser.username)).length;
+  }, [filteredAnnouncements, authUser]);
 
-  const unreadCount = React.useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
-  const filteredNotifications = React.useMemo(() => {
-    return notifications
-      .filter(n => notificationFilter === 'all' || !n.read)
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [notifications, notificationFilter]);
-
-  const handleMarkAsRead = (id: number) => {
-    setNotifications(currentNotifications => 
-      currentNotifications.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+  const handleMarkOneAsRead = (announcementId: string) => {
+    if (!authUser) return;
+    markAnnouncementAsRead(announcementId, authUser.username);
   };
+  
   const handleMarkAllAsRead = () => {
-    setNotifications(currentNotifications =>
-      currentNotifications.map(n => ({ ...n, read: true }))
-    );
+    if (!authUser) return;
+    const unread = filteredAnnouncements.filter(a => !a.readBy.includes(authUser.username));
+    unread.forEach(a => markAnnouncementAsRead(a.id, authUser.username));
   };
+
 
   const isAdminSection = pathname.startsWith('/admin');
   const isTenantSection = authUser?.role === 'tenant';
@@ -319,6 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
     else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
+    else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
     else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
@@ -380,6 +366,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
      if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
      else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
+     else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
      else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
      else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
@@ -512,7 +499,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile'].includes(item.href)}
+                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements'].includes(item.href)}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
@@ -600,31 +587,25 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80 sm:w-96">
                       <DropdownMenuLabel className="flex justify-between items-center">
-                          Notifications
+                          Announcements
                           <Badge variant="secondary">{unreadCount} unread</Badge>
                       </DropdownMenuLabel>
-                      <Tabs defaultValue="unread" className="w-full" onValueChange={(value) => setNotificationFilter(value as any)}>
-                          <TabsList className="grid w-full grid-cols-2">
-                              <TabsTrigger value="unread">Unread</TabsTrigger>
-                              <TabsTrigger value="all">All</TabsTrigger>
-                          </TabsList>
-                      </Tabs>
                       <DropdownMenuSeparator />
                       <ScrollArea className="h-64">
-                          {filteredNotifications.length > 0 ? (
-                              filteredNotifications.map((notif) => (
-                                  <DropdownMenuItem key={notif.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkAsRead(notif.id); }}>
-                                      {!notif.read && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
-                                      <div className={cn("flex-1 space-y-1", notif.read && "pl-5")}>
-                                          <p className="text-sm font-medium leading-none">{notif.title}</p>
-                                          <p className="text-sm text-muted-foreground">{notif.description}</p>
-                                          <p className="text-xs text-muted-foreground">{notif.date.toLocaleDateString()}</p>
+                          {filteredAnnouncements.length > 0 ? (
+                              filteredAnnouncements.map((announcement) => (
+                                  <DropdownMenuItem key={announcement.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkOneAsRead(announcement.id); }}>
+                                      {!announcement.readBy.includes(authUser?.username || '') && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                                      <div className={cn("flex-1 space-y-1", (announcement.readBy.includes(authUser?.username || '')) && "pl-5")}>
+                                          <p className="text-sm font-medium leading-none">{announcement.title}</p>
+                                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{announcement.content}</p>
+                                          <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })} by {announcement.senderName}</p>
                                       </div>
                                   </DropdownMenuItem>
                               ))
                           ) : (
                               <div className="text-center text-sm text-muted-foreground py-10">
-                                  <p>No {notificationFilter} notifications.</p>
+                                  <p>No new announcements.</p>
                               </div>
                           )}
                       </ScrollArea>

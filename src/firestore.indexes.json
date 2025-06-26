@@ -1,5 +1,4 @@
 
-
 {
   "indexes": [
     {
@@ -96,6 +95,14 @@
       "fields": [
         { "fieldPath": "sessionId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "announcements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scope", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],

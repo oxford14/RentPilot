@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,6 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawChatSessionsState, setRawChatSessionsState] = useState<ChatSession[]>([]);
   const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
   const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
+  const [rawAnnouncementsState, setRawAnnouncementsState] = useState<Announcement[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -90,6 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawWeeklyIncomesState([]);
       setRawChatSessionsState([]);
       setRawDemoRequestsState([]);
+      setRawAnnouncementsState([]);
       setBackupScheduleSettings(null);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
@@ -111,10 +112,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
       { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
       { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
+      { name: 'announcements', setter: setRawAnnouncementsState, label: 'announcements' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
-      onSnapshot(query(collection(db, coll.name)), 
+      onSnapshot(query(collection(db, coll.name), orderBy('createdAt', 'desc')),
         (snapshot) => {
           if (!isMounted) return;
           const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
@@ -240,6 +242,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return rawWeeklyIncomesState.filter(wi => wi.clientId === authUser?.clientId);
   }, [rawWeeklyIncomesState, viewingAsClientId, authUser, authIsAuthenticated]);
 
+  const announcements = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    return rawAnnouncementsState;
+  }, [rawAnnouncementsState, authIsAuthenticated]);
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
     if (!authIsAuthenticated) {
@@ -1142,6 +1148,59 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => {
+    if (!authIsAuthenticated || !authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const newAnnouncement = {
+      ...announcementData,
+      createdAt: new Date().toISOString(),
+      readBy: [],
+    };
+    try {
+      await addDoc(collection(db, 'announcements'), newAnnouncement);
+      toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
+    }
+  };
+
+  const deleteAnnouncement = async (announcementId: string) => {
+    if (!authIsAuthenticated || !authUser || (!authUser.isSuperAdmin && authUser.role !== 'admin')) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'announcements', announcementId));
+      toast({ title: "Announcement Deleted" });
+    } catch (error: any) {
+      console.error("Error deleting announcement:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete announcement: ${error.message}` });
+    }
+  };
+
+  const markAnnouncementAsRead = async (announcementId: string, userId: string) => {
+    const announcementRef = doc(db, 'announcements', announcementId);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const announcementDoc = await transaction.get(announcementRef);
+        if (!announcementDoc.exists()) {
+          throw "Announcement not found.";
+        }
+        const currentReadBy = announcementDoc.data().readBy || [];
+        if (!currentReadBy.includes(userId)) {
+          transaction.update(announcementRef, {
+            readBy: [...currentReadBy, userId]
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Failed to mark announcement as read:", error);
+      // No toast here to avoid bothering user
+    }
+  };
 
   const contextValue: AppContextType = {
     tenants,
@@ -1157,7 +1216,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     businesses,
     weeklyIncomes,
     backupScheduleSettings,
+    announcements,
     
+    // Chat
     chatSessions: rawChatSessionsState,
     startChatSession,
     sendChatMessage,
@@ -1205,6 +1266,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteBusiness,
     addWeeklyIncome,
     deleteWeeklyIncome,
+
+    addAnnouncement,
+    deleteAnnouncement,
+    markAnnouncementAsRead,
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,

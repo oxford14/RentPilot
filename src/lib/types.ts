@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -187,6 +182,18 @@ export interface BackupScheduleSettings {
   backupTime?: string;
 }
 
+export interface Announcement {
+  id: string; // Firestore document ID
+  title: string;
+  content: string;
+  createdAt: string; // ISO string
+  scope: 'global' | string; // 'global' for super admin, clientId for client admin
+  audience: 'client-admin' | 'tenant';
+  senderId: string;
+  senderName: string;
+  readBy: string[]; // Array of usernames who have read it
+}
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -268,6 +275,7 @@ export interface AppContextType {
   businesses: Business[];
   weeklyIncomes: WeeklyIncome[];
   backupScheduleSettings: BackupScheduleSettings | null;
+  announcements: Announcement[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -317,6 +325,11 @@ export interface AppContextType {
   deleteBusiness: (businessId: string) => Promise<void>;
   addWeeklyIncome: (incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'>) => Promise<void>;
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
+
+  // Announcements
+  addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
+  deleteAnnouncement: (announcementId: string) => Promise<void>;
+  markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
