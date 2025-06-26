@@ -116,7 +116,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     ];
     
     const unsubs = collectionsToListen.map(coll => 
-      onSnapshot(query(collection(db, coll.name), orderBy('createdAt', 'desc')),
+      onSnapshot(query(collection(db, coll.name)),
         (snapshot) => {
           if (!isMounted) return;
           const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
