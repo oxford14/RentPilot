@@ -15,13 +15,11 @@ const inter = Inter({
 const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea";
 
 export const metadata: Metadata = {
-  title: 'TenantTracker',
-  description: 'Manage tenants, payments, and reports efficiently.',
+  title: 'RentPilot',
+  description: 'Efficiently manage tenants, payments, and reports.',
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
+    apple: iconUrl,
   },
 };
 
