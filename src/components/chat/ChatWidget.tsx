@@ -8,19 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardFooter, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
 import { MessageSquare, X, Send, User, Shield } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collectionGroup, query, where, onSnapshot, orderBy, doc } from 'firebase/firestore';
+import { startChatSession, sendChatMessage, markSessionAsRead } from '@/actions/chat-actions';
 
 const VISITOR_ID_KEY = 'rentpilot_visitorId';
 const CHAT_SESSION_ID_KEY = 'rentpilot_chatSessionId';
 
 export function ChatWidget() {
-  const { startChatSession, sendChatMessage, markSessionAsRead } = useAppContext();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');

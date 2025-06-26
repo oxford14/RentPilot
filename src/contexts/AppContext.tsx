@@ -31,6 +31,12 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
+import {
+  startChatSession,
+  sendChatMessage,
+  markSessionAsRead,
+  closeChatSession,
+} from '@/actions/chat-actions';
 import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -1017,80 +1023,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error deleting weekly income:", error);
         toast({ variant: "destructive", title: "Error", description: `Failed to delete income entry: ${error.message}` });
     }
-  };
-
-  const startChatSession = async (visitorId: string, initialMessage: { text: string }): Promise<string> => {
-    // Check for an existing open session for this visitor
-    const q = query(collection(db, 'chatSessions'), where('visitorId', '==', visitorId), where('status', '==', 'open'), limit(1));
-    const existingSession = await getDocs(q);
-
-    if (!existingSession.empty) {
-      const sessionId = existingSession.docs[0].id;
-      // Send the initial message to the existing session
-      await sendChatMessage(sessionId, { sender: 'visitor', text: initialMessage.text });
-      return sessionId;
-    }
-
-    // Create a new session
-    const now = new Date().toISOString();
-    const newSessionData: Omit<ChatSession, 'id'> = {
-      visitorId,
-      status: 'open',
-      createdAt: now,
-      lastMessageAt: now,
-      lastMessageSnippet: initialMessage.text,
-      adminUnread: true,
-      visitorUnread: false,
-    };
-
-    const sessionRef = await addDoc(collection(db, 'chatSessions'), newSessionData);
-    
-    // Add the first message to the subcollection
-    const messageRef = doc(collection(db, `chatSessions/${sessionRef.id}/chatMessages`));
-    await setDoc(messageRef, {
-      sessionId: sessionRef.id,
-      sender: 'visitor',
-      text: initialMessage.text,
-      timestamp: now,
-    });
-    
-    return sessionRef.id;
-  };
-  
-  const sendChatMessage = async (sessionId: string, message: Omit<ChatMessage, 'id' | 'sessionId' | 'timestamp'>) => {
-    const batch = writeBatch(db);
-    const sessionRef = doc(db, 'chatSessions', sessionId);
-    const now = new Date().toISOString();
-    
-    // Update session metadata
-    batch.update(sessionRef, {
-      lastMessageAt: now,
-      lastMessageSnippet: message.text,
-      status: 'open', // Re-open session if it was closed
-      adminUnread: message.sender === 'visitor',
-      visitorUnread: message.sender === 'admin',
-    });
-
-    // Add new message to subcollection
-    const messageRef = doc(collection(db, `chatSessions/${sessionId}/chatMessages`));
-    batch.set(messageRef, {
-      ...message,
-      sessionId: sessionId,
-      timestamp: now,
-    });
-
-    await batch.commit();
-  };
-
-  const markSessionAsRead = async (sessionId: string, userType: 'visitor' | 'admin') => {
-    const sessionRef = doc(db, 'chatSessions', sessionId);
-    const updateData = userType === 'visitor' ? { visitorUnread: false } : { adminUnread: false };
-    await updateDoc(sessionRef, updateData);
-  };
-  
-  const closeChatSession = async (sessionId: string) => {
-    const sessionRef = doc(db, 'chatSessions', sessionId);
-    await updateDoc(sessionRef, { status: 'closed' });
   };
   
   const addDemoRequest = async (requestData: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => {
