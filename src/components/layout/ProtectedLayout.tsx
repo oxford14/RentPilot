@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -10,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -23,53 +24,57 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     const isForcePasswordChangeRoute = pathname.startsWith('/force-password-change');
 
-    if (!isAuthenticated && !isPublicRoute && !isForcePasswordChangeRoute) {
-      router.push('/login');
+    // User is not authenticated
+    if (!isAuthenticated) {
+      if (!isPublicRoute && !isForcePasswordChangeRoute) {
+        router.push('/login');
+      }
+      return; // Exit early
+    }
+
+    // User IS authenticated
+    // Handle temporary password as a priority state
+    if (user?.temporaryPassword) {
+      if (!isForcePasswordChangeRoute) {
+        router.push('/force-password-change');
+      }
+      return; // Exit early, this is the only page they should be on
+    }
+
+    // Handle case where user is on the change page but doesn't need to be
+    if (!user?.temporaryPassword && isForcePasswordChangeRoute) {
+      router.push('/');
       return;
     }
-
-    if (isAuthenticated) {
-      if (user?.temporaryPassword && !isForcePasswordChangeRoute) {
-        router.push('/force-password-change');
-        return;
-      }
-      
-      if (!user?.temporaryPassword && isForcePasswordChangeRoute) {
-        router.push('/');
-        return;
-      }
-      
-      if (isPublicRoute) {
-         if (user?.isSuperAdmin) {
-          router.push('/admin');
-        } else {
-          router.push('/');
-        }
-        return;
-      }
-      
-      const isSuperAdmin = !!user?.isSuperAdmin;
-      const isClientAdmin = user?.role === 'admin';
-      const isTenant = user?.role === 'tenant';
-
-      const pathIsAdmin = pathname.startsWith('/admin');
-      const pathIsClientAdminOnly = ['/users', '/announcements'].includes(pathname);
-      const allowedTenantRoutes = ['/', '/profile'];
-
-      if (isSuperAdmin && pathIsClientAdminOnly) {
-          toast({ variant: "destructive", title: "Access Denied", description: "This page is for Client Administrators." });
-          router.push('/admin');
-      }
-      else if (isClientAdmin && pathIsAdmin) {
-          toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
-          router.push('/');
-      }
-      else if (isTenant && !allowedTenantRoutes.includes(pathname)) {
-           toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
-           router.push('/');
-      }
+    
+    // Handle case where authenticated user lands on a public route
+    if (isPublicRoute) {
+       router.push(user?.isSuperAdmin ? '/admin' : '/');
+       return;
     }
-  }, [isAuthenticated, isLoading, pathname, router, user, logout]);
+      
+    // Handle normal role-based access control for all other authenticated routes
+    const isSuperAdmin = !!user?.isSuperAdmin;
+    const isClientAdmin = user?.role === 'admin';
+    const isTenant = user?.role === 'tenant';
+
+    const pathIsAdmin = pathname.startsWith('/admin');
+    const pathIsClientAdminOnly = ['/users', '/announcements'].includes(pathname);
+    const allowedTenantRoutes = ['/', '/profile'];
+
+    if (isSuperAdmin && pathIsClientAdminOnly) {
+        toast({ variant: "destructive", title: "Access Denied", description: "This page is for Client Administrators." });
+        router.push('/admin');
+    }
+    else if (isClientAdmin && pathIsAdmin) {
+        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
+        router.push('/');
+    }
+    else if (isTenant && !allowedTenantRoutes.includes(pathname)) {
+         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+         router.push('/');
+    }
+  }, [isAuthenticated, isLoading, pathname, router, user]);
 
   if (isLoading) {
     return (
