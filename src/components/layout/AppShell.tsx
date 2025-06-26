@@ -181,7 +181,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const [installPrompt, setInstallPrompt] = React.useState<any>(null);
-  const [isAnnouncementViewerOpen, setAnnouncementViewerOpen] = React.useState(false);
+  const [viewingAnnouncement, setViewingAnnouncement] = React.useState<Announcement | null>(null);
+
 
   React.useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -241,15 +242,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return filteredAnnouncements.filter(a => !a.readBy.includes(authUser.username)).length;
   }, [filteredAnnouncements, authUser]);
 
-  const handleMarkOneAsRead = (announcementId: string) => {
+  const handleAnnouncementClick = (announcement: Announcement) => {
     if (!authUser) return;
-    markAnnouncementAsRead(announcementId, authUser.username);
-  };
-  
-  const handleMarkAllAsRead = () => {
-    if (!authUser) return;
-    const unread = filteredAnnouncements.filter(a => !a.readBy.includes(authUser.username));
-    unread.forEach(a => markAnnouncementAsRead(a.id, authUser.username));
+    setViewingAnnouncement(announcement);
+    // Mark as read when clicked, if it's unread
+    if (!announcement.readBy.includes(authUser.username)) {
+      markAnnouncementAsRead(announcement.id, authUser.username);
+    }
   };
 
 
@@ -596,7 +595,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <ScrollArea className="h-64">
                           {filteredAnnouncements.length > 0 ? (
                               filteredAnnouncements.map((announcement) => (
-                                  <DropdownMenuItem key={announcement.id} className="flex items-start gap-3 p-3" onSelect={(e) => { e.preventDefault(); handleMarkOneAsRead(announcement.id); }}>
+                                  <DropdownMenuItem key={announcement.id} className="flex items-start gap-3 p-3 cursor-pointer" onSelect={(e) => { e.preventDefault(); handleAnnouncementClick(announcement); }}>
                                       {!announcement.readBy.includes(authUser?.username || '') && <div className="mt-1 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
                                       <div className={cn("flex-1 space-y-1", (announcement.readBy.includes(authUser?.username || '')) && "pl-5")}>
                                           <p className="text-sm font-medium leading-none">{announcement.title}</p>
@@ -611,15 +610,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                               </div>
                           )}
                       </ScrollArea>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => setAnnouncementViewerOpen(true)} className="flex justify-center cursor-pointer">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View All
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={handleMarkAllAsRead} disabled={unreadCount === 0} className="flex justify-center cursor-pointer">
-                          <Check className="mr-2 h-4 w-4" />
-                          Mark all as read
-                      </DropdownMenuItem>
                   </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -712,11 +702,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarInset>
       </div>
       <AnnouncementViewerDialog
-        isOpen={isAnnouncementViewerOpen}
-        onClose={() => setAnnouncementViewerOpen(false)}
-        announcements={filteredAnnouncements}
-        onMarkAsRead={handleMarkOneAsRead}
-        currentUserId={authUser?.username || ''}
+        isOpen={!!viewingAnnouncement}
+        onClose={() => setViewingAnnouncement(null)}
+        announcement={viewingAnnouncement}
       />
     </SidebarProvider>
   );

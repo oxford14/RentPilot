@@ -4,71 +4,39 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import type { Announcement } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Megaphone } from 'lucide-react';
 
+// Props updated to reflect showing a single announcement
 interface AnnouncementViewerDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  announcements: Announcement[];
-  currentUserId: string;
-  onMarkAsRead: (announcementId: string) => void;
+  announcement: Announcement | null;
 }
 
-export function AnnouncementViewerDialog({ isOpen, onClose, announcements, currentUserId, onMarkAsRead }: AnnouncementViewerDialogProps) {
-  
-  const handleItemClick = (announcement: Announcement) => {
-    if (!announcement.readBy.includes(currentUserId)) {
-        onMarkAsRead(announcement.id);
-    }
-  };
+export function AnnouncementViewerDialog({ isOpen, onClose, announcement }: AnnouncementViewerDialogProps) {
+  // If no announcement is provided, don't render the dialog
+  if (!announcement) {
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Megaphone className="h-6 w-6" />
-            All Announcements
+            <Megaphone className="h-6 w-6 text-primary" />
+            {announcement.title}
           </DialogTitle>
           <DialogDescription>
-            A full list of all announcements. Click an unread announcement to mark it as read.
+            Posted {formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })} by {announcement.senderName}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-96 pr-4">
-          <div className="space-y-4">
-            {announcements.length > 0 ? (
-              announcements.map((announcement, index) => (
-                <React.Fragment key={announcement.id}>
-                  <button 
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                    onClick={() => handleItemClick(announcement)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <p className="font-semibold">{announcement.title}</p>
-                      {!announcement.readBy.includes(currentUserId) && (
-                        <Badge variant="default" className="bg-primary/80">New</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">
-                      {announcement.content}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Posted {formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })} by {announcement.senderName}
-                    </p>
-                  </button>
-                  {index < announcements.length - 1 && <Separator />}
-                </React.Fragment>
-              ))
-            ) : (
-              <div className="text-center text-muted-foreground py-16">
-                <p>There are no announcements to display.</p>
-              </div>
-            )}
+        {/* The content is wrapped in a scroll area in case it's very long */}
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="space-y-4 whitespace-pre-wrap text-sm text-muted-foreground">
+            {announcement.content}
           </div>
         </ScrollArea>
         <DialogFooter>
