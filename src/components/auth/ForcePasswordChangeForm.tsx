@@ -28,7 +28,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function ForcePasswordChangeForm() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -40,22 +40,22 @@ export function ForcePasswordChangeForm() {
   });
 
   const onSubmit = async (data: FormValues) => {
-    if (!user || !user.tenantId) {
+    if (!user || !user.tenantId || !user.username) {
         toast({ variant: 'destructive', title: 'Error', description: 'No active user session found.' });
         return;
     }
 
     setIsLoading(true);
     const result = await serverForceChangeTenantPassword(user.tenantId, data.newPassword);
-    setIsLoading(false);
 
     if (result.success) {
       toast({
         title: "Password Updated!",
-        description: "Please log in with your new password.",
+        description: "Logging you in with your new password...",
       });
-      logout(); // Log out the user so they have to sign in with new password
+      await login(user.username, data.newPassword);
     } else {
+      setIsLoading(false);
       toast({
         variant: "destructive",
         title: "Update Failed",
@@ -130,7 +130,7 @@ export function ForcePasswordChangeForm() {
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? 'Saving...' : 'Set New Password'}
+              {isLoading ? 'Saving...' : 'Set New Password & Login'}
             </Button>
             <Button type="button" variant="outline" className="w-full" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />
