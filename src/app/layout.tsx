@@ -1,8 +1,6 @@
-
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { AppProvider } from '@/contexts/AppContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 import { Toaster } from "@/components/ui/toaster";
@@ -43,11 +41,9 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-body antialiased bg-background">
         <AuthProvider>
-          <AppProvider>
-            <ProtectedLayout>
-              {children}
-            </ProtectedLayout>
-          </AppProvider>
+          <ProtectedLayout>
+            {children}
+          </ProtectedLayout>
         </AuthProvider>
         <Toaster />
       </body>

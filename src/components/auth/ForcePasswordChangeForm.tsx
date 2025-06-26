@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -12,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Loader2, KeyRound, Eye, EyeOff, LogOut } from 'lucide-react';
 import { serverForceChangeTenantPassword } from '@/actions/user-actions';
 
 const formSchema = z.object({
@@ -127,10 +126,14 @@ export function ForcePasswordChangeForm() {
               )}
             />
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? 'Saving...' : 'Set New Password'}
+            </Button>
+            <Button type="button" variant="outline" className="w-full" onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
           </CardFooter>
         </form>

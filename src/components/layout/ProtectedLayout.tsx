@@ -1,10 +1,10 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { AppProvider } from '@/contexts/AppContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -95,7 +95,11 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <AppShell>{children}</AppShell>;
+    return (
+      <AppProvider>
+        <AppShell>{children}</AppShell>
+      </AppProvider>
+    );
   }
 
   return (
