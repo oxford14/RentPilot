@@ -37,6 +37,7 @@ import {
   markSessionAsRead,
   closeChatSession,
 } from '@/actions/chat-actions';
+import { serverAddDemoRequest } from '@/actions/demo-actions';
 import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -1027,11 +1028,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const addDemoRequest = async (requestData: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => {
     try {
-      await addDoc(collection(db, 'demoRequests'), {
-        ...requestData,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
+      await serverAddDemoRequest(requestData);
       toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
     } catch (error: any) {
       console.error("Error adding demo request:", error);

@@ -14,12 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { DemoRequest } from '@/lib/types';
+import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
 
 const demoBookingFormSchema = z.object({
   requesterType: z.enum(['individual', 'company'], { required_error: "Please select if you are an individual or a company."}),
@@ -46,7 +46,7 @@ type DemoBookingFormValues = z.infer<typeof demoBookingFormSchema>;
 const adminAvailableUTCHours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 
 export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const { addDemoRequest, rawDemoRequests } = useAppContext();
+  const [rawDemoRequests, setRawDemoRequests] = useState<DemoRequest[]>([]);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -64,6 +64,15 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
       visitorTimezone: '',
     },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+        serverGetDemoRequests().then(setRawDemoRequests).catch(err => {
+            console.error("Failed to fetch demo requests:", err);
+            toast({ variant: 'destructive', title: 'Error loading slots', description: 'Could not load existing time slots. Please try again.' });
+        });
+    }
+  }, [isOpen, toast]);
 
   const selectedDate = form.watch('preferredDate');
   const requesterType = form.watch('requesterType');
@@ -126,10 +135,12 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
           visitorTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           preferredDate: data.preferredSlot, // Save the selected UTC ISO string
       };
-      await addDemoRequest(finalData);
+      await serverAddDemoRequest(finalData);
+      toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
       onClose();
     } catch (error) {
       console.error("Failed to submit demo request", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` });
     } finally {
       setIsSubmitting(false);
     }
