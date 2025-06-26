@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from '@/hooks/use-toast';
-import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { serverForceChangeTenantPassword } from '@/actions/user-actions';
 
 const formSchema = z.object({
   newPassword: z.string().min(6, { message: "Password must be at least 6 characters." }),
@@ -29,7 +29,6 @@ export function ForcePasswordChangeForm() {
   const router = useRouter();
   const { toast } = useToast();
   const { user, logout } = useAuth();
-  const { forceChangeTenantPassword } = useAppContext();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +46,7 @@ export function ForcePasswordChangeForm() {
     }
 
     setIsLoading(true);
-    const result = await forceChangeTenantPassword(user.tenantId, data.newPassword);
+    const result = await serverForceChangeTenantPassword(user.tenantId, data.newPassword);
     setIsLoading(false);
 
     if (result.success) {
