@@ -193,7 +193,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const tenants = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin && !viewingAsClientId) {
-      return rawTenantsState;
+      return rawTenantsState.filter(t => !t.clientId);
     }
     const clientId = getScopedClientId();
     return rawTenantsState.filter(t => t.clientId === clientId);
@@ -202,7 +202,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const payments = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin && !viewingAsClientId) {
-      return rawPaymentsState;
+      return rawPaymentsState.filter(p => !p.clientId);
     }
     const clientId = getScopedClientId();
     return rawPaymentsState.filter(p => p.clientId === clientId);
@@ -211,7 +211,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const expenses = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin && !viewingAsClientId) {
-      return rawExpensesState;
+      return rawExpensesState.filter(e => !e.clientId);
     }
     const clientId = getScopedClientId();
     return rawExpensesState.filter(e => e.clientId === clientId);
@@ -220,7 +220,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const additionalDues = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin && !viewingAsClientId) {
-      return rawAdditionalDuesState;
+      return rawAdditionalDuesState.filter(d => !d.clientId);
     }
     const clientId = getScopedClientId();
     return rawAdditionalDuesState.filter(d => d.clientId === clientId);
@@ -237,7 +237,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const businesses = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-        if (!viewingAsClientId) return rawBusinessesState; // Super admin global view
+        if (!viewingAsClientId) return rawBusinessesState.filter(b => !b.clientId); // Super admin global view
         return rawBusinessesState.filter(b => b.clientId === viewingAsClientId); // Super admin client view
     }
     return rawBusinessesState.filter(b => b.clientId === authUser?.clientId);
@@ -246,7 +246,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const weeklyIncomes = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-        if (!viewingAsClientId) return rawWeeklyIncomesState; // Super admin global view
+        if (!viewingAsClientId) return rawWeeklyIncomesState.filter(wi => !wi.clientId); // Super admin global view
         return rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId); // Super admin client view
     }
     return rawWeeklyIncomesState.filter(wi => wi.clientId === authUser?.clientId);
@@ -1248,3 +1248,4 @@ export const useAppContext = (): AppContextType => {
     
 
     
+
