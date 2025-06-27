@@ -42,7 +42,6 @@ import { calculateTenantBalance } from '@/lib/utils';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_TIMEZONE_KEY = 'rentPilotSystemTimezone';
 const DEFAULT_TIMEZONE = 'Etc/UTC';
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -69,19 +68,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-
-  // Load systemTimezone from localStorage
-  useEffect(() => {
-    const storedTimezone = localStorage.getItem(LOCAL_STORAGE_TIMEZONE_KEY);
-    setSystemTimezoneState(storedTimezone || DEFAULT_TIMEZONE);
-  }, []);
-
-  // Save systemTimezone to localStorage
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_TIMEZONE_KEY, systemTimezoneState);
-  }, [systemTimezoneState]);
-
-
   // Firestore listeners
   useEffect(() => {
     if (!authIsAuthenticated) {
@@ -99,6 +85,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawDemoRequestsState([]);
       setRawAnnouncementsState([]);
       setBackupScheduleSettings(null);
+      setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
       setInitialLoadComplete(false); // Reset load complete flag
       return;
@@ -142,9 +129,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const unsubSettings = onSnapshot(settingsDocRef, (doc) => {
       if (isMounted) {
         if (doc.exists()) {
-          setBackupScheduleSettings(doc.data() as BackupScheduleSettings);
+          const settingsData = doc.data();
+          setSystemTimezoneState(settingsData.timezone || DEFAULT_TIMEZONE);
+          setBackupScheduleSettings(settingsData.backupSchedule || null);
         } else {
-          setBackupScheduleSettings({ isScheduleEnabled: false, frequency: 'daily', backupTime: '02:00' });
+          setSystemTimezoneState(DEFAULT_TIMEZONE);
+          setBackupScheduleSettings(null);
         }
       }
     }, (error) => {
@@ -175,8 +165,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setViewingAsClientId(clientId);
   };
 
-  const updateSystemTimezone = (timezone: string) => {
-    setSystemTimezoneState(timezone);
+  const updateSystemTimezone = async (timezone: string) => {
+    if (!authUser?.isSuperAdmin) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        throw new Error("Unauthorized");
+    }
+    try {
+        const settingsDocRef = doc(db, 'systemSettings', 'main');
+        await setDoc(settingsDocRef, { timezone }, { merge: true });
+    } catch (error: any) {
+        console.error("Error updating system timezone:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to save timezone: ${error.message}` });
+        throw error;
+    }
   };
 
   const getScopedClientId = useCallback(() => {
@@ -191,43 +192,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Filtered data based on auth user and view mode
   const tenants = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    const clientId = getScopedClientId();
-    if (authUser?.isSuperAdmin && !clientId) {
-      // Super admin in global view sees only tenants without a clientId
-      return rawTenantsState.filter(t => !t.clientId);
+    if (authUser?.isSuperAdmin && !viewingAsClientId) {
+      return rawTenantsState;
     }
+    const clientId = getScopedClientId();
     return rawTenantsState.filter(t => t.clientId === clientId);
-  }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated]);
+  }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
 
   const payments = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    const clientId = getScopedClientId();
-     if (authUser?.isSuperAdmin && !clientId) {
-      // Super admin in global view sees only payments without a clientId
-      return rawPaymentsState.filter(p => !p.clientId);
+    if (authUser?.isSuperAdmin && !viewingAsClientId) {
+      return rawPaymentsState;
     }
+    const clientId = getScopedClientId();
     return rawPaymentsState.filter(p => p.clientId === clientId);
-  }, [rawPaymentsState, getScopedClientId, authUser, authIsAuthenticated]);
+  }, [rawPaymentsState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
   
   const expenses = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    const clientId = getScopedClientId();
-    if (authUser?.isSuperAdmin && !clientId) {
-      // Super admin in global view sees only expenses without a clientId
-      return rawExpensesState.filter(e => !e.clientId);
+    if (authUser?.isSuperAdmin && !viewingAsClientId) {
+      return rawExpensesState;
     }
+    const clientId = getScopedClientId();
     return rawExpensesState.filter(e => e.clientId === clientId);
-  }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated]);
+  }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
 
   const additionalDues = useMemo(() => {
     if (!authIsAuthenticated) return [];
-    const clientId = getScopedClientId();
-    if (authUser?.isSuperAdmin && !clientId) {
-      // Super admin in global view sees only additional dues without a clientId
-      return rawAdditionalDuesState.filter(d => !d.clientId);
+    if (authUser?.isSuperAdmin && !viewingAsClientId) {
+      return rawAdditionalDuesState;
     }
+    const clientId = getScopedClientId();
     return rawAdditionalDuesState.filter(d => d.clientId === clientId);
-  }, [rawAdditionalDuesState, getScopedClientId, authUser, authIsAuthenticated]);
+  }, [rawAdditionalDuesState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
 
   const managedUsers = useMemo(() => {
     if (!authIsAuthenticated) return [];
@@ -240,7 +237,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const businesses = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-      return viewingAsClientId ? rawBusinessesState.filter(b => b.clientId === viewingAsClientId) : [];
+        if (!viewingAsClientId) return rawBusinessesState; // Super admin global view
+        return rawBusinessesState.filter(b => b.clientId === viewingAsClientId); // Super admin client view
     }
     return rawBusinessesState.filter(b => b.clientId === authUser?.clientId);
   }, [rawBusinessesState, viewingAsClientId, authUser, authIsAuthenticated]);
@@ -248,7 +246,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const weeklyIncomes = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-        return viewingAsClientId ? rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId) : [];
+        if (!viewingAsClientId) return rawWeeklyIncomesState; // Super admin global view
+        return rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId); // Super admin client view
     }
     return rawWeeklyIncomesState.filter(wi => wi.clientId === authUser?.clientId);
   }, [rawWeeklyIncomesState, viewingAsClientId, authUser, authIsAuthenticated]);
@@ -1073,7 +1072,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
         const settingsDocRef = doc(db, 'systemSettings', 'main');
-        await setDoc(settingsDocRef, settings, { merge: true });
+        await setDoc(settingsDocRef, { backupSchedule: settings }, { merge: true });
         toast({ title: "Schedule Saved", description: "Backup schedule has been saved successfully." });
     } catch (error: any) {
         console.error("Error updating backup schedule:", error);

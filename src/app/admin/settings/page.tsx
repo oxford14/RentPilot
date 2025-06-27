@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Clock, Save, Cog } from 'lucide-react'; // Changed Cog to Clock for primary icon
+import { Clock, Save, Cog, Loader2 } from 'lucide-react';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,10 +23,11 @@ const timezones = [
   { value: 'Asia/Manila', label: 'Manila (PST)'},
 ];
 
-export default function AdminTimezoneSettingsPage() { // Renamed component
+export default function AdminTimezoneSettingsPage() {
   const { systemTimezone, updateSystemTimezone } = useAppContext();
   const { toast } = useToast();
   const [selectedTimezone, setSelectedTimezone] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (systemTimezone) {
@@ -36,16 +37,23 @@ export default function AdminTimezoneSettingsPage() { // Renamed component
 
   const handleTimezoneChange = (value: string) => {
     setSelectedTimezone(value);
-    updateSystemTimezone(value); 
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     if (selectedTimezone) {
-      updateSystemTimezone(selectedTimezone);
-      toast({
-        title: "Settings Saved",
-        description: `System timezone updated to ${timezones.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone}.`,
-      });
+      setIsSaving(true);
+      try {
+        await updateSystemTimezone(selectedTimezone);
+        toast({
+          title: "Settings Saved",
+          description: `System timezone updated to ${timezones.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone}.`,
+        });
+      } catch (error) {
+        // The context already shows a toast on error, so this is optional
+        console.error("Failed to save timezone settings from page.", error);
+      } finally {
+        setIsSaving(false);
+      }
     } else {
       toast({
         variant: "destructive",
@@ -65,7 +73,7 @@ export default function AdminTimezoneSettingsPage() { // Renamed component
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-6 w-6 text-primary" /> {/* Changed icon */}
+            <Clock className="mr-2 h-6 w-6 text-primary" />
             Timezone Configuration
           </CardTitle>
           <CardDescription>
@@ -92,15 +100,15 @@ export default function AdminTimezoneSettingsPage() { // Renamed component
             </Select>
              {selectedTimezone && (
               <p className="text-xs text-muted-foreground mt-1">
-                Currently selected: {timezones.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone}
+                Currently set to: {timezones.find(tz => tz.value === systemTimezone)?.label || systemTimezone}
               </p>
             )}
           </div>
 
           <div className="border-t pt-6">
-            <Button onClick={handleSaveChanges} className="shadow-md hover:shadow-lg transition-shadow">
-              <Save className="mr-2 h-4 w-4" />
-              Save Timezone Setting
+            <Button onClick={handleSaveChanges} disabled={isSaving || !selectedTimezone || selectedTimezone === systemTimezone} className="shadow-md hover:shadow-lg transition-shadow">
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {isSaving ? 'Saving...' : 'Save Timezone Setting'}
             </Button>
           </div>
           
