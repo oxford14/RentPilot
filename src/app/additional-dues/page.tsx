@@ -4,10 +4,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Tenant, AdditionalDue } from '@/lib/types';
-import { PlusCircle, UserSearch, ListPlus, FileWarning, Wallet } from 'lucide-react';
+import { PlusCircle, UserSearch, ListPlus, FileWarning, Wallet, ChevronsUpDown, Check } from 'lucide-react';
 import { AdditionalDueForm } from '@/components/additional-dues/AdditionalDueForm';
 import { AdditionalDuesTable } from '@/components/additional-dues/AdditionalDuesTable';
 import { calculateTenantBalance } from '@/lib/utils';
@@ -22,6 +23,7 @@ export default function AdditionalDuesPage() {
   const [selectedTenantId, setSelectedTenantId] = useState<string | undefined>(undefined);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -82,18 +84,49 @@ export default function AdditionalDuesPage() {
         </CardHeader>
         <CardContent>
             <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <Select onValueChange={handleTenantChange} value={selectedTenantId}>
-                    <SelectTrigger className="w-full sm:w-[300px]">
-                        <SelectValue placeholder="Choose a tenant..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {activeTenants.map(tenant => (
-                        <SelectItem key={tenant.id} value={tenant.id}>
-                            {tenant.name}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={isComboboxOpen}
+                            className="w-full sm:w-[300px] justify-between"
+                        >
+                            {selectedTenantId
+                                ? activeTenants.find((tenant) => tenant.id === selectedTenantId)?.name
+                                : "Select a tenant..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                        <Command>
+                            <CommandInput placeholder="Search tenant..." />
+                            <CommandList>
+                                <CommandEmpty>No tenant found.</CommandEmpty>
+                                <CommandGroup>
+                                    {activeTenants.map((tenant) => (
+                                        <CommandItem
+                                            key={tenant.id}
+                                            value={tenant.name}
+                                            onSelect={() => {
+                                                handleTenantChange(tenant.id);
+                                                setIsComboboxOpen(false);
+                                            }}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    selectedTenantId === tenant.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {tenant.name}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
                  <Button onClick={() => handleOpenForm()} disabled={!selectedTenantId} className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-5 w-5" /> Add New Charge
                 </Button>
@@ -156,4 +189,3 @@ export default function AdditionalDuesPage() {
     </div>
   );
 }
-
