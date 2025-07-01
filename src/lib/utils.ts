@@ -14,7 +14,7 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const joinDate = new Date(tenant.joinDate);
 
   if (joinDate >= boundaryDate) {
-    return { rentDue: 0, unpaidDues: [], total: 0 };
+    return { rentDue: 0, unpaidDues: [], total: 0, creditBalance: 0 };
   }
 
   let monthsBilled = 0;
@@ -53,7 +53,7 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
     return sum + paymentAmount + discountAmount;
   }, 0);
   
-  const rentBalance = totalExpectedBilled - totalCreditedToTenant;
+  const rentBalanceRaw = totalExpectedBilled - totalCreditedToTenant;
 
   const unpaidAdditionalDues = allDues.filter(due => {
     const dueDate = new Date(due.dueDate);
@@ -62,11 +62,15 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
 
   const totalUnpaidDuesAmount = unpaidAdditionalDues.reduce((sum, due) => sum + due.amount, 0);
   
-  const totalBalance = rentBalance + totalUnpaidDuesAmount;
+  const totalBalance = rentBalanceRaw + totalUnpaidDuesAmount;
+  
+  const displayRentDue = Math.max(0, rentBalanceRaw);
+  const creditBalance = Math.abs(Math.min(0, rentBalanceRaw));
 
   return {
-    rentDue: rentBalance,
+    rentDue: displayRentDue,
     unpaidDues: unpaidAdditionalDues,
+    creditBalance: creditBalance,
     total: totalBalance,
   };
 }

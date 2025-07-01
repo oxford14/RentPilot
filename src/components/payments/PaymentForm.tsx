@@ -325,31 +325,39 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="p-3 border-t bg-background">
-                                  {(balanceBreakdown && balanceBreakdown.total > 0) ? (
-                                    <div className="space-y-2 text-sm">
-                                      <h4 className="font-semibold">Balance Breakdown</h4>
-                                      <div className="flex justify-between items-center">
-                                          <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
-                                          <span>₱{formatCurrency(balanceBreakdown?.rentDue ?? 0)}</span>
-                                      </div>
-                                      {balanceBreakdown?.unpaidDues.map(due => (
-                                          <div key={due.id} className="flex justify-between items-center">
-                                              <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
-                                              <span>₱{formatCurrency(due.amount)}</span>
+                                    {(balanceBreakdown && balanceBreakdown.total > 0) ? (
+                                      <div className="space-y-2 text-sm">
+                                        <h4 className="font-semibold">Balance Breakdown</h4>
+                                        {balanceBreakdown.rentDue > 0 && (
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
+                                            <span>₱{formatCurrency(balanceBreakdown.rentDue)}</span>
                                           </div>
-                                      ))}
-                                      <Separator className="my-2"/>
-                                      <div className="flex justify-between items-center font-bold">
+                                        )}
+                                        {balanceBreakdown.unpaidDues.map(due => (
+                                          <div key={due.id} className="flex justify-between items-center">
+                                            <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
+                                            <span>₱{formatCurrency(due.amount)}</span>
+                                          </div>
+                                        ))}
+                                        {balanceBreakdown.creditBalance > 0 && (
+                                          <div className="flex justify-between items-center text-green-600">
+                                            <span className="font-medium flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Less Available Credit</span>
+                                            <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
+                                          </div>
+                                        )}
+                                        <Separator className="my-2"/>
+                                        <div className="flex justify-between items-center font-bold">
                                           <span>Total Due</span>
-                                          <span>₱{formatCurrency(balanceBreakdown?.total ?? 0)}</span>
+                                          <span>₱{formatCurrency(balanceBreakdown.total)}</span>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                      <span>This tenant is fully paid up. No outstanding dues.</span>
-                                    </div>
-                                  )}
+                                    ) : (
+                                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                        <span>This tenant is fully paid up. No outstanding dues.</span>
+                                        </div>
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
