@@ -7,7 +7,7 @@ import { PaymentForm } from '@/components/payments/PaymentForm';
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { TenantsListForPayments } from '@/components/payments/TenantsListForPayments';
 import type { Tenant, Payment, BalanceBreakdown } from '@/lib/types';
-import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, ShieldCheck, Banknote, Send, ChevronDown, Home, ListPlus } from 'lucide-react';
+import { PlusCircle, UserSearch, FileText, Users, DollarSign, CheckCircle2, ShieldCheck, Banknote, Send, ChevronDown, Home, ListPlus, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -189,20 +189,28 @@ export default function PaymentsPage() {
                           {(balanceBreakdown && balanceBreakdown.total > 0) ? (
                             <div className="space-y-2 text-sm">
                               <h4 className="font-semibold">Balance Breakdown</h4>
-                              <div className="flex justify-between items-center">
-                                  <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
-                                  <span>₱{formatCurrency(balanceBreakdown?.rentDue ?? 0)}</span>
-                              </div>
-                              {balanceBreakdown?.unpaidDues.map(due => (
+                               {balanceBreakdown.rentDue > 0 && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
+                                    <span>₱{formatCurrency(balanceBreakdown.rentDue)}</span>
+                                </div>
+                              )}
+                              {balanceBreakdown.unpaidDues.map(due => (
                                   <div key={due.id} className="flex justify-between items-center">
                                       <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
                                       <span>₱{formatCurrency(due.amount)}</span>
                                   </div>
                               ))}
+                              {balanceBreakdown.creditBalance > 0 && (
+                                <div className="flex justify-between items-center text-green-600">
+                                  <span className="font-medium flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Less Available Credit</span>
+                                  <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
+                                </div>
+                              )}
                               <Separator className="my-2"/>
                               <div className="flex justify-between items-center font-bold">
                                   <span>Total Due</span>
-                                  <span>₱{formatCurrency(balanceBreakdown?.total ?? 0)}</span>
+                                  <span>₱{formatCurrency(balanceBreakdown.total)}</span>
                               </div>
                             </div>
                           ) : (
