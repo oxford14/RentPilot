@@ -44,8 +44,8 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const tenantDues = allDues.filter(d => d.tenantId === tenant.id && new Date(d.createdAt) < boundaryDate);
   const totalDuesLiability = tenantDues.reduce((sum, d) => sum + d.amount, 0);
 
-  // 3. Calculate total credits from real payments
-  const tenantPayments = allPayments.filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit');
+  // 3. Calculate total credits from real payments, excluding internal credit transfers
+  const tenantPayments = allPayments.filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit' && p.paymentMethod !== 'From Credit');
   const totalCredits = tenantPayments.reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
   
   // 4. Calculate the final, true balance

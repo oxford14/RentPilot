@@ -173,7 +173,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                           {payment.paymentMethod || 'N/A'}
                         </Badge>
                       </TooltipTrigger>
-                       {payment.discountDescription?.startsWith('Auto-paid from credit') && (
+                       {payment.discountDescription?.startsWith('Auto-applied from credit') && (
                           <TooltipContent>
                             <p>{payment.discountDescription}</p>
                           </TooltipContent>

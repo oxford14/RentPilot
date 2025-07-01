@@ -521,7 +521,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     const { tenantId, amount: newDueAmount, type } = dueData;
-
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant) {
       toast({ variant: 'destructive', title: 'Error', description: 'Tenant not found.' });
@@ -530,26 +529,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const today = startOfDay(new Date());
     const balanceBefore = calculateTenantBalance(tenant, rawPaymentsState, rawAdditionalDuesState, today);
-    
     const determinedClientId: string | undefined = getScopedClientId();
     const batch = writeBatch(db);
 
     const newDueRef = doc(collection(db, 'additionalDues'));
     const fullDueData = {
       ...dueData,
-      amount: newDueAmount,
       status: 'unpaid' as const,
       createdAt: new Date().toISOString(),
       ...(determinedClientId && { clientId: determinedClientId }),
     };
     batch.set(newDueRef, fullDueData);
     
+    const creditAmount = balanceBefore < 0 ? Math.abs(balanceBefore) : 0;
+    const amountToPayFromCredit = Math.min(creditAmount, newDueAmount);
+
+    if (amountToPayFromCredit > 0) {
+      const creditPaymentRef = doc(collection(db, 'payments'));
+      const creditPaymentData: Omit<Payment, 'id'> = {
+        tenantId: tenant.id,
+        date: new Date().toISOString(),
+        amount: amountToPayFromCredit,
+        paymentMethod: 'From Credit',
+        discountApplied: 0,
+        discountDescription: `Auto-applied from ₱${creditAmount.toFixed(2)} credit towards new ${type} charge.`,
+        clientId: determinedClientId,
+      };
+      batch.set(creditPaymentRef, creditPaymentData);
+    }
+    
     try {
       await batch.commit();
       
-      const creditAmount = balanceBefore < 0 ? Math.abs(balanceBefore) : 0;
-      const amountToPayFromCredit = Math.min(creditAmount, newDueAmount);
-
       let toastDescription = `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added.`;
       if (amountToPayFromCredit > 0) {
         toastDescription += ` ₱${amountToPayFromCredit.toFixed(2)} of it was automatically paid from the tenant's credit.`;
