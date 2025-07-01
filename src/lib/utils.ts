@@ -44,7 +44,8 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
 
   const tenantPaymentsMade = allPayments.filter(p => {
     const paymentDate = new Date(p.date);
-    return p.tenantId === tenant.id && paymentDate < boundaryDate;
+    // CRITICAL CHANGE: Exclude 'Security Deposit' payments from the rent balance calculation.
+    return p.tenantId === tenant.id && paymentDate < boundaryDate && p.paymentMethod !== 'Security Deposit';
   });
 
   const totalCreditedToTenant = tenantPaymentsMade.reduce((sum, p) => {
