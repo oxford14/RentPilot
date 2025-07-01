@@ -17,7 +17,7 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
     return { rentDue: 0, unpaidDues: [], total: 0, creditBalance: 0 };
   }
 
-  // --- Calculate total rent billed ---
+  // 1. Calculate total rent liability
   let monthsBilled = 0;
   let cursorYear = joinDate.getUTCFullYear();
   let cursorMonth = joinDate.getUTCMonth();
@@ -31,74 +31,53 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
     if (anniversaryDate >= boundaryDate) {
       break;
     }
-    
     monthsBilled++;
-    
     cursorMonth++;
     if (cursorMonth > 11) {
       cursorMonth = 0;
       cursorYear++;
     }
   }
-  const totalExpectedBilled = monthsBilled * tenant.monthlyRentalRate;
+  const totalRentLiability = monthsBilled * tenant.monthlyRentalRate;
 
-  // --- Calculate total credits from payments ---
-  const tenantPaymentsMade = allPayments.filter(p => {
-    const paymentDate = new Date(p.date);
-    // CRITICAL CHANGE: Exclude 'Security Deposit' payments from the rent balance calculation.
-    return p.tenantId === tenant.id && paymentDate < boundaryDate && p.paymentMethod !== 'Security Deposit';
-  });
-  const totalCreditedToTenant = tenantPaymentsMade.reduce((sum, p) => {
-    const paymentAmount = Number(p.amount || 0);
-    const discountAmount = Number(p.discountApplied || 0);
-    return sum + paymentAmount + discountAmount;
-  }, 0);
-  
-  // --- Calculate raw balance from rent vs payments ---
-  const rentBalanceRaw = totalExpectedBilled - totalCreditedToTenant;
-  
-  // --- Get all unpaid dues from DB that are within the timeframe ---
-  const allUnpaidDuesInDB = allDues.filter(due => {
-    const dueDate = new Date(due.dueDate);
-    return due.tenantId === tenant.id && due.status === 'unpaid' && dueDate < boundaryDate;
-  });
-  
-  // --- Final Total Balance Calculation (this is the source of truth) ---
-  const totalUnpaidDuesAmountInDB = allUnpaidDuesInDB.reduce((sum, due) => sum + due.amount, 0);
-  const totalBalance = rentBalanceRaw + totalUnpaidDuesAmountInDB;
+  // 2. Calculate total additional dues liability
+  const tenantDues = allDues.filter(d => d.tenantId === tenant.id && new Date(d.createdAt) < boundaryDate);
+  const totalDuesLiability = tenantDues.reduce((sum, d) => sum + d.amount, 0);
 
-  // --- Now, create the breakdown based on the totalBalance ---
+  // 3. Calculate total credits from real payments
+  const tenantPayments = allPayments.filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit');
+  const totalCredits = tenantPayments.reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
   
-  // If no balance or there's a credit, the breakdown is simple
+  // 4. Calculate the final, true balance
+  const totalLiability = totalRentLiability + totalDuesLiability;
+  const totalBalance = totalLiability - totalCredits;
+
+  // 5. Create the user-friendly breakdown
   if (totalBalance <= 0) {
-    return {
-      rentDue: 0,
-      unpaidDues: [],
-      creditBalance: Math.abs(totalBalance),
-      total: totalBalance,
-    };
+    return { rentDue: 0, unpaidDues: [], creditBalance: Math.abs(totalBalance), total: totalBalance };
   }
 
-  // If there IS a balance, determine what it's comprised of for the breakdown.
-  const rentDueForBreakdown = Math.max(0, rentBalanceRaw);
-  let creditFromRentOverpayment = Math.max(0, -rentBalanceRaw);
+  // --- Breakdown for positive balance ---
+  const rentDueForBreakdown = Math.max(0, totalRentLiability - totalCredits);
+  const creditAfterRent = Math.max(0, totalCredits - totalRentLiability);
+  
+  const unpaidDuesFromDB = tenantDues.filter(d => d.status === 'unpaid');
+  
+  let tempCredit = creditAfterRent;
+  const finalUnpaidDuesForBreakdown: AdditionalDue[] = [];
 
-  const duesForBreakdown: AdditionalDue[] = [];
-  // Sort oldest dues first to pay them off first with credit
-  const sortedDues = allUnpaidDuesInDB.sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-  for (const due of sortedDues) {
-    if (creditFromRentOverpayment >= due.amount) {
-      creditFromRentOverpayment -= due.amount; // This due is considered 'paid' by the rent credit for breakdown purposes
-    } else {
-      duesForBreakdown.push(due); // This due is not covered and should be displayed
-    }
+  for (const due of unpaidDuesFromDB) {
+      if (tempCredit >= due.amount) {
+          tempCredit -= due.amount; // This due is considered paid by credit for breakdown purposes
+      } else {
+          finalUnpaidDuesForBreakdown.push(due);
+      }
   }
-
+  
   return {
     rentDue: rentDueForBreakdown,
-    unpaidDues: duesForBreakdown,
-    creditBalance: 0, // There can't be a credit if totalBalance is positive
+    unpaidDues: finalUnpaidDuesForBreakdown,
+    creditBalance: 0, // Cannot have a credit if totalBalance is positive
     total: totalBalance,
   };
 }

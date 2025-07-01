@@ -336,16 +336,9 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                                         )}
                                         {balanceBreakdown.unpaidDues.map(due => (
                                           <div key={due.id} className="flex justify-between items-center">
-                                            <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
-                                            <span>₱{formatCurrency(due.amount)}</span>
+                                            <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type} ({formatCurrency(due.amount)})</span>
                                           </div>
                                         ))}
-                                        {balanceBreakdown.creditBalance > 0 && (
-                                          <div className="flex justify-between items-center text-green-600">
-                                            <span className="font-medium flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Less Available Credit</span>
-                                            <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
-                                          </div>
-                                        )}
                                         <Separator className="my-2"/>
                                         <div className="flex justify-between items-center font-bold">
                                           <span>Total Due</span>
