@@ -21,6 +21,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Unregister service workers on initial load to prevent caching issues.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister();
+          }
+        })
+        .catch((err) => {
+          console.error('Service Worker unregistration failed: ', err);
+        });
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);

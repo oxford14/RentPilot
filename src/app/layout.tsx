@@ -5,7 +5,6 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 import { Toaster } from "@/components/ui/toaster";
 import React from 'react';
-import { ServiceWorkerCleanup } from '@/components/layout/ServiceWorkerCleanup';
 
 // Initialize Inter font
 const inter = Inter({
@@ -48,7 +47,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-body antialiased bg-background">
-        <ServiceWorkerCleanup />
         <AuthProvider>
           <ProtectedLayout>
             {children}
