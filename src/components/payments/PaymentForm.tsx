@@ -25,13 +25,14 @@ import { cn } from '@/lib/utils';
 import { ApplyDepositDialog } from '@/components/payments/ApplyDepositDialog';
 import { calculateTenantBalanceBreakdown } from '@/lib/utils';
 
-const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Other'];
+const paymentMethods: PaymentMethod[] = ['Credit Card', 'Bank Transfer', 'Cash', 'Gcash', 'Check', 'Other'];
 
 const paymentFormSchema = z.object({
   tenantId: z.string().min(1, { message: "Please select a tenant." }),
   amount: z.coerce.number().nonnegative({ message: "Amount paid must be non-negative." }),
   date: z.date({ required_error: "Payment date is required." }),
   paymentMethod: z.enum(paymentMethods as [PaymentMethod, ...PaymentMethod[]]).optional(),
+  checkNumber: z.string().optional(),
   discountApplied: z.coerce.number().nonnegative({ message: "Discount must be non-negative." }).optional(),
   discountDescription: z.string().max(100, { message: "Description should be 100 characters or less."}).optional(),
 }).superRefine((data, ctx) => {
@@ -40,6 +41,13 @@ const paymentFormSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Payment method is required when an amount is paid.",
       path: ["paymentMethod"],
+    });
+  }
+  if (data.paymentMethod === 'Check' && (!data.checkNumber || data.checkNumber.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Check number is required for this payment method.",
+      path: ["checkNumber"],
     });
   }
   if ((data.amount === 0 || data.amount === undefined) && (data.discountApplied === 0 || data.discountApplied === undefined)) {
@@ -116,6 +124,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
             ...payment,
             date: new Date(payment.date),
             amount: Number(payment.amount),
+            checkNumber: payment.checkNumber || '',
             discountApplied: Number(payment.discountApplied || 0),
             discountDescription: payment.discountDescription || '',
         }
@@ -124,6 +133,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
           amount: 0,
           date: new Date(),
           paymentMethod: undefined,
+          checkNumber: '',
           discountApplied: 0, 
           discountDescription: '',
         };
@@ -140,6 +150,7 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
   const selectedTenantId = form.watch('tenantId');
   const currentAmountPaid = form.watch('amount') || 0;
   const currentDiscountApplied = form.watch('discountApplied') || 0;
+  const watchedPaymentMethod = form.watch('paymentMethod');
 
   const selectedTenant = useMemo(() => {
     return tenants.find(t => t.id === selectedTenantId)
@@ -460,80 +471,97 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                 )}
               </div>
               
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Payment Date</FormLabel>
-                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                      <PopoverTrigger asChild>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Payment Date</FormLabel>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setIsCalendarOpen(false);
+                            }}
+                            disabled={(date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{currentAmountPaid > 0 ? 'Payment Method' : 'Payment Method (Not applicable)'}</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value} 
+                        defaultValue={field.value}
+                        disabled={currentAmountPaid === 0}
+                      >
                         <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
                         </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => {
-                            field.onChange(date);
-                            setIsCalendarOpen(false);
-                          }}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        <SelectContent>
+                          {paymentMethods.map(method => (
+                            <SelectItem key={method} value={method}>
+                              {method}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <FormField
-                control={form.control}
-                name="paymentMethod"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{currentAmountPaid > 0 ? 'Payment Method' : 'Payment Method (Not applicable)'}</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value} 
-                      defaultValue={field.value}
-                      disabled={currentAmountPaid === 0}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment method" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {paymentMethods.map(method => (
-                          <SelectItem key={method} value={method}>
-                            {method}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              {watchedPaymentMethod === 'Check' && (
+                  <FormField
+                    control={form.control}
+                    name="checkNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Check Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter check number" {...field} autoComplete="off" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
 
               {!isEditing && transactionSummary && selectedTenantId && (balanceBreakdown !== null) && (
                   <div className="mt-2 p-3 border-t text-sm space-y-1">

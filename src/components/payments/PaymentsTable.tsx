@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign, ShieldCheck } from 'lucide-react';
+import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign, ShieldCheck, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
@@ -29,6 +29,7 @@ const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
     case 'Bank Transfer': return <Landmark className="h-4 w-4 text-green-500" />;
     case 'Cash': return <DollarSign className="h-4 w-4 text-yellow-600" />;
     case 'Gcash': return <Wallet className="h-4 w-4 text-blue-500" />;
+    case 'Check': return <FileText className="h-4 w-4 text-gray-600" />;
     case 'From Deposit': return <Send className="h-4 w-4 text-purple-500" />;
     case 'From Credit': return <BadgeDollarSign className="h-4 w-4 text-cyan-500" />;
     case 'Security Deposit': return <ShieldCheck className="h-4 w-4 text-indigo-500" />;
@@ -93,7 +94,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
         paymentsToFilter = paymentsToFilter.filter(p => isWithinInterval(new Date(p.date), interval!));
     }
 
-    return paymentsToFilter.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return paymentsToFilter.sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
   }, [allPaymentsFromContext, tenantId, filterPeriod]);
 
   const isSelectedTenantCurrentlyDue = useMemo(() => {
@@ -132,8 +133,8 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Amount Paid (₱)</TableHead>
-              <TableHead className="text-right">Discount (₱)</TableHead>
               <TableHead className="text-center">Method</TableHead>
+              <TableHead>Reference</TableHead>
               {showActions && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -148,26 +149,9 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
               >
                 <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                <TableCell className="text-right">
-                  {(payment.discountApplied && payment.discountApplied > 0) ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Badge variant="outline" className="text-xs border-orange-400 text-orange-600 bg-orange-500/10 cursor-default">
-                                <PercentCircle className="h-3 w-3 mr-1" />
-                                {payment.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Badge>
-                        </TooltipTrigger>
-                        {payment.discountDescription && (
-                            <TooltipContent>
-                                <p>{payment.discountDescription}</p>
-                            </TooltipContent>
-                        )}
-                      </Tooltip>
-                  ) : '₱0.00'}
-                </TableCell>
                 <TableCell className="text-center">
                    <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger asChild>
                         <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
                           <PaymentMethodIcon method={payment.paymentMethod} />
                           {payment.paymentMethod || 'N/A'}
@@ -179,6 +163,32 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                           </TooltipContent>
                         )}
                    </Tooltip>
+                </TableCell>
+                <TableCell>
+                  {payment.paymentMethod === 'Check' && payment.checkNumber && (
+                    <div className="text-xs">
+                        <span className="font-semibold">Check #: </span>
+                        <span className="text-muted-foreground">{payment.checkNumber}</span>
+                    </div>
+                  )}
+                  {payment.discountApplied && payment.discountApplied > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="text-xs cursor-help">
+                              <span className="font-semibold text-orange-600">Discount: </span>
+                              <span className="text-muted-foreground">₱{payment.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        </TooltipTrigger>
+                        {payment.discountDescription && (
+                            <TooltipContent>
+                                <p>{payment.discountDescription}</p>
+                            </TooltipContent>
+                        )}
+                      </Tooltip>
+                  )}
+                  {(!payment.checkNumber || payment.paymentMethod !== 'Check') && (!payment.discountApplied || payment.discountApplied <= 0) && (
+                      <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 {showActions && (
                   <TableCell className="text-right">

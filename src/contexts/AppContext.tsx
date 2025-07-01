@@ -380,6 +380,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       date: paymentData.date,
       amount: paymentData.amount,
       paymentMethod: paymentData.paymentMethod,
+      checkNumber: paymentData.checkNumber,
       discountApplied: paymentData.discountApplied || 0,
       discountDescription: paymentData.discountDescription || '',
       ...(determinedClientId && { clientId: determinedClientId })
@@ -441,7 +442,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               throw new Error("Amount to apply must be positive.");
             }
 
-            const newDepositAmount = currentDeposit - amountToApply;
+            const newDepositAmount = currentDeposit - currentDeposit;
             transaction.update(tenantRef, { securityDeposit: newDepositAmount });
 
             const newPaymentRef = doc(collection(db, "payments"));

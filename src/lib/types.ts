@@ -48,7 +48,7 @@ export interface Tenant {
   invitationTokenExpires?: number; // DEPRECATED
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID
@@ -56,6 +56,7 @@ export interface Payment {
   date: string; // ISO string
   amount: number;
   paymentMethod?: PaymentMethod;
+  checkNumber?: string;
   discountApplied?: number;
   discountDescription?: string; 
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
