@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -203,8 +204,17 @@ export default function PaymentsPage() {
                               ))}
                               {balanceBreakdown.creditBalance > 0 && (
                                 <div className="flex justify-between items-center text-green-600">
-                                  <span className="font-medium flex items-center gap-1.5"><TrendingUp className="w-4 h-4" /> Less Available Credit</span>
-                                  <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="font-medium flex items-center gap-1.5 cursor-help">
+                                                <TrendingUp className="w-4 h-4" /> Less Credit on Account
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>This credit is from a previous rent overpayment.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
                                 </div>
                               )}
                               <Separator className="my-2"/>
