@@ -534,43 +534,40 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const determinedClientId: string | undefined = getScopedClientId();
     const batch = writeBatch(db);
 
+    // 1. Always add the full, unpaid additional due first.
+    const newDueRef = doc(collection(db, 'additionalDues'));
+    const fullDueData = {
+      ...dueData,
+      amount: newDueAmount,
+      status: 'unpaid' as const, // Always start as unpaid. Balance calculation will handle the rest.
+      createdAt: new Date().toISOString(),
+      ...(determinedClientId && { clientId: determinedClientId }),
+    };
+    batch.set(newDueRef, fullDueData);
+
     const creditAmount = balanceBefore < 0 ? Math.abs(balanceBefore) : 0;
     const amountToPayFromCredit = Math.min(creditAmount, newDueAmount);
 
+    // 2. If credit is available, create a payment record to offset the due.
     if (amountToPayFromCredit > 0) {
-      // Due is at least partially covered by credit.
-      // Create a 'paid' due for the portion covered by credit.
-      const paidDueRef = doc(collection(db, 'additionalDues'));
-      const paidDueData = {
-        ...dueData,
+      const paymentRef = doc(collection(db, 'payments'));
+      const paymentData: Omit<Payment, 'id'> = {
+        tenantId: tenantId,
+        date: new Date().toISOString(), // Use today's date for the auto-payment
         amount: amountToPayFromCredit,
-        status: 'paid' as const,
-        notes: `${dueData.notes || ''} (Auto-paid from credit)`.trim(),
-        createdAt: new Date().toISOString(),
-        ...(determinedClientId && { clientId: determinedClientId }),
+        paymentMethod: 'From Credit',
+        // Using discountDescription to store a note about the auto-payment
+        discountDescription: `Auto-payment from credit towards ${type} charge.`,
+        clientId: determinedClientId,
       };
-      batch.set(paidDueRef, paidDueData);
-    }
-    
-    const remainingDueAmount = newDueAmount - amountToPayFromCredit;
-    if (remainingDueAmount > 0) {
-      // Create an 'unpaid' due for the remaining amount.
-      const unpaidDueRef = doc(collection(db, 'additionalDues'));
-      const unpaidDueData = {
-        ...dueData,
-        amount: remainingDueAmount,
-        status: 'unpaid' as const,
-        createdAt: new Date().toISOString(),
-        ...(determinedClientId && { clientId: determinedClientId }),
-      };
-      batch.set(unpaidDueRef, unpaidDueData);
+      batch.set(paymentRef, paymentData);
     }
       
     try {
       await batch.commit();
       let toastDescription = `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added.`;
       if (amountToPayFromCredit > 0) {
-        toastDescription += ` ₱${amountToPayFromCredit.toFixed(2)} was paid from the tenant's credit.`;
+        toastDescription += ` ₱${amountToPayFromCredit.toFixed(2)} of it was automatically paid from the tenant's credit.`;
       }
       toast({ title: 'Due Added', description: toastDescription });
     } catch (error: any) {
@@ -1238,3 +1235,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
