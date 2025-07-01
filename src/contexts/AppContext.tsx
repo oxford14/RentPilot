@@ -520,7 +520,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
     }
-    const { tenantId, amount, type } = dueData;
+    const { tenantId, amount: newDueAmount, type } = dueData;
 
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant) {
@@ -532,51 +532,61 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const balanceBefore = calculateTenantBalance(tenant, rawPaymentsState, rawAdditionalDuesState, today);
     
     const determinedClientId: string | undefined = getScopedClientId();
+    const batch = writeBatch(db);
 
-    if (balanceBefore < 0 && Math.abs(balanceBefore) >= amount) {
-      const batch = writeBatch(db);
+    // If tenant has a credit balance
+    if (balanceBefore < 0) {
+      const creditAmount = Math.abs(balanceBefore);
+      const amountToPayFromCredit = Math.min(creditAmount, newDueAmount);
 
-      const newDueRef = doc(collection(db, 'additionalDues'));
-      const newDueData = {
-        ...dueData,
-        status: 'paid' as const,
-        createdAt: new Date().toISOString(),
-        ...(determinedClientId && { clientId: determinedClientId })
-      };
-      batch.set(newDueRef, newDueData);
-      
-      const newPaymentRef = doc(collection(db, 'payments'));
-      const newPaymentData: Omit<Payment, 'id'> = {
+      // Create a payment record for the amount covered by credit
+      const paymentFromCreditRef = doc(collection(db, 'payments'));
+      const paymentFromCreditData: Omit<Payment, 'id'> = {
         tenantId,
         date: new Date().toISOString(),
-        amount,
+        amount: amountToPayFromCredit,
         paymentMethod: 'From Credit',
         discountApplied: 0,
         discountDescription: `Auto-paid from credit for: ${type}`,
         ...(determinedClientId && { clientId: determinedClientId })
       };
-      batch.set(newPaymentRef, newPaymentData);
+      batch.set(paymentFromCreditRef, paymentFromCreditData);
+      
+      // Determine the status of the new due
+      const isDueFullyCovered = amountToPayFromCredit >= newDueAmount;
+      const newDueStatus = isDueFullyCovered ? 'paid' : 'unpaid';
 
+      const newDueRef = doc(collection(db, 'additionalDues'));
+      const newDueData = {
+        ...dueData,
+        status: newDueStatus,
+        createdAt: new Date().toISOString(),
+        ...(determinedClientId && { clientId: determinedClientId })
+      };
+      batch.set(newDueRef, newDueData);
+      
       try {
         await batch.commit();
         toast({
-          title: "Due Added & Auto-Paid",
-          description: `The ${type} charge of ₱${amount.toFixed(2)} was automatically paid from ${tenant.name}'s credit.`,
+          title: "Due Added",
+          description: `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added. ₱${amountToPayFromCredit.toFixed(2)} was paid from credit.`,
         });
       } catch (error: any) {
         console.error("Error in auto-payment batch write:", error);
-        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to auto-pay due: ${error.message}` });
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to process due with credit: ${error.message}` });
       }
-
-    } else {
+    } else { // No credit, just add the due as unpaid
+      const newDueRef = doc(collection(db, 'additionalDues'));
       const newDueData = {
         ...dueData,
         status: 'unpaid' as const,
         createdAt: new Date().toISOString(),
         ...(determinedClientId && { clientId: determinedClientId })
       };
+      batch.set(newDueRef, newDueData);
+      
       try {
-        await addDoc(collection(db, 'additionalDues'), newDueData);
+        await batch.commit();
         toast({ title: "Due Added", description: "The new charge has been added to the tenant." });
       } catch (error: any) {
         console.error("Error adding additional due:", error);
@@ -1248,4 +1258,5 @@ export const useAppContext = (): AppContextType => {
     
 
     
+
 
