@@ -14,8 +14,8 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText } from 'lucide-react';
-import type { Tenant } from '@/lib/types';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature } from 'lucide-react';
+import type { Tenant, ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMinutes } from 'date-fns';
@@ -33,6 +33,8 @@ import { ReminderDialog } from './ReminderDialog';
 import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ContractUploadDialog } from './ContractUploadDialog';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -40,7 +42,7 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, initiateContract } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -48,6 +50,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
   const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
+  const [isInitiateContractOpen, setIsInitiateContractOpen] = useState(false);
+  const [tenantToInitiate, setTenantToInitiate] = useState<Tenant | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -133,6 +138,21 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setTenantForContract(tenant);
     setIsContractUploadOpen(true);
   };
+
+  const handleOpenInitiateContract = (tenant: Tenant) => {
+    setTenantToInitiate(tenant);
+    setIsInitiateContractOpen(true);
+    setSelectedTemplateId('');
+  }
+
+  const handleConfirmInitiateContract = async () => {
+    if (!tenantToInitiate || !selectedTemplateId) {
+        toast({variant: 'destructive', title: 'Error', description: 'Please select a tenant and a template.'});
+        return;
+    }
+    await initiateContract(tenantToInitiate.id, selectedTemplateId);
+    setIsInitiateContractOpen(false);
+  }
   
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
@@ -230,12 +250,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleOpenInitiateContract(tenant)}>
+                            <FileSignature className="mr-2 h-4 w-4" /> Initiate Digital Contract
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)}>
-                            <FileUp className="mr-2 h-4 w-4" /> Upload Contract
+                            <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                         </DropdownMenuItem>
                         {tenant.contractUrl && (
                             <DropdownMenuItem onClick={() => window.open(tenant.contractUrl, '_blank')}>
-                                <FileText className="mr-2 h-4 w-4" /> View Contract
+                                <FileText className="mr-2 h-4 w-4" /> View Signed Contract
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
@@ -314,6 +337,41 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           tenant={tenantForContract}
         />
       )}
+      <Dialog open={isInitiateContractOpen} onOpenChange={setIsInitiateContractOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Initiate Contract for {tenantToInitiate?.name}</DialogTitle>
+                <DialogDescription>
+                    Select a template to generate the contract. This will create a pending contract for the tenant to sign.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a contract template..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {contractTemplates.length > 0 ? (
+                            contractTemplates.map(template => (
+                                <SelectItem key={template.id} value={template.id}>
+                                    {template.name}
+                                </SelectItem>
+                            ))
+                        ) : (
+                            <SelectItem value="no-templates" disabled>No templates available</SelectItem>
+                        )}
+                    </SelectContent>
+                </Select>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button onClick={handleConfirmInitiateContract} disabled={!selectedTemplateId}>
+                    Initiate Contract
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 }

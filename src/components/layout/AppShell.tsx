@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -71,6 +72,7 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
   { isGroup: false, href: '/announcements', label: 'Announcements', icon: Megaphone, clientAdminOnly: true },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
+  { isGroup: false, href: '/admin/contracts', label: 'Contract Templates', icon: FileText, clientAdminOnly: true },
   {
     isGroup: true,
     label: 'Reports',
@@ -320,6 +322,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
     else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
     else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
+    else if (!activeItemFound && pathname === '/admin/contracts') currentActivePageLabel = 'Contract Templates';
     else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
     else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
     else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
@@ -383,6 +386,7 @@ export function AppShell({ children }: { children: ReactNode }) {
      else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
      else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
      else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
+     else if (!activeItemFound && pathname.startsWith('/contract/sign')) currentActivePageLabel = 'Sign Contract';
      else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
 
@@ -514,7 +518,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements'].includes(item.href)}
+                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements', '/admin/contracts'].includes(item.href)}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
@@ -689,7 +693,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && 'p-6')}>
+          <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && 'p-6')}>
             {subscriptionExpired && !['/subscription', '/profile', '/settings'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">

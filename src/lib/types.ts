@@ -47,6 +47,7 @@ export interface Tenant {
   invitationToken?: string; // DEPRECATED
   invitationTokenExpires?: number; // DEPRECATED
   contractUrl?: string;
+  activeContractId?: string;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -192,6 +193,27 @@ export interface Announcement {
   recipientUsername?: string; // NEW: username of the specific tenant recipient
 }
 
+export interface ContractTemplate {
+  id: string;
+  clientId: string;
+  name: string;
+  body: string; // The Handlebars template string
+  createdAt: string;
+}
+
+export interface SignedContract {
+    id: string;
+    clientId: string;
+    tenantId: string;
+    templateId: string;
+    contractBody: string; // The final, rendered contract text
+    status: 'pending' | 'signed';
+    initiatedAt: string;
+    signedAt?: string;
+    signedByIp?: string; // For audit purposes
+}
+
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -275,6 +297,8 @@ export interface AppContextType {
   weeklyIncomes: WeeklyIncome[];
   backupScheduleSettings: BackupScheduleSettings | null;
   announcements: Announcement[];
+  contractTemplates: ContractTemplate[];
+  signedContracts: SignedContract[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -330,6 +354,13 @@ export interface AppContextType {
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
+
+  // Contracts
+  addContractTemplate: (template: Omit<ContractTemplate, 'id' | 'clientId' | 'createdAt'>) => Promise<void>;
+  updateContractTemplate: (template: ContractTemplate) => Promise<void>;
+  deleteContractTemplate: (templateId: string) => Promise<void>;
+  initiateContract: (tenantId: string, templateId: string) => Promise<void>;
+  signContract: (contractId: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
