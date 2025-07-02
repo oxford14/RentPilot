@@ -16,6 +16,16 @@ import { cn } from '@/lib/utils';
 
 type SubscriptionStatus = 'Active' | 'Expired' | 'Expiring Soon' | 'Inactive';
 
+const getClientStatus = (client: Client): SubscriptionStatus => {
+  if (client.subscriptionStatus === 'inactive') return 'Inactive';
+  if (!client.subscriptionEndDate) return 'Active';
+  const endDate = new Date(client.subscriptionEndDate);
+  if (isPast(endDate)) return 'Expired';
+  const daysUntilExpiry = differenceInDays(endDate, new Date());
+  if (daysUntilExpiry <= 7) return 'Expiring Soon';
+  return 'Active';
+};
+
 export default function AdminSubscriptionsPage() {
   const { clients } = useAppContext();
   const [filter, setFilter] = useState<'all' | 'active' | 'expiring' | 'expired' | 'inactive'>('all');
@@ -26,16 +36,6 @@ export default function AdminSubscriptionsPage() {
   useEffect(() => {
       setIsClient(true);
   }, []);
-
-  const getClientStatus = (client: Client): SubscriptionStatus => {
-    if (client.subscriptionStatus === 'inactive') return 'Inactive';
-    if (!client.subscriptionEndDate) return 'Active';
-    const endDate = new Date(client.subscriptionEndDate);
-    if (isPast(endDate)) return 'Expired';
-    const daysUntilExpiry = differenceInDays(endDate, new Date());
-    if (daysUntilExpiry <= 7) return 'Expiring Soon';
-    return 'Active';
-  };
 
   const statusInfo: Record<SubscriptionStatus, { variant: 'default' | 'destructive' | 'secondary', icon: React.ElementType, color: string }> = {
     'Active': { variant: 'default', icon: CheckCircle2, color: 'bg-green-500/20 text-green-700 border-green-400' },
@@ -120,27 +120,30 @@ export default function AdminSubscriptionsPage() {
                 </TableHeader>
                 <TableBody>
                   {isClient && filteredClients.length > 0 ? (
-                    filteredClients.map(client => (
-                      <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.name}</TableCell>
-                        <TableCell>{client.subscriptionPlanName || 'N/A'}</TableCell>
-                        <TableCell>{client.subscriptionRate?.toLocaleString() || 'N/A'}</TableCell>
-                        <TableCell>
-                          {client.subscriptionEndDate ? format(new Date(client.subscriptionEndDate), 'PP') : 'N/A'}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={statusInfo[client.status].variant} className={cn("text-xs", statusInfo[client.status].color)}>
-                            <statusInfo[client.status].icon className="h-3 w-3 mr-1" />
-                            {client.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)}>
-                            <Edit className="h-4 w-4 mr-2" /> Edit
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredClients.map(client => {
+                      const Icon = statusInfo[client.status].icon;
+                      return (
+                        <TableRow key={client.id}>
+                          <TableCell className="font-medium">{client.name}</TableCell>
+                          <TableCell>{client.subscriptionPlanName || 'N/A'}</TableCell>
+                          <TableCell>{client.subscriptionRate?.toLocaleString() || 'N/A'}</TableCell>
+                          <TableCell>
+                            {client.subscriptionEndDate ? format(new Date(client.subscriptionEndDate), 'PP') : 'N/A'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={statusInfo[client.status].variant} className={cn("text-xs", statusInfo[client.status].color)}>
+                              <Icon className="h-3 w-3 mr-1" />
+                              {client.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenForm(client)}>
+                              <Edit className="h-4 w-4 mr-2" /> Edit
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
