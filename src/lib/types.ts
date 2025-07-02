@@ -68,6 +68,8 @@ export interface Client {
   logoUrl?: string | null;
   subscriptionStatus?: 'active' | 'inactive';
   subscriptionEndDate?: string; // ISO string
+  subscriptionPlanName?: string;
+  subscriptionRate?: number;
 }
 
 export type ExpenseCategory = 
@@ -152,14 +154,6 @@ export interface ChatSession {
   lastMessageSnippet: string;
   adminUnread: boolean;
   visitorUnread: boolean;
-}
-
-export interface ChatMessage {
-  id: string; // Firestore document ID
-  sessionId: string;
-  sender: 'visitor' | 'admin';
-  text: string;
-  timestamp: string; // ISO string
 }
 
 export interface DemoRequest {

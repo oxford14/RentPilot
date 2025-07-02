@@ -28,6 +28,8 @@ const clientFormSchema = z.object({
   logoFile: z.any().optional(),
   subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
   subscriptionEndDate: z.date().optional(),
+  subscriptionPlanName: z.string().optional(),
+  subscriptionRate: z.coerce.number().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -99,6 +101,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       logoFile: undefined,
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+      subscriptionPlanName: client?.subscriptionPlanName || '',
+      subscriptionRate: client?.subscriptionRate || 0,
     },
   });
 
@@ -109,6 +113,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         logoFile: undefined,
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
+        subscriptionPlanName: client?.subscriptionPlanName || '',
+        subscriptionRate: client?.subscriptionRate || 0,
       });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
@@ -167,6 +173,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       name: data.name,
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
+      subscriptionPlanName: data.subscriptionPlanName,
+      subscriptionRate: data.subscriptionRate,
     };
 
     try {
@@ -206,7 +214,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[525px] bg-card shadow-xl rounded-lg">
+        <DialogContent className="sm:max-w-xl bg-card shadow-xl rounded-lg">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl">{client ? 'Edit Client' : 'Add New Client'}</DialogTitle>
           </DialogHeader>
@@ -226,6 +234,35 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 )}
               />
               
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
+                  control={form.control}
+                  name="subscriptionPlanName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subscription Plan Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Pro, Basic" {...field} autoComplete="off" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="subscriptionRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly/Annual Rate (₱)</FormLabel>
+                      <FormControl>
+                         <Input type="number" placeholder="e.g. 1500" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
