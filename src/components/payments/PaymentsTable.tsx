@@ -94,7 +94,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
         paymentsToFilter = paymentsToFilter.filter(p => isWithinInterval(new Date(p.date), interval!));
     }
 
-    return paymentsToFilter.sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
+    return paymentsToFilter.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allPaymentsFromContext, tenantId, filterPeriod]);
 
   const isSelectedTenantCurrentlyDue = useMemo(() => {
