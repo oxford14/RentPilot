@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +39,7 @@ import {
 } from '@/actions/chat-actions';
 import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
 import { calculateTenantBalance } from '@/lib/utils';
+import { generateContract } from '@/ai/flows/generate-contract-flow';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
@@ -62,6 +63,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
   const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
   const [rawAnnouncementsState, setRawAnnouncementsState] = useState<Announcement[]>([]);
+  const [rawContractTemplatesState, setRawContractTemplatesState] = useState<ContractTemplate[]>([]);
+  const [rawSignedContractsState, setRawSignedContractsState] = useState<SignedContract[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -84,6 +87,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawChatSessionsState([]);
       setRawDemoRequestsState([]);
       setRawAnnouncementsState([]);
+      setRawContractTemplatesState([]);
+      setRawSignedContractsState([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
@@ -107,6 +112,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
       { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
       { name: 'announcements', setter: setRawAnnouncementsState, label: 'announcements' },
+      { name: 'contractTemplates', setter: setRawContractTemplatesState, label: 'contract templates' },
+      { name: 'signedContracts', setter: setRawSignedContractsState, label: 'signed contracts' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -256,6 +263,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     return rawAnnouncementsState;
   }, [rawAnnouncementsState, authIsAuthenticated]);
+
+  const contractTemplates = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    if (authUser?.isSuperAdmin && !clientId) {
+      return rawContractTemplatesState.filter(t => !t.clientId);
+    }
+    return rawContractTemplatesState.filter(t => t.clientId === clientId);
+  }, [rawContractTemplatesState, getScopedClientId, authIsAuthenticated, authUser?.isSuperAdmin]);
+
+  const signedContracts = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    if (authUser?.role === 'tenant') {
+        return rawSignedContractsState.filter(c => c.tenantId === authUser.tenantId);
+    }
+    const clientId = getScopedClientId();
+     if (authUser?.isSuperAdmin && !clientId) {
+      return rawSignedContractsState.filter(c => !c.clientId);
+    }
+    return rawSignedContractsState.filter(c => c.clientId === clientId);
+  }, [rawSignedContractsState, getScopedClientId, authIsAuthenticated, authUser]);
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
     if (!authIsAuthenticated) {
@@ -1166,6 +1194,122 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addContractTemplate = useCallback(async (templateData: Omit<ContractTemplate, 'id' | 'clientId' | 'createdAt'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const determinedClientId = getScopedClientId();
+    if (!determinedClientId) {
+      toast({ variant: "destructive", title: "Client scope not determined." });
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'contractTemplates'), {
+        ...templateData,
+        clientId: determinedClientId,
+        createdAt: new Date().toISOString(),
+      });
+      toast({ title: 'Template Added', description: 'The new contract template has been saved.' });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error saving template", description: e.message });
+    }
+  }, [getScopedClientId, authIsAuthenticated, toast]);
+
+  const updateContractTemplate = useCallback(async (template: ContractTemplate) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const { id, ...dataToUpdate } = template;
+    try {
+      await setDoc(doc(db, 'contractTemplates', id), dataToUpdate, { merge: true });
+      toast({ title: 'Template Updated', description: 'The contract template has been updated.' });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error updating template", description: e.message });
+    }
+  }, [authIsAuthenticated, toast]);
+
+  const deleteContractTemplate = useCallback(async (templateId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'contractTemplates', templateId));
+      toast({ title: 'Template Deleted', description: 'The contract template has been deleted.' });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error deleting template", description: e.message });
+    }
+  }, [authIsAuthenticated, toast]);
+
+  const initiateContract = useCallback(async (tenantId: string, templateId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: 'destructive', title: 'Unauthorized' });
+      return;
+    }
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    const template = rawContractTemplatesState.find(t => t.id === templateId);
+
+    if (!tenant || !template) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Tenant or template not found.' });
+      return;
+    }
+    if (!tenant.clientId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Tenant is not associated with a client.' });
+      return;
+    }
+
+    try {
+      const { finalContract } = await generateContract({
+        templateBody: template.body,
+        tenant_name: tenant.name,
+        monthly_rate: tenant.monthlyRentalRate,
+        security_deposit: tenant.securityDeposit || 0,
+        join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      });
+      
+      const newContractData: Omit<SignedContract, 'id'> = {
+        clientId: tenant.clientId,
+        tenantId: tenant.id,
+        templateId: template.id,
+        contractBody: finalContract,
+        status: 'pending',
+        initiatedAt: new Date().toISOString(),
+      };
+      
+      const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
+
+      const tenantRef = doc(db, 'tenants', tenant.id);
+      await updateDoc(tenantRef, { activeContractId: contractRef.id });
+
+      toast({ title: 'Contract Initiated', description: `A new contract has been sent to ${tenant.name}.` });
+    } catch (e: any) {
+      console.error("Error initiating contract:", e);
+      toast({ variant: 'destructive', title: 'Contract Initiation Failed', description: e.message });
+    }
+  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState]);
+
+  const signContract = useCallback(async (contractId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: 'destructive', title: 'Unauthorized' });
+      return;
+    }
+    try {
+      const contractRef = doc(db, 'signedContracts', contractId);
+      await updateDoc(contractRef, {
+        status: 'signed',
+        signedAt: new Date().toISOString(),
+        signedByIp: 'X.X.X.X' 
+      });
+      toast({ title: 'Contract Signed!', description: 'Your agreement has been recorded.' });
+    } catch (e: any) {
+      console.error("Error signing contract:", e);
+      toast({ variant: 'destructive', title: 'Signing Failed', description: e.message });
+    }
+  }, [authIsAuthenticated, toast]);
+
+
   const contextValue: AppContextType = {
     tenants,
     payments,
@@ -1181,6 +1325,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     weeklyIncomes,
     backupScheduleSettings,
     announcements,
+    contractTemplates,
+    signedContracts,
     
     // Chat
     chatSessions: rawChatSessionsState,
@@ -1235,6 +1381,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addAnnouncement,
     deleteAnnouncement,
     markAnnouncementAsRead,
+
+    addContractTemplate,
+    updateContractTemplate,
+    deleteContractTemplate,
+    initiateContract,
+    signContract,
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,
