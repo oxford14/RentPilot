@@ -145,11 +145,11 @@ export default function SubscriptionPage() {
           <CardContent className="text-center flex flex-col items-center">
             <div className="p-2 border-4 border-blue-500 rounded-xl bg-white inline-block">
                 <Image
-                src="https://placehold.co/256x256.png"
+                src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Mayang%20Gcash.jpeg?alt=media"
                 alt="GCash QR Code"
                 width={256}
                 height={256}
-                data-ai-hint="qr code"
+                data-ai-hint="gcash qr"
                 />
             </div>
             <div className="mt-4 text-left p-4 bg-muted/50 rounded-lg">
