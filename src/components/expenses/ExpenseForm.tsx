@@ -128,7 +128,7 @@ export function ExpenseForm({ isOpen, onClose, expense }: ExpenseFormProps) {
                 control={form.control}
                 name="date"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Date of Expense</FormLabel>
                     <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
