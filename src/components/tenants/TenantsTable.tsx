@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ReminderDialog } from './ReminderDialog';
 import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ContractUploadDialog } from './ContractUploadDialog';
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -44,6 +46,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
+  const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
+  const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -125,6 +129,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsReminderOpen(true);
   };
   
+  const handleOpenContractUpload = (tenant: Tenant) => {
+    setTenantForContract(tenant);
+    setIsContractUploadOpen(true);
+  };
+  
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
     if (!showInactiveTenants) {
@@ -174,7 +183,25 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             {displayedTenants.map((tenant) => {
               return (
                 <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium">{tenant.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{tenant.name}</span>
+                       {tenant.contractUrl && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <a href={tenant.contractUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                                <FileText className="h-4 w-4 text-primary cursor-pointer" />
+                              </a>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>View Contract</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{tenant.email}</TableCell>
                   <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
                   <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
@@ -201,6 +228,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
                             <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                           </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)}>
+                            <FileUp className="mr-2 h-4 w-4" /> Upload Contract
+                        </DropdownMenuItem>
+                        {tenant.contractUrl && (
+                            <DropdownMenuItem onClick={() => window.open(tenant.contractUrl, '_blank')}>
+                                <FileText className="mr-2 h-4 w-4" /> View Contract
+                            </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
                         {tenant.hasAccount ? (
@@ -269,6 +305,13 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           username={credentials.username}
           password={credentials.password}
           clientName={clientNameForGreeting}
+        />
+      )}
+      {tenantForContract && (
+        <ContractUploadDialog
+          isOpen={isContractUploadOpen}
+          onClose={() => setIsContractUploadOpen(false)}
+          tenant={tenantForContract}
         />
       )}
     </>

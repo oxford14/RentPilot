@@ -27,7 +27,7 @@ import {
   limit,
   orderBy,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
@@ -366,6 +366,50 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error attempting to delete tenant:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate tenant: ${error.message}` });
       return { success: false, message: `Operation failed: ${error.message}`, action: 'error' };
+    }
+  };
+
+  const uploadContract = async (tenantId: string, file: File) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    if (!tenant) {
+      toast({ variant: "destructive", title: "Tenant not found" });
+      return;
+    }
+
+    try {
+      // If an old contract exists, delete it from storage
+      if (tenant.contractUrl) {
+        try {
+          const oldStorageRef = ref(storage, tenant.contractUrl);
+          await deleteObject(oldStorageRef);
+        } catch (error: any) {
+          // If the old file doesn't exist, that's fine, just log it.
+          if (error.code !== 'storage/object-not-found') {
+            console.warn("Could not delete old contract file:", error);
+          }
+        }
+      }
+
+      // Upload the new file
+      const uniqueFileName = `${uuidv4()}-${file.name}`;
+      const newStorageRef = ref(storage, `contracts/${tenantId}/${uniqueFileName}`);
+      
+      const uploadResult = await uploadBytes(newStorageRef, file);
+      const downloadUrl = await getDownloadURL(uploadResult.ref);
+
+      // Update the tenant document
+      const tenantDocRef = doc(db, 'tenants', tenantId);
+      await updateDoc(tenantDocRef, { contractUrl: downloadUrl });
+
+      toast({ title: "Contract Uploaded", description: "The new contract has been successfully uploaded." });
+    } catch (error: any) {
+      console.error("Error uploading contract:", error);
+      toast({ variant: "destructive", title: "Upload Failed", description: error.message });
+      throw error;
     }
   };
   
@@ -1152,6 +1196,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addTenant,
     updateTenant,
     attemptDeleteTenant,
+    uploadContract,
     generateTenantAccount,
     forceChangeTenantPassword,
     resetTenantPassword,

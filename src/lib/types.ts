@@ -46,6 +46,7 @@ export interface Tenant {
   hasAccount?: boolean; // To track if tenant has created a login
   invitationToken?: string; // DEPRECATED
   invitationTokenExpires?: number; // DEPRECATED
+  contractUrl?: string;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -289,6 +290,7 @@ export interface AppContextType {
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => Promise<void>;
   updateTenant: (tenant: Tenant) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
+  uploadContract: (tenantId: string, file: File) => Promise<void>;
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
