@@ -21,7 +21,6 @@ export const metadata: Metadata = {
     template: '%s | RentPilot',
   },
   description: 'Efficiently manage tenants, payments, and reports.',
-  manifest: '/manifest.json',
   icons: {
     icon: iconUrl,
     apple: iconUrl,
