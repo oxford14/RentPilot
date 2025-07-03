@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,7 +15,6 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -23,11 +22,12 @@ import { generateContract } from '@/ai/flows/generate-contract-flow';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileSignature, PenLine } from 'lucide-react';
+import { Loader2, FileSignature, PenLine, Eraser } from 'lucide-react';
 import type { Tenant, ContractTemplate } from '@/lib/types';
+import SignatureCanvas from 'react-signature-canvas';
+import { cn } from '@/lib/utils';
 
 const signNowSchema = z.object({
-  signature: z.string().min(3, { message: 'A full name is required for the signature.' }),
   agree: z.literal(true, {
     errorMap: () => ({ message: 'The tenant must agree to the terms to sign.' }),
   }),
@@ -49,10 +49,11 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
     const [generatedContract, setGeneratedContract] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const sigPad = useRef<SignatureCanvas | null>(null);
 
     const form = useForm<SignNowFormValues>({
         resolver: zodResolver(signNowSchema),
-        defaultValues: { signature: '', agree: false },
+        defaultValues: { agree: false },
     });
 
     useEffect(() => {
@@ -81,10 +82,23 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
 
         generate();
     }, [isOpen, tenant, template, user, toast, onClose]);
+    
+    useEffect(() => {
+        // Clear signature pad when dialog opens
+        if(isOpen) {
+            sigPad.current?.clear();
+            form.reset({ agree: false });
+        }
+    }, [isOpen, form]);
 
     const onSubmit = async (data: SignNowFormValues) => {
+        if (sigPad.current?.isEmpty()) {
+            toast({ variant: 'destructive', title: 'Signature Required', description: 'Please provide a signature in the box.' });
+            return;
+        }
+        const signatureDataUrl = sigPad.current!.toDataURL('image/png');
         setIsSubmitting(true);
-        await finalizeInPersonSignature(tenant, template.id, generatedContract, data.signature);
+        await finalizeInPersonSignature(tenant, template.id, generatedContract, signatureDataUrl);
         setIsSubmitting(false);
         onClose();
     };
@@ -109,27 +123,32 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
                     </div>
                 ) : (
                     <>
-                        <ScrollArea className="flex-1 border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
-                            {generatedContract}
+                        <ScrollArea className="flex-1 border rounded-md p-4 bg-muted/50">
+                             <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: generatedContract.replace(/\n/g, '<br />') }} />
                         </ScrollArea>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4 border-t">
-                                <FormField
-                                    control={form.control}
-                                    name="signature"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="flex items-center gap-2">
-                                                <PenLine className="h-4 w-4"/>
-                                                Tenant's Signature (Full Name)
-                                            </FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="Type full name here..." {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                <FormItem>
+                                    <FormLabel className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <PenLine className="h-4 w-4"/>
+                                            Tenant's Signature
+                                        </div>
+                                        <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={() => sigPad.current?.clear()}>
+                                            <Eraser className="mr-1 h-3 w-3"/>
+                                            Clear
+                                        </Button>
+                                    </FormLabel>
+                                    <FormControl>
+                                        <div className="w-full h-[150px] rounded-md border bg-background">
+                                            <SignatureCanvas
+                                                ref={sigPad}
+                                                penColor='black'
+                                                canvasProps={{className: 'w-full h-full'}}
+                                            />
+                                        </div>
+                                    </FormControl>
+                                </FormItem>
                                 <FormField
                                     control={form.control}
                                     name="agree"
@@ -145,6 +164,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
                                                 <FormLabel>
                                                     By checking this box, the tenant acknowledges they have read and agree to the terms of this contract.
                                                 </FormLabel>
+                                                <FormMessage />
                                             </div>
                                         </FormItem>
                                     )}

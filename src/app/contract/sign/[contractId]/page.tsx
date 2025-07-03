@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,11 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, FileSignature, ShieldCheck } from 'lucide-react';
+import { Loader2, FileSignature, ShieldCheck, Eraser } from 'lucide-react';
 import { format } from 'date-fns';
 import type { SignedContract } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import SignatureCanvas from 'react-signature-canvas';
 
 export default function SignContractPage() {
     const params = useParams();
@@ -27,6 +28,7 @@ export default function SignContractPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [agreed, setAgreed] = useState(false);
     const [manualInputs, setManualInputs] = useState<string[]>([]);
+    const sigPad = useRef<SignatureCanvas | null>(null);
 
     useEffect(() => {
         const contractId = params.contractId as string;
@@ -48,8 +50,13 @@ export default function SignContractPage() {
 
     const handleSignContract = async () => {
         if (!contract) return;
+        if (sigPad.current?.isEmpty()) {
+            toast({ variant: 'destructive', title: 'Signature Required', description: 'Please provide your signature in the box.' });
+            return;
+        }
+        const signatureDataUrl = sigPad.current!.toDataURL('image/png');
         setIsSubmitting(true);
-        await signContract(contract.id, manualInputs);
+        await signContract(contract.id, signatureDataUrl, manualInputs);
         router.push('/');
     };
 
@@ -77,7 +84,8 @@ export default function SignContractPage() {
             </div>
           );
         }
-        return <span key={index}>{part}</span>;
+        // Use dangerouslySetInnerHTML for the other parts to render HTML (like the signature image)
+        return <span key={index} dangerouslySetInnerHTML={{ __html: part.replace(/\n/g, '<br />') }} />;
       });
     };
 
@@ -101,8 +109,8 @@ export default function SignContractPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ScrollArea className="h-[60vh] border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
-                            {contract.contractBody}
+                        <ScrollArea className="h-[60vh] border rounded-md p-4 bg-muted/50">
+                           <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\n/g, '<br />') }} />
                         </ScrollArea>
                     </CardContent>
                     <CardFooter>
@@ -124,12 +132,27 @@ export default function SignContractPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[60vh] border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
-                        {renderContractBody(contract.contractBody)}
+                    <ScrollArea className="h-[60vh] border rounded-md p-4 bg-muted/50">
+                        <div className="whitespace-pre-wrap">{renderContractBody(contract.contractBody)}</div>
                     </ScrollArea>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <div className="flex items-center space-x-2">
+                     <div className="w-full space-y-2">
+                        <div className="flex justify-between items-center">
+                            <label className="text-sm font-medium">Your Signature</label>
+                            <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => sigPad.current?.clear()}>
+                                <Eraser className="mr-1 h-3 w-3" /> Clear
+                            </Button>
+                        </div>
+                        <div className="w-full h-[150px] rounded-md border bg-background">
+                            <SignatureCanvas
+                                ref={sigPad}
+                                penColor='black'
+                                canvasProps={{className: 'w-full h-full'}}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2 self-start">
                         <Checkbox id="terms" checked={agreed} onCheckedChange={(checked) => setAgreed(!!checked)} />
                         <label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                             I have read and agree to the terms of this contract.

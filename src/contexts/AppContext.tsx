@@ -28,7 +28,7 @@ import {
   limit,
   orderBy,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject, uploadString } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
@@ -1308,7 +1308,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement]);
 
-  const signContract = useCallback(async (contractId: string, manualInputs?: string[]) => {
+  const signContract = useCallback(async (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1330,6 +1330,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const signedDate = new Date();
         
+        // Upload signature
+        const storageRef = ref(storage, `signatures/${tenant.id}/${uuidv4()}.png`);
+        const base64String = signatureDataUrl.split(',')[1];
+        await uploadString(storageRef, base64String, 'base64', { contentType: 'image/png' });
+        const downloadUrl = await getDownloadURL(storageRef);
+        
         // Replace manual inputs
         if (manualInputs && manualInputs.length > 0) {
             let inputIndex = 0;
@@ -1340,7 +1346,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
         }
         
-        const signatureBlock = `\n// Electronically Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })} //\n`;
+        const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
         body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
         
         transaction.update(contractRef, {
@@ -1358,7 +1364,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
 
-  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureText: string) => {
+  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1370,8 +1376,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // 1. Upload signature image to storage
+      const storageRef = ref(storage, `signatures/${tenant.id}/${uuidv4()}.png`);
+      const base64String = signatureDataUrl.split(',')[1];
+      await uploadString(storageRef, base64String, 'base64', { contentType: 'image/png' });
+      const downloadUrl = await getDownloadURL(storageRef);
+      
+      // 2. Create signature block with image
       const signedDate = new Date();
-      const signatureBlock = `\n\n// Electronically Signed by ${signatureText} on behalf of ${tenant.name}\n// Witnessed by: ${authUser.username}\n// Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })} //\n`;
+      const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+      
+      // 3. Replace placeholder
       const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
 
       const newContractData: Omit<SignedContract, 'id'> = {
