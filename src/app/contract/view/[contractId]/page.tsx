@@ -6,28 +6,33 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, FileDown } from 'lucide-react';
-import type { SignedContract } from '@/lib/types';
+import type { SignedContract, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export default function ViewContractPage() {
     const params = useParams();
-    const { signedContracts } = useAppContext();
+    const { signedContracts, clients } = useAppContext();
     const { toast } = useToast();
     const [contract, setContract] = useState<SignedContract | null>(null);
+    const [client, setClient] = useState<Client | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const contractId = params.contractId as string;
-        if (signedContracts && contractId) {
+        if (signedContracts && contractId && clients) {
             const foundContract = signedContracts.find(c => c.id === contractId);
             setContract(foundContract || null);
+            if (foundContract) {
+                const foundClient = clients.find(c => c.id === foundContract.clientId);
+                setClient(foundClient || null);
+            }
         }
         setIsLoading(false);
-    }, [params.contractId, signedContracts]);
+    }, [params.contractId, signedContracts, clients]);
 
     const handleDownload = async () => {
         const element = printRef.current;
@@ -97,6 +102,16 @@ export default function ViewContractPage() {
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
                         <div ref={printRef} className="p-8">
+                             {client?.logoUrl && (
+                                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                                     <img 
+                                         src={client.logoUrl} 
+                                         alt={`${client.name} Logo`} 
+                                         style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
+                                         crossOrigin="anonymous"
+                                     />
+                                 </div>
+                             )}
                              <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\n/g, '<br />') }} />
                         </div>
                     </div>
