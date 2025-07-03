@@ -31,13 +31,13 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
-  { label: 'Tenant Name', tag: '{{{tenant_name}}}', description: "The full name of the tenant." },
-  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}', description: "The tenant's monthly rental rate." },
-  { label: 'Security Deposit', tag: '{{{security_deposit}}}', description: "The security deposit amount." },
-  { label: 'Join Date', tag: '{{{join_date}}}', description: "The tenant's join date." },
-  { label: 'Landlord Name', tag: '{{{landlord_name}}}', description: "The name of the landlord or manager." },
-  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}', description: "The block for the tenant's signature." },
-  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}', description: "A multi-line textbox for the tenant to fill." },
+  { label: 'Tenant Name', tag: '{{{tenant_name}}}' },
+  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
+  { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
+  { label: 'Join Date', tag: '{{{join_date}}}' },
+  { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
+  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}' },
+  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}' },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
