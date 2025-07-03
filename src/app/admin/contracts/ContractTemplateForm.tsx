@@ -17,7 +17,7 @@ import { ClipboardPlus } from 'lucide-react';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
-  body: z.string().min(50, "Template body must be at least 50 characters."),
+  body: z.string().min(10, "Template body must be at least 10 characters."),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -93,7 +93,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
-            {`Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated.`}
+            {"Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
