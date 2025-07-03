@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck } from 'lucide-react';
 import type { Tenant, ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +35,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ContractUploadDialog } from './ContractUploadDialog';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { InPersonSigningDialog } from './InPersonSigningDialog';
+
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
@@ -42,7 +44,7 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, initiateContract } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, initiateContract, finalizeInPersonSignature } = useAppContext();
   const { toast } = useToast();
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -50,9 +52,17 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
   const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
-  const [isInitiateContractOpen, setIsInitiateContractOpen] = useState(false);
-  const [tenantToInitiate, setTenantToInitiate] = useState<Tenant | null>(null);
+  
+  // State for the multi-step contract initiation flow
+  const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
+  const [templateSelectData, setTemplateSelectData] = useState<Tenant | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  
+  const [isActionChoiceOpen, setIsActionChoiceOpen] = useState(false);
+  const [actionChoiceData, setActionChoiceData] = useState<{ tenant: Tenant; templateId: string } | null>(null);
+
+  const [isSignNowOpen, setIsSignNowOpen] = useState(false);
+  const [signNowData, setSignNowData] = useState<{ tenant: Tenant; template: ContractTemplate } | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -139,19 +149,20 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsContractUploadOpen(true);
   };
 
-  const handleOpenInitiateContract = (tenant: Tenant) => {
-    setTenantToInitiate(tenant);
-    setIsInitiateContractOpen(true);
+  const handleOpenTemplateSelect = (tenant: Tenant) => {
+    setTemplateSelectData(tenant);
     setSelectedTemplateId('');
+    setIsTemplateSelectOpen(true);
   }
 
-  const handleConfirmInitiateContract = async () => {
-    if (!tenantToInitiate || !selectedTemplateId) {
-        toast({variant: 'destructive', title: 'Error', description: 'Please select a tenant and a template.'});
+  const handleConfirmTemplateSelect = async () => {
+    if (!templateSelectData || !selectedTemplateId) {
+        toast({variant: 'destructive', title: 'Error', description: 'Please select a template.'});
         return;
     }
-    await initiateContract(tenantToInitiate.id, selectedTemplateId);
-    setIsInitiateContractOpen(false);
+    setActionChoiceData({ tenant: templateSelectData, templateId: selectedTemplateId });
+    setIsTemplateSelectOpen(false);
+    setIsActionChoiceOpen(true);
   }
   
   const displayedTenants = useMemo(() => {
@@ -168,7 +179,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         const client = clients.find(c => c.id === firstTenant.clientId);
         return client?.name || "your landlord";
     }
-    return "your landlord"; // Fallback for tenants without a client or if client not found
+    return "your landlord";
   }, [displayedTenants, clients]);
 
   const formatUtcDate = (dateString: string) => {
@@ -250,7 +261,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenInitiateContract(tenant)}>
+                        <DropdownMenuItem onClick={() => handleOpenTemplateSelect(tenant)}>
                             <FileSignature className="mr-2 h-4 w-4" /> Initiate Digital Contract
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)}>
@@ -337,12 +348,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           tenant={tenantForContract}
         />
       )}
-      <Dialog open={isInitiateContractOpen} onOpenChange={setIsInitiateContractOpen}>
+      <Dialog open={isTemplateSelectOpen} onOpenChange={setIsTemplateSelectOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Initiate Contract for {tenantToInitiate?.name}</DialogTitle>
+                <DialogTitle>Initiate Contract for {templateSelectData?.name}</DialogTitle>
                 <DialogDescription>
-                    Select a template to generate the contract. This will create a pending contract for the tenant to sign.
+                    Select a template to generate the contract.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -365,13 +376,57 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleConfirmInitiateContract} disabled={!selectedTemplateId}>
-                    Initiate Contract
+                <Button onClick={handleConfirmTemplateSelect} disabled={!selectedTemplateId}>
+                    Next
                 </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={isActionChoiceOpen} onOpenChange={setIsActionChoiceOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Choose Signing Method</DialogTitle>
+                <DialogDescription>
+                    How would you like to proceed with the contract for {actionChoiceData?.tenant.name}?
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+                <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => {
+                    if (!actionChoiceData) return;
+                    initiateContract(actionChoiceData.tenant.id, actionChoiceData.templateId);
+                    setIsActionChoiceOpen(false);
+                }}>
+                    <SendToBack className="h-5 w-5" />
+                    Send Invitation to Tenant
+                </Button>
+
+                <Button variant="default" className="h-20 flex-col gap-2" onClick={() => {
+                    if (!actionChoiceData) return;
+                    const template = contractTemplates.find(t => t.id === actionChoiceData.templateId);
+                    if (!template) {
+                        toast({ variant: 'destructive', title: 'Error', description: 'Template not found.' });
+                        return;
+                    }
+                    setSignNowData({ tenant: actionChoiceData.tenant, template: template });
+                    setIsActionChoiceOpen(false);
+                    setIsSignNowOpen(true);
+                }}>
+                    <UserRoundCheck className="h-5 w-5" />
+                    Sign In Person Now
+                </Button>
+            </div>
+        </DialogContent>
+      </Dialog>
+      
+      {isSignNowOpen && signNowData && (
+        <InPersonSigningDialog
+            isOpen={isSignNowOpen}
+            onClose={() => setIsSignNowOpen(false)}
+            tenant={signNowData.tenant}
+            template={signNowData.template}
+        />
+      )}
     </>
   );
 }

@@ -1358,6 +1358,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
 
+  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureText: string) => {
+    if (!authIsAuthenticated || !authUser) {
+      toast({ variant: 'destructive', title: 'Unauthorized' });
+      return;
+    }
+
+    if (!tenant.clientId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Tenant is not associated with a client.' });
+        return;
+    }
+
+    try {
+      const signedDate = new Date();
+      const signatureBlock = `\n\n// Electronically Signed by ${signatureText} on behalf of ${tenant.name}\n// Witnessed by: ${authUser.username}\n// Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })} //\n`;
+      const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
+
+      const newContractData: Omit<SignedContract, 'id'> = {
+        clientId: tenant.clientId,
+        tenantId: tenant.id,
+        templateId: templateId,
+        contractBody: finalBody,
+        status: 'signed',
+        initiatedAt: signedDate.toISOString(),
+        signedAt: signedDate.toISOString(),
+      };
+
+      const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
+      
+      const tenantRef = doc(db, 'tenants', tenant.id);
+      await updateDoc(tenantRef, { activeContractId: contractRef.id });
+
+      toast({ title: 'Contract Finalized', description: 'The in-person signature has been recorded and the contract is now active.' });
+
+    } catch (e: any) {
+        console.error("Error finalizing in-person signature:", e);
+        toast({ variant: 'destructive', title: 'Failed to Finalize', description: e.message });
+    }
+  }, [authIsAuthenticated, authUser, toast]);
 
   const contextValue: AppContextType = {
     tenants,
@@ -1431,11 +1469,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteAnnouncement,
     markAnnouncementAsRead,
 
+    // Contracts
     addContractTemplate,
     updateContractTemplate,
     deleteContractTemplate,
     initiateContract,
     signContract,
+    finalizeInPersonSignature,
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,

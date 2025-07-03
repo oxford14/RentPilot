@@ -1,4 +1,5 @@
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -361,6 +362,7 @@ export interface AppContextType {
   deleteContractTemplate: (templateId: string) => Promise<void>;
   initiateContract: (tenantId: string, templateId: string) => Promise<void>;
   signContract: (contractId: string, manualInputs?: string[]) => Promise<void>;
+  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureText: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
