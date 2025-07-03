@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useRef } from 'react';
@@ -14,6 +13,7 @@ import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClipboardPlus } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
@@ -140,27 +140,29 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                   />
                </div>
                {/* Right column for placeholders */}
-               <div className="col-span-1">
-                 <Card>
+               <div className="col-span-1 flex flex-col min-h-0">
+                 <Card className="flex flex-col flex-1">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        {availablePlaceholders.map(p => (
-                            <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
-                                <div className="flex justify-between items-center">
-                                    <p className="font-mono text-xs text-primary">{p.tag}</p>
-                                    <Button type="button" size="sm" variant="ghost" onClick={() => handleInsertPlaceholder(p.tag)}>
-                                        Insert
-                                    </Button>
+                    <ScrollArea className="flex-1">
+                        <CardContent className="space-y-2 p-4 pt-0">
+                            {availablePlaceholders.map(p => (
+                                <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
+                                    <div className="flex justify-between items-center">
+                                        <p className="font-mono text-xs text-primary">{p.tag}</p>
+                                        <Button type="button" size="sm" variant="ghost" onClick={() => handleInsertPlaceholder(p.tag)}>
+                                            Insert
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
-                            </div>
-                        ))}
-                    </CardContent>
+                            ))}
+                        </CardContent>
+                    </ScrollArea>
                  </Card>
                </div>
              </div>
