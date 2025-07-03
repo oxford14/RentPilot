@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClipboardPlus, PlusCircle } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,7 @@ const availablePlaceholders = [
   { label: 'Join Date', tag: '{{{join_date}}}', description: "The tenant's join date." },
   { label: 'Landlord Name', tag: '{{{landlord_name}}}', description: "The name of the landlord or manager." },
   { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}', description: "The block for the tenant's signature." },
+  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}', description: "A multi-line textbox for the tenant to fill." },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
@@ -152,9 +153,9 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
-                        <CardDescription>
+                        <DialogDescription>
                             Select a field and click the plus button to add it.
-                        </CardDescription>
+                        </DialogDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-end gap-2">

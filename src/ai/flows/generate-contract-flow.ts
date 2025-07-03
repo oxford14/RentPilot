@@ -42,7 +42,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an assistant that generates a legal contract by filling in a template.
   
   Carefully replace the Handlebars placeholders in the following template with the provided data.
-  The placeholder '{{{tenant_signature_block}}}' should NOT be replaced at this stage. It must remain in the final output.
+  The placeholders '{{{tenant_signature_block}}}' and '{{{tenant_manual_input}}}' should NOT be replaced at this stage. They must remain in the final output.
   If you see a '{{{landlord_signature_block}}}' placeholder, replace it with the landlord's name.
 
   Template:

@@ -1307,7 +1307,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement]);
 
-  const signContract = useCallback(async (contractId: string) => {
+  const signContract = useCallback(async (contractId: string, manualInputs?: string[]) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1328,8 +1328,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const signedDate = new Date();
+        
+        // Replace manual inputs
+        if (manualInputs && manualInputs.length > 0) {
+            let inputIndex = 0;
+            body = body.replace(/\{\{\{tenant_manual_input\}\}\}/g, () => {
+                const value = manualInputs[inputIndex] || '[NOT FILLED]';
+                inputIndex++;
+                return `\n\n--- Tenant Input ---\n${value}\n--------------------\n\n`;
+            });
+        }
+        
         const signatureBlock = `\n// Electronically Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })} //\n`;
-
         body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
         
         transaction.update(contractRef, {
@@ -1467,5 +1477,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    

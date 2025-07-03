@@ -360,7 +360,7 @@ export interface AppContextType {
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
   initiateContract: (tenantId: string, templateId: string) => Promise<void>;
-  signContract: (contractId: string) => Promise<void>;
+  signContract: (contractId: string, manualInputs?: string[]) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];

@@ -13,6 +13,7 @@ import { Loader2, FileSignature, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import type { SignedContract } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function SignContractPage() {
     const params = useParams();
@@ -25,6 +26,7 @@ export default function SignContractPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [agreed, setAgreed] = useState(false);
+    const [manualInputs, setManualInputs] = useState<string[]>([]);
 
     useEffect(() => {
         const contractId = params.contractId as string;
@@ -36,6 +38,8 @@ export default function SignContractPage() {
                     router.push('/');
                 } else {
                     setContract(foundContract);
+                    const inputCount = (foundContract.contractBody.match(/\{\{\{tenant_manual_input\}\}\}/g) || []).length;
+                    setManualInputs(Array(inputCount).fill(''));
                 }
             }
         }
@@ -45,8 +49,36 @@ export default function SignContractPage() {
     const handleSignContract = async () => {
         if (!contract) return;
         setIsSubmitting(true);
-        await signContract(contract.id);
+        await signContract(contract.id, manualInputs);
         router.push('/');
+    };
+
+    const handleManualInputChange = (index: number, value: string) => {
+        const newInputs = [...manualInputs];
+        newInputs[index] = value;
+        setManualInputs(newInputs);
+    };
+
+    const renderContractBody = (body: string) => {
+      const parts = body.split(/(\{\{\{tenant_manual_input\}\}\})/g);
+      let inputIndex = 0;
+      return parts.map((part, index) => {
+        if (part === '{{{tenant_manual_input}}}') {
+          const currentIndex = inputIndex;
+          inputIndex++;
+          return (
+            <div key={index} className="my-4">
+              <Textarea 
+                placeholder="Enter details here..." 
+                className="bg-background text-sm"
+                value={manualInputs[currentIndex] || ''}
+                onChange={(e) => handleManualInputChange(currentIndex, e.target.value)}
+              />
+            </div>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      });
     };
 
     if (isLoading) {
@@ -93,7 +125,7 @@ export default function SignContractPage() {
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[60vh] border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
-                        {contract.contractBody}
+                        {renderContractBody(contract.contractBody)}
                     </ScrollArea>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
@@ -112,4 +144,3 @@ export default function SignContractPage() {
         </div>
     );
 }
-
