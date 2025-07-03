@@ -60,17 +60,19 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsClientAdminOnly = ['/users', '/announcements'].includes(pathname);
-    const allowedTenantRoutes = ['/', '/profile'];
+    const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
+    const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
+
 
     if (isSuperAdmin && pathIsClientAdminOnly) {
         toast({ variant: "destructive", title: "Access Denied", description: "This page is for Client Administrators." });
         router.push('/admin');
     }
-    else if (isClientAdmin && pathIsAdmin) {
+    else if (isClientAdmin && pathIsAdmin && !allowedClientAdminRoutesInAdmin.some(p => pathname.startsWith(p))) {
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
         router.push('/');
     }
-    else if (isTenant && !allowedTenantRoutes.includes(pathname)) {
+    else if (isTenant && !allowedTenantRoutes.some(p => pathname.startsWith(p))) {
          toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
          router.push('/');
     }

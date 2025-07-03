@@ -22,21 +22,29 @@ import {
 import { ContractTemplateForm } from '@/app/admin/contracts/ContractTemplateForm';
 import type { ContractTemplate } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ContractTemplatesPage() {
   const { user } = useAuth();
+  const { contractTemplates, deleteContractTemplate, viewingAsClientId } = useAppContext();
   const router = useRouter();
-  
-  useEffect(() => {
-    if (user?.isSuperAdmin) {
-      router.push('/admin');
-    }
-  }, [user, router]);
+  const { toast } = useToast();
 
-  const { contractTemplates, deleteContractTemplate } = useAppContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<ContractTemplate | null>(null);
+
+  useEffect(() => {
+    // Wait until user object is loaded
+    if (!user) return;
+
+    const isClientAdminContext = (user.role === 'admin' && !user.isSuperAdmin) || (user.isSuperAdmin && !!viewingAsClientId);
+    
+    if (!isClientAdminContext) {
+      toast({variant: "destructive", title: "Access Denied", description: "This page is accessible by Client Administrators, or Super Admins in client-view mode."});
+      router.push(user.isSuperAdmin ? '/admin' : '/');
+    }
+  }, [user, viewingAsClientId, router, toast]);
 
   const handleOpenForm = (template?: ContractTemplate) => {
     setEditingTemplate(template || null);
@@ -55,8 +63,9 @@ export default function ContractTemplatesPage() {
     }
   };
 
-  if (user?.isSuperAdmin) {
-    // Render nothing while redirecting
+  // Prevent rendering anything until the effect has a chance to run and redirect if necessary
+  const isAuthorized = user && ((user.role === 'admin' && !user.isSuperAdmin) || (user.isSuperAdmin && !!viewingAsClientId));
+  if (!isAuthorized) {
     return null;
   }
 
