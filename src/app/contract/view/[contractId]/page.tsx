@@ -11,6 +11,23 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+// Helper function to fetch an image and convert it to a data URI
+const toDataURL = async (url: string): Promise<string> => {
+    // This is a robust way to fetch images that might have CORS restrictions.
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+};
+
+
 export default function ViewContractPage() {
     const params = useParams();
     const { signedContracts, clients } = useAppContext();
@@ -39,16 +56,38 @@ export default function ViewContractPage() {
         if (!element || !contract) return;
 
         setIsExporting(true);
-        toast({ title: 'Preparing PDF...', description: 'Please wait, this may take a moment.' });
+        toast({ title: 'Preparing PDF...', description: 'Embedding images. Please wait.' });
         
+        // 1. Clone the element to avoid modifying the on-screen view
+        const clonedElement = element.cloneNode(true) as HTMLDivElement;
+        
+        // 2. Find all images and convert their src to data URIs
+        const images = Array.from(clonedElement.getElementsByTagName('img'));
+        for (const img of images) {
+            if (img.src && img.src.includes('firebasestorage.googleapis.com')) {
+                try {
+                    const dataUrl = await toDataURL(img.src);
+                    img.src = dataUrl;
+                } catch (error) {
+                    console.error('Failed to embed image:', img.src, error);
+                    // If an image fails, we'll let the process continue.
+                }
+            }
+        }
+
+        // 3. Temporarily append the modified clone to the body to render it for html2canvas
+        clonedElement.style.position = 'absolute';
+        clonedElement.style.left = '-9999px';
+        clonedElement.style.width = element.offsetWidth + 'px'; // Use on-screen width as a base
+        document.body.appendChild(clonedElement);
+
         try {
-            const canvas = await html2canvas(element, {
-                scale: 2, // Higher scale for better resolution
-                useCORS: true, // Important for loading external images
+            const canvas = await html2canvas(clonedElement, {
+                scale: 2,
+                useCORS: false, // Not needed anymore since images are embedded
             });
             const imgData = canvas.toDataURL('image/png');
             
-            // Using letter size as a base
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'pt',
@@ -78,8 +117,10 @@ export default function ViewContractPage() {
 
         } catch (error) {
             console.error("PDF generation failed:", error);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not load contract images. This might be a network or a browser security issue.' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An unexpected error occurred while creating the PDF.' });
         } finally {
+            // 4. Clean up by removing the cloned element from the DOM
+            document.body.removeChild(clonedElement);
             setIsExporting(false);
         }
     };
@@ -107,6 +148,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
+                        {/* This is the element that will be rendered for PDF generation */}
                         <div ref={printRef}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -114,7 +156,7 @@ export default function ViewContractPage() {
                                          src={client.logoUrl} 
                                          alt={`${client.name} Logo`} 
                                          style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
-                                         crossOrigin="anonymous"
+                                         crossOrigin="anonymous" // Keep for on-screen rendering
                                      />
                                  </div>
                              )}
