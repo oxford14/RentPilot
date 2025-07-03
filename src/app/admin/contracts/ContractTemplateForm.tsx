@@ -66,21 +66,20 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
   const handleAddPlaceholder = () => {
     if (!selectedPlaceholder) return;
-    const textarea = bodyTextareaRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const currentValue = form.getValues('body');
-      const newValue = currentValue.substring(0, start) + selectedPlaceholder + currentValue.substring(end);
-      form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
+    
+    // Get the current value from the form state
+    const currentValue = form.getValues('body');
+    
+    // Append the selected placeholder. Add a space for better formatting if the body is not empty.
+    const newValue = currentValue ? `${currentValue} ${selectedPlaceholder}` : selectedPlaceholder;
+    
+    // Update the form state with the new value
+    form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPosition = start + selectedPlaceholder.length;
-        textarea.selectionStart = newCursorPosition;
-        textarea.selectionEnd = newCursorPosition;
-      }, 0);
-    }
+    // Re-focus the textarea for a better user experience
+    setTimeout(() => {
+      bodyTextareaRef.current?.focus();
+    }, 0);
   };
 
   const onSubmit = (data: TemplateFormValues) => {
