@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
-  body: z.string().min(1, "Template body is required.").max(50000, "Template body is too long."),
+  body: z.string().min(1, "Template body is required."),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -150,8 +150,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 p-4 pt-0 min-h-0">
-                        <ScrollArea className="h-full pr-4">
-                            <div className="space-y-2">
+                        <ScrollArea className="h-full">
+                            <div className="space-y-2 pr-4">
                                 {availablePlaceholders.map(p => (
                                     <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
                                         <div className="flex justify-between items-center">
