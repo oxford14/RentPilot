@@ -66,16 +66,28 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
   }, [isOpen, template, form]);
 
   const handleAddPlaceholder = () => {
-    if (!selectedPlaceholder) return;
-    
-    // Get the current value from the form state
+    if (!selectedPlaceholder || !bodyTextareaRef.current) return;
+
+    const textarea = bodyTextareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
     const currentValue = form.getValues('body');
     
-    // Append the selected placeholder. Add a space for better formatting if the body is not empty.
-    const newValue = currentValue ? `${currentValue} ${selectedPlaceholder}` : selectedPlaceholder;
+    // Insert the placeholder at the cursor position
+    const newValue = 
+      currentValue.substring(0, start) + 
+      selectedPlaceholder + 
+      currentValue.substring(end);
     
-    // Update the form state with the new value
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
+
+    // After updating the value, set the focus back to the textarea and move the cursor
+    // after the newly inserted placeholder. A timeout ensures this happens after the re-render.
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPosition = start + selectedPlaceholder.length;
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
   };
 
   const onSubmit = (data: TemplateFormValues) => {
@@ -156,7 +168,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                                <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Select a field...">
-                                          {selectedPlaceholder ? availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label : 'Select a field...'}
+                                          {availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label}
                                       </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent position="item-aligned">
