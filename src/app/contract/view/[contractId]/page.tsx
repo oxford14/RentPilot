@@ -9,6 +9,7 @@ import { Loader2, FileDown } from 'lucide-react';
 import type { SignedContract, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function ViewContractPage() {
     const params = useParams();
@@ -34,78 +35,46 @@ export default function ViewContractPage() {
     }, [params.contractId, signedContracts, clients]);
 
     const handleDownload = async () => {
-        if (!contract) return;
+        const input = printRef.current;
+        if (!input) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Report content not found.' });
+            return;
+        }
 
         setIsExporting(true);
-        toast({ title: 'Preparing PDF...', description: 'Embedding images. Please wait.' });
+        toast({ title: 'Preparing PDF...', description: 'Please wait.' });
 
         try {
-            // 1. Collect all image URLs that need to be converted from the contract body and the client logo.
-            const imageUrls = new Set<string>();
-            if (client?.logoUrl) {
-                imageUrls.add(client.logoUrl);
-            }
-            const bodyImageMatches = contract.contractBody.match(/<img[^>]+src="([^">]+)"/g) || [];
-            bodyImageMatches.forEach(imgTag => {
-                const srcMatch = imgTag.match(/src="([^"]+)"/);
-                if (srcMatch && srcMatch[1] && srcMatch[1].includes('firebasestorage.googleapis.com')) {
-                    imageUrls.add(srcMatch[1]);
-                }
+            // Wait for all images inside the printable area to load
+            const images = Array.from(input.getElementsByTagName('img'));
+            const promises = images.map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise<void>(resolve => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Don't let a failed image block the whole process
+                });
             });
+            await Promise.all(promises);
 
-            // 2. Fetch all unique images and convert them to data URIs in parallel.
-            const dataUriMap = new Map<string, string>();
-            await Promise.all(
-                Array.from(imageUrls).map(async (url) => {
-                    try {
-                        const response = await fetch(url);
-                        if (!response.ok) throw new Error(`Failed to fetch ${url}`);
-                        const blob = await response.blob();
-                        const dataUri = await new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result as string);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                        dataUriMap.set(url, dataUri);
-                    } catch (error) {
-                        console.error(`Could not embed image: ${url}`, error);
-                    }
-                })
-            );
-
-            // 3. Construct the final HTML string for the PDF.
-            let finalHtmlBody = contract.contractBody;
-            dataUriMap.forEach((dataUri, originalUrl) => {
-                finalHtmlBody = finalHtmlBody.replace(new RegExp(originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), dataUri);
-            });
-            
-            const logoDataUri = client?.logoUrl ? dataUriMap.get(client.logoUrl) : null;
-            const logoHtml = logoDataUri
-                ? `<div style="text-align: center; margin-bottom: 32px;"><img src="${logoDataUri}" alt="${client?.name} Logo" style="max-height: 80px; max-width: 250px; display: inline-block;" /></div>`
-                : '';
-            
-            const fullHtmlString = `
-                <div style="font-family: Times, serif; font-size: 12pt; line-height: 1.5;">
-                    ${logoHtml}
-                    ${finalHtmlBody.replace(/(\r\n|\n|\r)/gm, '<br />')}
-                </div>
-            `;
-
-            // 4. Generate PDF using jsPDF.html() for better page breaking and margin control.
             const pdf = new jsPDF({
                 orientation: 'p',
                 unit: 'pt',
-                format: 'legal',
+                format: 'legal', // 8.5 x 14 inches
             });
-
-            await pdf.html(fullHtmlString, {
+            
+            // Use the html method for better layout and page breaks
+            await pdf.html(input, {
                 callback: function (doc) {
-                    doc.save(`contract-${contract.tenantId}.pdf`);
+                    doc.save(`contract-${contract?.tenantId || 'download'}.pdf`);
                 },
-                margin: [72, 72, 72, 72],
+                margin: [72, 72, 72, 72], // 1-inch margins
                 autoPaging: 'text',
-                width: 612 - 144,
+                width: 612 - 144, // 8.5 inches (612pt) - 2 inches of margin
+                windowWidth: 612 - 144,
+                html2canvas: {
+                    useCORS: true, // Important for external images from Firebase
+                    scale: 2
+                }
             });
 
             toast({ title: 'PDF Exported', description: 'Your contract has been downloaded.' });
@@ -139,18 +108,22 @@ export default function ViewContractPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div ref={printRef} className="p-6 border rounded bg-white text-black">
-                         {client?.logoUrl && (
-                             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                                 <img 
-                                     src={client.logoUrl} 
-                                     alt={`${client.name} Logo`} 
-                                     style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
-                                     crossOrigin="anonymous"
-                                 />
-                             </div>
-                         )}
-                         <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/(\r\n|\n|\r)/gm, '<br />') }} />
+                     {/* The outer div provides the on-screen card appearance */}
+                    <div className="p-6 border rounded bg-white text-black">
+                         {/* This inner div is what gets printed, without the extra padding */}
+                         <div ref={printRef}>
+                             {client?.logoUrl && (
+                                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                                     <img 
+                                         src={client.logoUrl} 
+                                         alt={`${client.name} Logo`} 
+                                         style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
+                                         crossOrigin="anonymous"
+                                     />
+                                 </div>
+                             )}
+                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/(\r\n|\n|\r)/gm, '<br />') }} />
+                         </div>
                     </div>
                 </CardContent>
             </Card>
