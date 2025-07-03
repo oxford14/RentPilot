@@ -31,12 +31,12 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
-  { tag: '{{{tenant_name}}}', description: "The full name of the tenant." },
-  { tag: '{{{monthly_rate}}}', description: "The tenant's monthly rental rate." },
-  { tag: '{{{security_deposit}}}', description: "The security deposit amount." },
-  { tag: '{{{join_date}}}', description: "The tenant's join date." },
-  { tag: '{{{landlord_name}}}', description: "The name of the landlord or manager." },
-  { tag: '{{{tenant_signature_block}}}', description: "The block for the tenant's signature." },
+  { label: 'Tenant Name', tag: '{{{tenant_name}}}', description: "The full name of the tenant." },
+  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}', description: "The tenant's monthly rental rate." },
+  { label: 'Security Deposit', tag: '{{{security_deposit}}}', description: "The security deposit amount." },
+  { label: 'Join Date', tag: '{{{join_date}}}', description: "The tenant's join date." },
+  { label: 'Landlord Name', tag: '{{{landlord_name}}}', description: "The name of the landlord or manager." },
+  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}', description: "The block for the tenant's signature." },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
@@ -162,13 +162,15 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                               <Label>Placeholder</Label>
                                <Select onValueChange={setSelectedPlaceholder} value={selectedPlaceholder}>
                                   <SelectTrigger>
-                                      <SelectValue placeholder="Select a field..." />
+                                      <SelectValue placeholder="Select a field...">
+                                          {availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label}
+                                      </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                       {availablePlaceholders.map(p => (
                                           <SelectItem key={p.tag} value={p.tag}>
                                               <div className="flex flex-col items-start py-1">
-                                                  <p className="font-mono text-sm">{p.tag}</p>
+                                                  <p className="font-semibold text-sm">{p.label}</p>
                                                   <p className="text-xs text-muted-foreground">{p.description}</p>
                                               </div>
                                           </SelectItem>
