@@ -95,7 +95,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl flex flex-col h-full max-h-[90vh]">
-        <DialogHeader className="p-6 pb-4 border-b">
+        <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
             {"Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated."}
@@ -103,7 +103,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 grid grid-cols-3 gap-6 px-6 py-4 overflow-y-auto">
+            <div className="flex-1 grid grid-cols-3 gap-6 p-6 overflow-y-auto">
               
               <div className="col-span-2 flex flex-col space-y-4">
                 <FormField
@@ -165,10 +165,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                                   <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
                                           <SelectItem key={p.tag} value={p.tag}>
-                                              <div className="flex flex-col items-start py-1">
-                                                  <p className="font-semibold text-sm">{p.label}</p>
-                                                  <p className="text-xs text-muted-foreground">{p.description}</p>
-                                              </div>
+                                            {p.label}
                                           </SelectItem>
                                       ))}
                                   </SelectContent>
@@ -199,4 +196,3 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     </Dialog>
   );
 }
-
