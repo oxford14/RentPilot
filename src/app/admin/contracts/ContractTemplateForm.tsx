@@ -160,13 +160,13 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                       <div className="flex items-end gap-2">
                           <div className="flex-grow">
                               <Label>Placeholder</Label>
-                               <Select onValueChange={setSelectedPlaceholder} value={selectedPlaceholder}>
+                               <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Select a field...">
                                           {availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label}
                                       </SelectValue>
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
                                           <SelectItem key={p.tag} value={p.tag}>
                                               <div className="flex flex-col items-start py-1">
