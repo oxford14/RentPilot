@@ -146,6 +146,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                           }}
                           onClick={handleCursorChange}
                           onKeyUp={handleCursorChange}
+                          onBlur={handleCursorChange}
                           placeholder="This Residential Lease Agreement is made on..."
                           className="h-full resize-none"
                           {...field}
