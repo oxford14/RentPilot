@@ -13,9 +13,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from '@/components/ui/card';
-import { ClipboardPlus, PlusCircle } from 'lucide-react';
+import { ClipboardPlus, PlusCircle, FileText, Loader2 } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { generateContract } from '@/ai/flows/generate-contract-flow';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
@@ -42,12 +46,15 @@ const availablePlaceholders = [
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
   const { addContractTemplate, updateContractTemplate } = useAppContext();
+  const { toast } = useToast();
   const isEditing = !!template;
   
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const cursorPositionRef = useRef<number>(0);
 
   const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
+  const [previewContent, setPreviewContent] = useState<string>('');
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
@@ -64,6 +71,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         body: template?.body || '',
       });
       setSelectedPlaceholder('');
+      setPreviewContent('');
+      setIsPreviewLoading(false);
       cursorPositionRef.current = 0;
     }
   }, [isOpen, template, form]);
@@ -94,6 +103,36 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         cursorPositionRef.current = newCursorPosition;
     }, 0);
   };
+  
+  const handlePreview = async () => {
+    const templateBody = form.getValues('body');
+    if (!templateBody) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Template body cannot be empty to generate a preview.' });
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    setPreviewContent('');
+    
+    const mockData = {
+      templateBody,
+      tenant_name: "Jane Doe (Sample)",
+      monthly_rate: 15000,
+      security_deposit: 30000,
+      join_date: "July 1, 2024",
+      landlord_name: "John Smith (Landlord)",
+    };
+
+    try {
+      const result = await generateContract(mockData);
+      setPreviewContent(result.finalContract);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Preview Failed', description: e.message || "An AI error occurred." });
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
 
   const onSubmit = (data: TemplateFormValues) => {
     if (isEditing && template) {
@@ -106,18 +145,19 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl flex flex-col h-full max-h-[90vh]">
+      <DialogContent className="max-w-7xl flex flex-col h-full max-h-[95vh]">
         <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
-            {"Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated."}
+            {"Use the placeholder palette to insert dynamic fields. Use the preview panel to see a sample of the generated contract."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 grid grid-cols-3 gap-6 p-6 overflow-y-auto">
+            <div className="flex-1 grid grid-cols-2 gap-6 p-6 overflow-y-auto">
               
-              <div className="col-span-2 flex flex-col space-y-4">
+              {/* Left Column: Editor */}
+              <div className="col-span-1 flex flex-col space-y-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -161,17 +201,15 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                     </FormItem>
                   )}
                 />
-              </div>
-
-              <div className="col-span-1 flex flex-col">
-                <Card>
+                
+                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
                         <ShadcnCardDescription>
-                            Select a field and click the plus button to add it.
+                            Select a field and click the plus button to add it where your cursor is.
                         </ShadcnCardDescription>
                     </CardHeader>
                     <CardContent>
@@ -207,11 +245,49 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                     </CardContent>
                 </Card>
               </div>
+
+              {/* Right Column: Preview */}
+              <div className="col-span-1 flex flex-col">
+                 <Card className="flex-1 flex flex-col">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="w-5 h-5"/>
+                            Preview
+                        </CardTitle>
+                        <ShadcnCardDescription>
+                           Click "Generate Preview" to see an example of the rendered contract.
+                        </ShadcnCardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0">
+                        <ScrollArea className="h-full border rounded-md p-4 bg-muted/50 whitespace-pre-wrap">
+                            {isPreviewLoading && (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            )}
+                            {!isPreviewLoading && !previewContent && (
+                                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                                    <p>Preview will appear here.</p>
+                                </div>
+                            )}
+                            {!isPreviewLoading && previewContent && (
+                                <p>{previewContent}</p>
+                            )}
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+              </div>
             </div>
 
-            <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
-              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-              <Button type="submit">{isEditing ? 'Save Changes' : 'Create Template'}</Button>
+            <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t flex items-center justify-between">
+              <Button type="button" variant="secondary" onClick={handlePreview} disabled={isPreviewLoading}>
+                {isPreviewLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                Generate Preview
+              </Button>
+              <div className="flex gap-2">
+                <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                <Button type="submit">{isEditing ? 'Save Template' : 'Create Template'}</Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>
