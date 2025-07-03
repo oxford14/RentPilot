@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
@@ -106,7 +105,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        <div ref={printRef} className="p-8 bg-white" style={{ width: '816px', margin: 'auto' }}>
+                        <div ref={printRef} className="p-24 bg-white" style={{ width: '816px', margin: 'auto' }}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                                      <img 
