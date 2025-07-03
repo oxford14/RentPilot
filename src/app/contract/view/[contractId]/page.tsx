@@ -50,7 +50,7 @@ export default function ViewContractPage() {
             });
             const data = canvas.toDataURL('image/png');
 
-            const pdf = new jsPDF('p', 'px', 'a4');
+            const pdf = new jsPDF('p', 'px', 'legal');
             const imgProperties = pdf.getImageProperties(data);
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
@@ -101,7 +101,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        <div ref={printRef} className="p-8">
+                        <div ref={printRef} className="p-8 bg-white" style={{ width: '816px', margin: 'auto' }}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                                      <img 
@@ -112,7 +112,7 @@ export default function ViewContractPage() {
                                      />
                                  </div>
                              )}
-                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\n/g, '<br />') }} />
+                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\r\n|\r|\n/g, '<br />') }} />
                         </div>
                     </div>
                 </CardContent>
