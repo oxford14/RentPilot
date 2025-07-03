@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,9 +26,12 @@ import { useRouter } from 'next/navigation';
 export default function ContractTemplatesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  if (user?.isSuperAdmin) {
+  
+  useEffect(() => {
+    if (user?.isSuperAdmin) {
       router.push('/admin');
-  }
+    }
+  }, [user, router]);
 
   const { contractTemplates, deleteContractTemplate } = useAppContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -51,6 +54,11 @@ export default function ContractTemplatesPage() {
       setTemplateToDelete(null);
     }
   };
+
+  if (user?.isSuperAdmin) {
+    // Render nothing while redirecting
+    return null;
+  }
 
   return (
     <div className="container mx-auto py-2 space-y-6">
