@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ClipboardPlus, PlusCircle } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -45,6 +45,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
   const { addContractTemplate, updateContractTemplate } = useAppContext();
   const isEditing = !!template;
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const cursorPositionRef = useRef<number>(0);
   const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
 
   const form = useForm<TemplateFormValues>({
@@ -65,28 +66,30 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     }
   }, [isOpen, template, form]);
 
-  const handleAddPlaceholder = () => {
-    if (!selectedPlaceholder || !bodyTextareaRef.current) return;
+  const handleTextareaBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
+      cursorPositionRef.current = event.target.selectionStart;
+  };
 
+  const handleAddPlaceholder = () => {
+    if (!selectedPlaceholder) return;
     const textarea = bodyTextareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    if (!textarea) return;
+
     const currentValue = form.getValues('body');
-    
-    // Insert the placeholder at the cursor position
-    const newValue = 
-      currentValue.substring(0, start) + 
-      selectedPlaceholder + 
-      currentValue.substring(end);
-    
+    const cursorPosition = cursorPositionRef.current;
+
+    const newValue =
+        currentValue.substring(0, cursorPosition) +
+        selectedPlaceholder +
+        currentValue.substring(cursorPosition);
+
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
-    // After updating the value, set the focus back to the textarea and move the cursor
-    // after the newly inserted placeholder. A timeout ensures this happens after the re-render.
     setTimeout(() => {
-      textarea.focus();
-      const newCursorPosition = start + selectedPlaceholder.length;
-      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        textarea.focus();
+        const newCursorPosition = cursorPosition + selectedPlaceholder.length;
+        textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        cursorPositionRef.current = newCursorPosition;
     }, 0);
   };
 
@@ -134,13 +137,14 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                     <FormItem className="flex-1 flex flex-col">
                       <FormLabel>Template Body</FormLabel>
                       <FormControl>
-                         <Textarea 
+                        <Textarea
                           ref={(e) => {
                             field.ref(e);
                             bodyTextareaRef.current = e;
                           }}
-                          placeholder="This Residential Lease Agreement is made on..." 
-                          className="h-full resize-none" 
+                          onBlur={handleTextareaBlur} // Store cursor position on blur
+                          placeholder="This Residential Lease Agreement is made on..."
+                          className="h-full resize-none"
                           {...field}
                         />
                       </FormControl>
@@ -151,31 +155,28 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
               </div>
 
               <div className="col-span-1 flex flex-col">
-                 <Card>
+                <Card>
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
-                        <CardDescription>
+                        <DialogDescription> {/* Using DialogDescription for consistency */}
                             Select a field and click the plus button to add it.
-                        </CardDescription>
+                        </DialogDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-end gap-2">
                           <div className="flex-grow">
                               <Label>Placeholder</Label>
-                               <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
+                              <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Select a field..." />
                                   </SelectTrigger>
                                   <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
                                           <SelectItem key={p.tag} value={p.tag}>
-                                            <div className="flex flex-col">
-                                              <span className="font-medium">{p.label}</span>
-                                              <span className="text-xs text-muted-foreground">{p.description}</span>
-                                            </div>
+                                            {p.label}
                                           </SelectItem>
                                       ))}
                                   </SelectContent>
@@ -192,7 +193,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                           </Button>
                       </div>
                     </CardContent>
-                 </Card>
+                </Card>
               </div>
             </div>
 
