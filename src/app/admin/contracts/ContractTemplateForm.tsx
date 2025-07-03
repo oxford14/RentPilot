@@ -94,7 +94,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl flex flex-col h-[90vh]">
+      <DialogContent className="max-w-4xl flex flex-col h-full max-h-[90vh]">
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
@@ -158,7 +158,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                       <div className="flex items-end gap-2">
                           <div className="flex-grow">
                               <Label>Placeholder</Label>
-                               <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
+                               <Select onValueChange={setSelectedPlaceholder} value={selectedPlaceholder}>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Select a field..." />
                                   </SelectTrigger>
@@ -199,3 +199,4 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     </Dialog>
   );
 }
+
