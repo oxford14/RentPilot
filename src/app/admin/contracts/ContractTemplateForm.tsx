@@ -31,21 +31,24 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
-  { label: 'Client Logo', tag: '{{{client_logo}}}', description: "The client's logo, if available." },
-  { label: 'Tenant Name', tag: '{{{tenant_name}}}', description: "The full name of the tenant." },
-  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}', description: "The tenant's monthly rental rate." },
-  { label: 'Security Deposit', tag: '{{{security_deposit}}}', description: "The security deposit amount." },
-  { label: 'Join Date', tag: '{{{join_date}}}', description: "The tenant's official join date." },
-  { label: 'Landlord Name', tag: '{{{landlord_name}}}', description: "The landlord or property manager's name." },
-  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}', description: 'A block for the tenant to sign.' },
-  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}', description: 'A textbox for tenant manual input.' },
+  { label: 'Client Logo', tag: '{{{client_logo}}}' },
+  { label: 'Tenant Name', tag: '{{{tenant_name}}}' },
+  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
+  { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
+  { label: 'Join Date', tag: '{{{join_date}}}' },
+  { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
+  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}' },
+  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}' },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
   const { addContractTemplate, updateContractTemplate } = useAppContext();
   const isEditing = !!template;
+  
+  // Refs for tracking textarea and cursor position
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const cursorPositionRef = useRef<number>(0);
+
   const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
 
   const form = useForm<TemplateFormValues>({
@@ -63,9 +66,12 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         body: template?.body || '',
       });
       setSelectedPlaceholder('');
+      cursorPositionRef.current = 0; // Reset cursor position on open
     }
   }, [isOpen, template, form]);
 
+  // This function saves the current cursor position whenever the user interacts with the textarea.
+  // It's crucial for knowing where to insert the placeholder later.
   const handleCursorChange = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
       cursorPositionRef.current = event.currentTarget.selectionStart;
   };
@@ -85,10 +91,13 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
+    // After inserting, we restore focus to the textarea and move the cursor
+    // to the end of the newly inserted placeholder.
     setTimeout(() => {
         textarea.focus();
         const newCursorPosition = cursorPosition + selectedPlaceholder.length;
         textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        // We update our ref so the next insertion is also correct.
         cursorPositionRef.current = newCursorPosition;
     }, 0);
   };
@@ -139,9 +148,10 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                       <FormControl>
                         <Textarea
                           ref={(e) => {
-                            field.ref(e);
-                            bodyTextareaRef.current = e;
+                            field.ref(e); // This is from react-hook-form
+                            bodyTextareaRef.current = e; // This is our own ref to the DOM element
                           }}
+                          // These events ensure we always have the latest cursor position
                           onBlur={handleCursorChange}
                           onClick={handleCursorChange}
                           onKeyUp={handleCursorChange}
@@ -187,6 +197,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                           <Button
                               type="button"
                               size="icon"
+                              // The key change: use onMouseDown and preventDefault to avoid stealing focus
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 handleAddPlaceholder();
