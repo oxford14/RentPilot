@@ -40,16 +40,9 @@ export default function ViewContractPage() {
 
         setIsExporting(true);
         toast({ title: 'Preparing PDF...', description: 'Please wait, this may take a moment.' });
-        
-        // Clone the element to manipulate styles without affecting the screen
-        const elementToPrint = element.cloneNode(true) as HTMLDivElement;
-        elementToPrint.style.padding = '0'; // Remove on-screen padding for PDF generation
-        
-        // The element needs to be in the DOM to be rendered by html2canvas
-        elementToPrint.style.position = 'absolute';
-        elementToPrint.style.left = '-9999px';
-        elementToPrint.style.top = '0px';
-        document.body.appendChild(elementToPrint);
+
+        // Temporarily remove the on-screen padding so the PDF library can apply its own margins.
+        element.classList.remove('p-24');
 
         try {
             const pdf = new jsPDF({
@@ -58,26 +51,26 @@ export default function ViewContractPage() {
                 format: 'legal',
             });
             
-            // Use the more robust pdf.html() method
-            pdf.html(elementToPrint, {
-                callback: function (doc) {
-                    doc.save(`contract-${contract.tenantId}.pdf`);
-                    toast({ title: 'PDF Downloaded' });
-                    setIsExporting(false); 
-                    document.body.removeChild(elementToPrint); // Clean up the clone
-                },
+            // The `html` method handles multi-page content and applies margins correctly.
+            await pdf.html(element, {
                 margin: [72, 72, 72, 72], // 1-inch margins: [top, left, bottom, right]
                 autoPaging: 'text',
                 html2canvas: {
                     scale: 2, 
-                    useCORS: true, // Crucial for loading images from other domains
+                    useCORS: true,
                 },
             });
+            
+            pdf.save(`contract-${contract.tenantId}.pdf`);
+            toast({ title: 'PDF Downloaded' });
+
         } catch (error) {
             console.error("PDF generation failed:", error);
             toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An error occurred during PDF creation.' });
-            setIsExporting(false); 
-            document.body.removeChild(elementToPrint); // Clean up the clone on error too
+        } finally {
+            // Always restore the on-screen padding
+            element.classList.add('p-24');
+            setIsExporting(false);
         }
     };
 
