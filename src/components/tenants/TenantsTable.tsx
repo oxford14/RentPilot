@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck } from 'lucide-react';
-import type { Tenant, ContractTemplate } from '@/lib/types';
+import type { Tenant, ContractTemplate, SignedContract } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMinutes } from 'date-fns';
@@ -44,16 +45,18 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, initiateContract, finalizeInPersonSignature } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, signedContracts, initiateContract, deleteContract } = useAppContext();
   const { toast } = useToast();
+  const router = useRouter();
+
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [contractToDelete, setContractToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
   const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
   
-  // State for the multi-step contract initiation flow
   const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
   const [templateSelectData, setTemplateSelectData] = useState<Tenant | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -92,6 +95,17 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       setTenantToDelete(null);
     }
   };
+
+  const confirmDeleteContract = (tenant: Tenant) => {
+    setContractToDelete(tenant);
+  }
+
+  const handleDeleteContractConfirmed = async () => {
+    if (contractToDelete) {
+      await deleteContract(contractToDelete.id);
+      setContractToDelete(null);
+    }
+  }
 
   const handleGenerateAccount = async (tenant: Tenant) => {
     if (tenant.hasAccount) {
@@ -164,6 +178,14 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsTemplateSelectOpen(false);
     setIsActionChoiceOpen(true);
   }
+
+  const handleViewContract = (tenant: Tenant, signedContract: SignedContract | null) => {
+    if (tenant.contractUrl) {
+        window.open(tenant.contractUrl, '_blank');
+    } else if (signedContract) {
+        router.push(`/contract/view/${signedContract.id}`);
+    }
+  }
   
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
@@ -212,18 +234,23 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           </TableHeader>
           <TableBody>
             {displayedTenants.map((tenant) => {
+              const signedContract = tenant.activeContractId ? signedContracts.find(c => c.id === tenant.activeContractId) : null;
+              const hasSignedContract = signedContract?.status === 'signed';
+              const hasUploadedContract = !!tenant.contractUrl;
+              const hasContract = hasSignedContract || hasUploadedContract;
+              
               return (
                 <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <span>{tenant.name}</span>
-                       {tenant.contractUrl && (
+                       {hasContract && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <a href={tenant.contractUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                              <button onClick={() => handleViewContract(tenant, signedContract)} className="flex items-center">
                                 <FileText className="h-4 w-4 text-primary cursor-pointer" />
-                              </a>
+                              </button>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>View Contract</p>
@@ -261,15 +288,20 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenTemplateSelect(tenant)}>
+                        <DropdownMenuItem onClick={() => handleOpenTemplateSelect(tenant)} disabled={hasContract}>
                             <FileSignature className="mr-2 h-4 w-4" /> Initiate Digital Contract
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)}>
+                        <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)} disabled={hasContract}>
                             <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                         </DropdownMenuItem>
-                        {tenant.contractUrl && (
-                            <DropdownMenuItem onClick={() => window.open(tenant.contractUrl, '_blank')}>
-                                <FileText className="mr-2 h-4 w-4" /> View Signed Contract
+                        {hasContract && (
+                            <DropdownMenuItem onClick={() => handleViewContract(tenant, signedContract)}>
+                                <FileText className="mr-2 h-4 w-4" /> View Contract
+                            </DropdownMenuItem>
+                        )}
+                        {hasContract && (
+                            <DropdownMenuItem onClick={() => confirmDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Contract
                             </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
@@ -293,7 +325,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Tenant
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -320,6 +352,25 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               <AlertDialogCancel onClick={() => setTenantToDelete(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteConfirmed} className={buttonVariants({ variant: "destructive" })}>
                 Proceed
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
+      <AlertDialog open={!!contractToDelete} onOpenChange={(isOpen) => { if (!isOpen) setContractToDelete(null); }}>
+        {contractToDelete && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Delete Contract for {contractToDelete.name}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete the contract associated with this tenant? This will allow you to upload or initiate a new one. This action is not reversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setContractToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteContractConfirmed} className={buttonVariants({ variant: "destructive" })}>
+                Delete Contract
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

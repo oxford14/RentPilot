@@ -47,8 +47,8 @@ export interface Tenant {
   hasAccount?: boolean; // To track if tenant has created a login
   invitationToken?: string; // DEPRECATED
   invitationTokenExpires?: number; // DEPRECATED
-  contractUrl?: string;
-  activeContractId?: string;
+  contractUrl?: string | null;
+  activeContractId?: string | null;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -316,6 +316,7 @@ export interface AppContextType {
   updateTenant: (tenant: Tenant) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
   uploadContract: (tenantId: string, file: File) => Promise<void>;
+  deleteContract: (tenantId: string) => Promise<void>;
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
@@ -351,7 +352,6 @@ export interface AppContextType {
   addWeeklyIncome: (incomeEntry: Omit<WeeklyIncome, 'id' | 'clientId'>) => Promise<void>;
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
-  // Announcements
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
@@ -361,8 +361,8 @@ export interface AppContextType {
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
   initiateContract: (tenantId: string, templateId: string) => Promise<void>;
-  signContract: (contractId: string, manualInputs?: string[]) => Promise<void>;
-  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureText: string) => Promise<void>;
+  signContract: (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => Promise<void>;
+  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
@@ -374,7 +374,6 @@ export interface AppContextType {
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];
 
-  // Demo Booking
   addDemoRequest: (request: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateDemoRequestStatus: (requestId: string, status: DemoRequest['status']) => Promise<void>;
   deleteDemoRequest: (requestId: string) => Promise<void>;

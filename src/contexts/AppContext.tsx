@@ -410,29 +410,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // If an old contract exists, delete it from storage
       if (tenant.contractUrl) {
         try {
           const oldStorageRef = ref(storage, tenant.contractUrl);
           await deleteObject(oldStorageRef);
         } catch (error: any) {
-          // If the old file doesn't exist, that's fine, just log it.
           if (error.code !== 'storage/object-not-found') {
             console.warn("Could not delete old contract file:", error);
           }
         }
       }
 
-      // Upload the new file
       const uniqueFileName = `${uuidv4()}-${file.name}`;
       const newStorageRef = ref(storage, `contracts/${tenantId}/${uniqueFileName}`);
       
       const uploadResult = await uploadBytes(newStorageRef, file);
       const downloadUrl = await getDownloadURL(uploadResult.ref);
 
-      // Update the tenant document
       const tenantDocRef = doc(db, 'tenants', tenantId);
-      await updateDoc(tenantDocRef, { contractUrl: downloadUrl });
+      await updateDoc(tenantDocRef, { contractUrl: downloadUrl, activeContractId: null });
 
       toast({ title: "Contract Uploaded", description: "The new contract has been successfully uploaded." });
     } catch (error: any) {
@@ -440,6 +436,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Upload Failed", description: error.message });
       throw error;
     }
+  };
+
+  const deleteContract = async (tenantId: string) => {
+    if (!authIsAuthenticated) return;
+    const tenantRef = doc(db, 'tenants', tenantId);
+    await updateDoc(tenantRef, {
+      contractUrl: null,
+      activeContractId: null,
+    });
+    toast({ title: "Contract Unlinked", description: "The contract has been unlinked from the tenant. You can now add a new one." });
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
@@ -1288,7 +1294,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
 
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { activeContractId: contractRef.id });
+      await updateDoc(tenantRef, { activeContractId: contractRef.id, contractUrl: null });
       
       await addAnnouncement({
         title: "Action Required: New Contract",
@@ -1402,7 +1408,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
       
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { activeContractId: contractRef.id });
+      await updateDoc(tenantRef, { activeContractId: contractRef.id, contractUrl: null });
 
       toast({ title: 'Contract Finalized', description: 'The in-person signature has been recorded and the contract is now active.' });
 
@@ -1445,6 +1451,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateTenant,
     attemptDeleteTenant,
     uploadContract,
+    deleteContract,
     generateTenantAccount,
     forceChangeTenantPassword,
     resetTenantPassword,
