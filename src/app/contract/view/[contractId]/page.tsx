@@ -9,24 +9,6 @@ import { Loader2, FileDown } from 'lucide-react';
 import type { SignedContract, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-
-// Helper function to fetch an image and convert it to a data URI
-const toDataURL = async (url: string): Promise<string> => {
-    // This is a robust way to fetch images that might have CORS restrictions.
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-};
-
 
 export default function ViewContractPage() {
     const params = useParams();
@@ -52,75 +34,85 @@ export default function ViewContractPage() {
     }, [params.contractId, signedContracts, clients]);
 
     const handleDownload = async () => {
-        const element = printRef.current;
-        if (!element || !contract) return;
+        if (!contract) return;
 
         setIsExporting(true);
         toast({ title: 'Preparing PDF...', description: 'Embedding images. Please wait.' });
-        
-        // 1. Clone the element to avoid modifying the on-screen view
-        const clonedElement = element.cloneNode(true) as HTMLDivElement;
-        
-        // 2. Find all images and convert their src to data URIs
-        const images = Array.from(clonedElement.getElementsByTagName('img'));
-        for (const img of images) {
-            if (img.src && img.src.includes('firebasestorage.googleapis.com')) {
-                try {
-                    const dataUrl = await toDataURL(img.src);
-                    img.src = dataUrl;
-                } catch (error) {
-                    console.error('Failed to embed image:', img.src, error);
-                    // If an image fails, we'll let the process continue.
-                }
-            }
-        }
-
-        // 3. Temporarily append the modified clone to the body to render it for html2canvas
-        clonedElement.style.position = 'absolute';
-        clonedElement.style.left = '-9999px';
-        clonedElement.style.width = element.offsetWidth + 'px'; // Use on-screen width as a base
-        document.body.appendChild(clonedElement);
 
         try {
-            const canvas = await html2canvas(clonedElement, {
-                scale: 2,
-                useCORS: false, // Not needed anymore since images are embedded
-            });
-            const imgData = canvas.toDataURL('image/png');
-            
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'pt',
-                format: 'letter'
-            });
-            
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / pdfWidth;
-            const imgHeight = canvasHeight / ratio;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                heightLeft -= pdfHeight;
+            // 1. Collect all image URLs that need to be converted from the contract body and the client logo.
+            const imageUrls = new Set<string>();
+            if (client?.logoUrl) {
+                imageUrls.add(client.logoUrl);
             }
+            const bodyImageMatches = contract.contractBody.match(/<img[^>]+src="([^">]+)"/g) || [];
+            bodyImageMatches.forEach(imgTag => {
+                const srcMatch = imgTag.match(/src="([^"]+)"/);
+                if (srcMatch && srcMatch[1] && srcMatch[1].includes('firebasestorage.googleapis.com')) {
+                    imageUrls.add(srcMatch[1]);
+                }
+            });
 
-            pdf.save(`contract-${contract.tenantId}.pdf`);
+            // 2. Fetch all unique images and convert them to data URIs in parallel.
+            const dataUriMap = new Map<string, string>();
+            await Promise.all(
+                Array.from(imageUrls).map(async (url) => {
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+                        const blob = await response.blob();
+                        const dataUri = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        dataUriMap.set(url, dataUri);
+                    } catch (error) {
+                        console.error(`Could not embed image: ${url}`, error);
+                    }
+                })
+            );
 
-        } catch (error) {
+            // 3. Construct the final HTML string for the PDF.
+            let finalHtmlBody = contract.contractBody;
+            dataUriMap.forEach((dataUri, originalUrl) => {
+                finalHtmlBody = finalHtmlBody.replace(new RegExp(originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), dataUri);
+            });
+            
+            const logoDataUri = client?.logoUrl ? dataUriMap.get(client.logoUrl) : null;
+            const logoHtml = logoDataUri
+                ? `<div style="text-align: center; margin-bottom: 32px;"><img src="${logoDataUri}" alt="${client?.name} Logo" style="max-height: 80px; max-width: 250px; display: inline-block;" /></div>`
+                : '';
+            
+            const fullHtmlString = `
+                <div style="font-family: Times, serif; font-size: 12pt; line-height: 1.5;">
+                    ${logoHtml}
+                    ${finalHtmlBody.replace(/(\r\n|\n|\r)/gm, '<br />')}
+                </div>
+            `;
+
+            // 4. Generate PDF using jsPDF.html() for better page breaking and margin control.
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'pt',
+                format: 'legal',
+            });
+
+            await pdf.html(fullHtmlString, {
+                callback: function (doc) {
+                    doc.save(`contract-${contract.tenantId}.pdf`);
+                },
+                margin: [72, 72, 72, 72],
+                autoPaging: 'text',
+                width: 612 - 144,
+            });
+
+            toast({ title: 'PDF Exported', description: 'Your contract has been downloaded.' });
+        } catch (error: any) {
             console.error("PDF generation failed:", error);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An unexpected error occurred while creating the PDF.' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: error.message || 'Could not create PDF.' });
         } finally {
-            // 4. Clean up by removing the cloned element from the DOM
-            document.body.removeChild(clonedElement);
             setIsExporting(false);
         }
     };
@@ -147,21 +139,18 @@ export default function ViewContractPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="p-4 border rounded bg-white text-black">
-                        {/* This is the element that will be rendered for PDF generation */}
-                        <div ref={printRef}>
-                             {client?.logoUrl && (
-                                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                                     <img 
-                                         src={client.logoUrl} 
-                                         alt={`${client.name} Logo`} 
-                                         style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
-                                         crossOrigin="anonymous" // Keep for on-screen rendering
-                                     />
-                                 </div>
-                             )}
-                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/(\r\n|\n|\r)/gm, '<br />') }} />
-                        </div>
+                    <div ref={printRef} className="p-6 border rounded bg-white text-black">
+                         {client?.logoUrl && (
+                             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                                 <img 
+                                     src={client.logoUrl} 
+                                     alt={`${client.name} Logo`} 
+                                     style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
+                                     crossOrigin="anonymous"
+                                 />
+                             </div>
+                         )}
+                         <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/(\r\n|\n|\r)/gm, '<br />') }} />
                     </div>
                 </CardContent>
             </Card>
