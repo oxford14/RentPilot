@@ -40,36 +40,46 @@ export default function ViewContractPage() {
 
         setIsExporting(true);
         toast({ title: 'Preparing PDF...', description: 'Please wait, this may take a moment.' });
-
-        // Temporarily remove the on-screen padding so the PDF library can apply its own margins.
-        element.classList.remove('p-24');
-
+        
         try {
+            const canvas = await html2canvas(element, {
+                scale: 2, // Higher scale for better resolution
+                useCORS: true, // Important for loading external images
+            });
+            const imgData = canvas.toDataURL('image/png');
+            
+            // Using letter size as a base
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'pt',
-                format: 'legal',
+                format: 'letter'
             });
             
-            // The `html` method handles multi-page content and applies margins correctly.
-            await pdf.html(element, {
-                margin: [72, 72, 72, 72], // 1-inch margins: [top, left, bottom, right]
-                autoPaging: 'text',
-                html2canvas: {
-                    scale: 2, 
-                    useCORS: true,
-                },
-            });
-            
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / pdfWidth;
+            const imgHeight = canvasHeight / ratio;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+
             pdf.save(`contract-${contract.tenantId}.pdf`);
-            toast({ title: 'PDF Downloaded' });
 
         } catch (error) {
             console.error("PDF generation failed:", error);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An error occurred during PDF creation.' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not load contract images. This might be a network or a browser security issue.' });
         } finally {
-            // Always restore the on-screen padding
-            element.classList.add('p-24');
             setIsExporting(false);
         }
     };
@@ -97,8 +107,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        {/* This is the element that will be rendered on screen. Its padding creates the visual margins. */}
-                        <div ref={printRef} className="p-24 bg-white" style={{ width: '816px', margin: 'auto' }}>
+                        <div ref={printRef}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                                      <img 
