@@ -1352,7 +1352,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
         }
         
-        const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+        const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossOrigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
         body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
         
         transaction.update(contractRef, {
@@ -1390,7 +1390,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       // 2. Create signature block with image
       const signedDate = new Date();
-      const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+      const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossOrigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
       
       // 3. Replace placeholder
       const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
