@@ -50,7 +50,12 @@ export default function ViewContractPage() {
             });
             const data = canvas.toDataURL('image/png');
 
-            const pdf = new jsPDF('p', 'px', 'legal');
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'px',
+                format: 'legal'
+            });
+
             const imgProperties = pdf.getImageProperties(data);
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
