@@ -1265,6 +1265,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    const client = tenant.clientId ? rawClientsState.find(c => c.id === tenant.clientId) : null;
+    const clientLogoUrl = client?.logoUrl;
+
     try {
       const { finalContract } = await generateContract({
         templateBody: template.body,
@@ -1273,6 +1276,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         security_deposit: tenant.securityDeposit || 0,
         join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
         landlord_name: authUser.username,
+        client_logo_url: clientLogoUrl || undefined,
       });
       
       const newContractData: Omit<SignedContract, 'id'> = {
@@ -1305,7 +1309,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error initiating contract:", e);
       toast({ variant: 'destructive', title: 'Contract Initiation Failed', description: e.message });
     }
-  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement]);
+  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement, rawClientsState]);
 
   const signContract = useCallback(async (contractId: string, manualInputs?: string[]) => {
     if (!authIsAuthenticated || !authUser) {

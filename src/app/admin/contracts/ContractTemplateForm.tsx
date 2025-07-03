@@ -31,6 +31,7 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
+  { label: 'Client Logo', tag: '{{{client_logo}}}' },
   { label: 'Tenant Name', tag: '{{{tenant_name}}}' },
   { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
   { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
@@ -75,11 +76,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     
     // Update the form state with the new value
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
-
-    // Re-focus the textarea for a better user experience
-    setTimeout(() => {
-      bodyTextareaRef.current?.focus();
-    }, 0);
   };
 
   const onSubmit = (data: TemplateFormValues) => {
@@ -157,9 +153,11 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                       <div className="flex items-end gap-2">
                           <div className="flex-grow">
                               <Label>Placeholder</Label>
-                               <Select onValueChange={setSelectedPlaceholder} value={selectedPlaceholder}>
+                               <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
-                                      <SelectValue placeholder="Select a field..." />
+                                      <SelectValue placeholder="Select a field...">
+                                          {selectedPlaceholder ? availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label : 'Select a field...'}
+                                      </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
