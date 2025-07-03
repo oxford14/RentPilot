@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ClipboardPlus, PlusCircle } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -94,8 +94,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 border-b flex-shrink-0">
+      <DialogContent className="max-w-4xl flex flex-col h-[90vh]">
+        <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
             {"Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated."}
@@ -103,10 +103,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-            {/* Scrollable Content Area */}
             <div className="flex-1 grid grid-cols-3 gap-6 px-6 py-4 overflow-y-auto">
               
-              {/* Left Column for form fields */}
               <div className="col-span-2 flex flex-col space-y-4">
                 <FormField
                   control={form.control}
@@ -145,7 +143,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                 />
               </div>
 
-              {/* Right column for placeholders */}
               <div className="col-span-1 flex flex-col">
                  <Card>
                     <CardHeader>
@@ -153,9 +150,9 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
-                        <DialogDescription>
+                        <CardDescription>
                             Select a field and click the plus button to add it.
-                        </DialogDescription>
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-end gap-2">
@@ -163,9 +160,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                               <Label>Placeholder</Label>
                                <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
-                                      <SelectValue placeholder="Select a field...">
-                                          {availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label}
-                                      </SelectValue>
+                                      <SelectValue placeholder="Select a field..." />
                                   </SelectTrigger>
                                   <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
@@ -194,7 +189,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
               </div>
             </div>
 
-            {/* Fixed Footer */}
             <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit">{isEditing ? 'Save Changes' : 'Create Template'}</Button>
