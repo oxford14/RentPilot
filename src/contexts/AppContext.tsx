@@ -1244,7 +1244,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [authIsAuthenticated, toast]);
 
   const initiateContract = useCallback(async (tenantId: string, templateId: string) => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
     }
@@ -1267,6 +1267,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         monthly_rate: tenant.monthlyRentalRate,
         security_deposit: tenant.securityDeposit || 0,
         join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        landlord_name: authUser.username,
       });
       
       const newContractData: Omit<SignedContract, 'id'> = {
@@ -1288,26 +1289,47 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error initiating contract:", e);
       toast({ variant: 'destructive', title: 'Contract Initiation Failed', description: e.message });
     }
-  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState]);
+  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser]);
 
   const signContract = useCallback(async (contractId: string) => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
     }
+    const contractRef = doc(db, 'signedContracts', contractId);
     try {
-      const contractRef = doc(db, 'signedContracts', contractId);
-      await updateDoc(contractRef, {
-        status: 'signed',
-        signedAt: new Date().toISOString(),
-        signedByIp: 'X.X.X.X' 
+      await runTransaction(db, async (transaction) => {
+        const contractDoc = await transaction.get(contractRef);
+        if (!contractDoc.exists()) {
+            throw new Error("Contract could not be found.");
+        }
+        let body = contractDoc.data().contractBody as string;
+        const tenantId = contractDoc.data().tenantId as string;
+        const tenant = rawTenantsState.find(t => t.id === tenantId);
+        
+        if (!tenant) {
+            throw new Error("Associated tenant could not be found.");
+        }
+
+        const signedDate = new Date();
+        const signatureBlock = `\n// Electronically Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })} //\n`;
+
+        body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
+        
+        transaction.update(contractRef, {
+          contractBody: body,
+          status: 'signed',
+          signedAt: signedDate.toISOString(),
+          signedByIp: 'X.X.X.X', // Placeholder
+        });
       });
+
       toast({ title: 'Contract Signed!', description: 'Your agreement has been recorded.' });
     } catch (e: any) {
       console.error("Error signing contract:", e);
       toast({ variant: 'destructive', title: 'Signing Failed', description: e.message });
     }
-  }, [authIsAuthenticated, toast]);
+  }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
 
 
   const contextValue: AppContextType = {

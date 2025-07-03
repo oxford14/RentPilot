@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -61,7 +62,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
-            {"Use Handlebars syntax '{{{placeholder}}}' for dynamic fields. Available placeholders: 'tenant_name', 'monthly_rate', 'security_deposit', 'join_date'."}
+            {`Use placeholders for dynamic fields: {{{tenant_name}}}, {{{monthly_rate}}}, {{{security_deposit}}}, {{{join_date}}}, {{{landlord_name}}}. For the signature, use {{{tenant_signature_block}}}.`}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

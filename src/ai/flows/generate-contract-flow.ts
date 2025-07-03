@@ -18,6 +18,7 @@ const GenerateContractInputSchema = z.object({
   monthly_rate: z.number().describe("The tenant's monthly rental rate."),
   security_deposit: z.number().describe("The security deposit amount paid by the tenant."),
   join_date: z.string().describe("The tenant's official join date in a readable format (e.g., 'July 1, 2024')."),
+  landlord_name: z.string().describe("The name of the landlord or property manager."),
 });
 export type GenerateContractInput = z.infer<typeof GenerateContractInputSchema>;
 
@@ -41,7 +42,8 @@ const prompt = ai.definePrompt({
   prompt: `You are an assistant that generates a legal contract by filling in a template.
   
   Carefully replace the Handlebars placeholders in the following template with the provided data.
-  Ensure the final output is only the contract text, with no additional commentary.
+  The placeholder '{{{tenant_signature_block}}}' should NOT be replaced at this stage. It must remain in the final output.
+  If you see a '{{{landlord_signature_block}}}' placeholder, replace it with the landlord's name.
 
   Template:
   {{{templateBody}}}
@@ -51,6 +53,7 @@ const prompt = ai.definePrompt({
   - Monthly Rent: ₱{{{monthly_rate}}}
   - Security Deposit: ₱{{{security_deposit}}}
   - Join Date: {{{join_date}}}
+  - Landlord Name: {{{landlord_name}}}
   `,
 });
 
