@@ -1271,8 +1271,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         tenant_name: tenant.name,
         monthly_rate: tenant.monthlyRentalRate,
         security_deposit: tenant.securityDeposit || 0,
-        join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
         landlord_name: authUser.username,
+        todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       });
       
       const newContractData: Omit<SignedContract, 'id'> = {

@@ -40,6 +40,7 @@ const availablePlaceholders = [
   { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
   { label: 'Join Date', tag: '{{{join_date}}}' },
   { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
+  { label: "Today's Date", tag: '{{{todays_date}}}' },
   { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}' },
   { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}' },
 ];
@@ -121,6 +122,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
       security_deposit: 30000,
       join_date: "July 1, 2024",
       landlord_name: "John Smith (Landlord)",
+      todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     };
 
     try {

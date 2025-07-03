@@ -19,6 +19,7 @@ const GenerateContractInputSchema = z.object({
   security_deposit: z.number().describe("The security deposit amount paid by the tenant."),
   join_date: z.string().describe("The tenant's official join date in a readable format (e.g., 'July 1, 2024')."),
   landlord_name: z.string().describe("The name of the landlord or property manager."),
+  todays_date: z.string().describe("The current date when the contract is generated (e.g., 'August 15, 2024')."),
 });
 export type GenerateContractInput = z.infer<typeof GenerateContractInputSchema>;
 
@@ -54,6 +55,7 @@ const prompt = ai.definePrompt({
   - Security Deposit: ₱{{{security_deposit}}}
   - Join Date: {{{join_date}}}
   - Landlord Name: {{{landlord_name}}}
+  - Today's Date: {{{todays_date}}}
   `,
 });
 
