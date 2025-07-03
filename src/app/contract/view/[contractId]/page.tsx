@@ -39,31 +39,40 @@ export default function ViewContractPage() {
 
         setIsExporting(true);
         toast({ title: 'Generating PDF...' });
+        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
         
-        try {
-            const pdf = new jsPDF({
-                orientation: 'p',
-                unit: 'in',
-                format: 'legal',
-            });
-            
-            await pdf.html(element, {
-                callback: function (doc) {
-                    doc.save(`contract-${contract.tenantId}.pdf`);
-                    toast({ title: 'PDF Downloaded' });
-                    setIsExporting(false);
-                },
-                margin: [1, 1, 1, 1], // [top, right, bottom, left] in inches
-                autoPaging: 'text',
-                width: 6.5, // Legal width (8.5) - 2in margins
-                windowWidth: element.scrollWidth,
-            });
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: 'a4',
+        });
 
-        } catch (e) {
-            console.error("Error generating PDF:", e);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed' });
-            setIsExporting(false);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = imgWidth / imgHeight;
+        
+        let finalImgWidth = pdfWidth;
+        let finalImgHeight = pdfWidth / ratio;
+        
+        if (finalImgHeight > pdfHeight) {
+            finalImgHeight = pdfHeight;
+            finalImgWidth = pdfHeight * ratio;
         }
+
+        const totalPages = Math.ceil(finalImgHeight / pdfHeight);
+        
+        for (let i = 0; i < totalPages; i++) {
+            if (i > 0) pdf.addPage();
+            const yPos = -(pdfHeight * i);
+            pdf.addImage(imgData, 'PNG', 0, yPos, finalImgWidth, finalImgHeight);
+        }
+
+        pdf.save(`contract-${contract.tenantId}.pdf`);
+        toast({ title: 'PDF Downloaded' });
+        setIsExporting(false);
     };
 
     if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -88,7 +97,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        <div ref={printRef} className="p-24 bg-white" style={{ width: '816px', margin: 'auto' }}>
+                        <div ref={printRef} className="max-w-none p-8 bg-white">
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                                      <img 
