@@ -267,14 +267,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
 
-  const isAdminSection = pathname.startsWith('/admin');
   const isTenantSection = authUser?.role === 'tenant';
+  const isSuperAdminViewingAsClient = !!authUser?.isSuperAdmin && !!viewingAsClientId;
+  const isTrueAdminView = authUser?.isSuperAdmin && !isSuperAdminViewingAsClient && pathname.startsWith('/admin');
 
   let currentAppNavItems: AppSidebarNavItem[] = [];
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
   let currentActivePageLabel = 'RentPilot';
 
-  const isSuperAdminViewingAsClient = !!authUser?.isSuperAdmin && !!viewingAsClientId;
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
   const activeClientForDisplay = viewingClient || loggedInClient;
@@ -296,37 +296,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [loggedInClient, authUser]);
 
 
-  if (isAdminSection) {
-    if (authUser?.isSuperAdmin) {
+  if (isTrueAdminView) {
       currentAdminConfigItems = adminSidebarConfig;
-    }
-    let activeItemFound = false;
-    for (const item of currentAdminConfigItems) {
-      if (!item.isGroup && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))) {
-        currentActivePageLabel = item.label;
-        activeItemFound = true;
-        break;
-      }
-      if (item.isGroup) {
-        for (const subItem of item.items) {
-          if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
-            currentActivePageLabel = subItem.label;
-            activeItemFound = true;
-            break;
+      let activeItemFound = false;
+      for (const item of currentAdminConfigItems) {
+        if (!item.isGroup && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))) {
+          currentActivePageLabel = item.label;
+          activeItemFound = true;
+          break;
+        }
+        if (item.isGroup) {
+          for (const subItem of item.items) {
+            if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
+              currentActivePageLabel = subItem.label;
+              activeItemFound = true;
+              break;
+            }
           }
         }
+        if (activeItemFound) break;
       }
-      if (activeItemFound) break;
-    }
-    if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
-    else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
-    else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
-    else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
-    else if (!activeItemFound && pathname === '/admin/contracts') currentActivePageLabel = 'Contract Templates';
-    else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
-    else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
-    else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
-    else if (!activeItemFound && pathname === '/admin/maintenance/demo-requests') currentActivePageLabel = 'Demo Requests';
+      if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
+      else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
+      else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
+      else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
+      else if (!activeItemFound && pathname === '/admin/contracts') currentActivePageLabel = 'Contract Templates';
+      else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
+      else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
+      else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
+      else if (!activeItemFound && pathname === '/admin/maintenance/demo-requests') currentActivePageLabel = 'Demo Requests';
   } else {
       let baseNavItems: AppSidebarNavItem[];
       if(isTenantSection) {
@@ -362,32 +360,30 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       currentAppNavItems = baseNavItems;
 
-
-    let activeItemFound = false;
-    for (const item of currentAppNavItems) {
-      if (item.isGroup) {
-        for (const subItem of item.items) {
-          if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
-            currentActivePageLabel = subItem.label; 
-            activeItemFound = true; 
-            break;
+      let activeItemFound = false;
+      for (const item of currentAppNavItems) {
+        if (item.isGroup) {
+          for (const subItem of item.items) {
+            if (pathname === subItem.href || pathname.startsWith(subItem.href)) {
+              currentActivePageLabel = subItem.label; 
+              activeItemFound = true; 
+              break;
+            }
+          }
+        } else {
+          if ((item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/')))) {
+             currentActivePageLabel = item.label;
+             activeItemFound = true;
           }
         }
-      } else { 
-        const currentTopLevelPath = '/' + (pathname.split('/')[1] || '');
-        if (item.href === '/' ? pathname === '/' : currentTopLevelPath === item.href || pathname.startsWith(item.href + '/')) {
-          currentActivePageLabel = item.label;
-          activeItemFound = true;
-        }
+        if (activeItemFound) break;
       }
-      if (activeItemFound) break;
-    }
-     if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
-     else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
-     else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
-     else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
-     else if (!activeItemFound && pathname.startsWith('/contract/sign')) currentActivePageLabel = 'Sign Contract';
-     else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
+       if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
+       else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
+       else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
+       else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
+       else if (!activeItemFound && pathname.startsWith('/contract/sign')) currentActivePageLabel = 'Sign Contract';
+       else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
 
   const handleReturnToAdminView = () => {
@@ -453,7 +449,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
             <SidebarMenu>
-              {isAdminSection ? (
+              {isTrueAdminView ? (
                 currentAdminConfigItems.map((item, index) => {
                   if (item.isGroup) {
                     return (
@@ -563,7 +559,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && !isAdminSection ? (
+              {activeClientForDisplay?.logoUrl && !isTrueAdminView ? (
                   <Image
                     src={activeClientForDisplay.logoUrl}
                     alt={`${activeClientForDisplay.name} Logo`}
@@ -573,7 +569,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     data-ai-hint="client logo small"
                     unoptimized
                   />
-              ) : !isAdminSection ? (
+              ) : !isTrueAdminView ? (
                   <Image
                     src={MAIN_APP_FAVICON_URL} 
                     alt="RentPilot app icon"
@@ -586,8 +582,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               ) : null}
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
-                 {loggedInClient && !isAdminSection && !viewingClient && ` - ${loggedInClient.name}`}
-                 {viewingClient && !isAdminSection && ` - ${viewingClient.name}`}
+                 {loggedInClient && !isTrueAdminView && !viewingClient && ` - ${loggedInClient.name}`}
+                 {viewingClient && !isTrueAdminView && ` - ${viewingClient.name}`}
               </h1>
             </div>
             {!authUser?.isSuperAdmin && (
@@ -655,14 +651,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuItem>
                 )}
 
-                {authUser?.isSuperAdmin && !viewingAsClientId && !isAdminSection && (
+                {authUser?.isSuperAdmin && !viewingAsClientId && !pathname.startsWith('/admin') && (
                   <DropdownMenuItem onClick={() => router.push('/admin')}>
                     <ShieldAlert className="mr-2 h-4 w-4" />
                     Go to Admin Dashboard
                   </DropdownMenuItem>
                 )}
 
-                {authUser?.isSuperAdmin && !viewingAsClientId && isAdminSection && (
+                {authUser?.isSuperAdmin && !viewingAsClientId && pathname.startsWith('/admin') && (
                   <DropdownMenuItem onClick={handleReturnToGlobalView}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to App (Global View)
@@ -687,7 +683,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          {authUser?.isSuperAdmin && viewingClient && !isAdminSection && ( 
+          {authUser?.isSuperAdmin && viewingClient && !isTrueAdminView && ( 
             <div className="bg-primary/10 text-primary-foreground py-2 px-6 text-sm flex items-center justify-center shadow">
               <Eye className="mr-2 h-4 w-4 text-primary" />
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
