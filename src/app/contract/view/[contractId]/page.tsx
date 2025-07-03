@@ -41,44 +41,27 @@ export default function ViewContractPage() {
         toast({ title: 'Generating PDF...' });
         
         try {
-            const canvas = await html2canvas(element, { 
-                scale: 2, 
-                useCORS: true,
-                logging: true,
-                allowTaint: true
-            });
-            const data = canvas.toDataURL('image/png');
-
             const pdf = new jsPDF({
                 orientation: 'p',
-                unit: 'px',
-                format: 'legal'
+                unit: 'in',
+                format: 'legal',
             });
-
-            const imgProperties = pdf.getImageProperties(data);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProperties.height * pdfWidth) / imgProperties.width;
             
-            let heightLeft = pdfHeight;
-            let position = 0;
-
-            pdf.addImage(data, 'PNG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= pdf.internal.pageSize.getHeight();
-
-            while (heightLeft > 0) {
-                position = heightLeft - pdfHeight;
-                pdf.addPage();
-                pdf.addImage(data, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= pdf.internal.pageSize.getHeight();
-            }
-            
-            pdf.save(`contract-${contract.tenantId}.pdf`);
-            toast({ title: 'PDF Downloaded' });
+            await pdf.html(element, {
+                callback: function (doc) {
+                    doc.save(`contract-${contract.tenantId}.pdf`);
+                    toast({ title: 'PDF Downloaded' });
+                    setIsExporting(false);
+                },
+                margin: [1, 1, 1, 1], // [top, right, bottom, left] in inches
+                autoPaging: 'text',
+                width: 6.5, // Legal width (8.5) - 2in margins
+                windowWidth: element.scrollWidth,
+            });
 
         } catch (e) {
             console.error("Error generating PDF:", e);
             toast({ variant: 'destructive', title: 'PDF Generation Failed' });
-        } finally {
             setIsExporting(false);
         }
     };
@@ -116,7 +99,7 @@ export default function ViewContractPage() {
                                      />
                                  </div>
                              )}
-                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\r\n|\r|\n/g, '<br />') }} />
+                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/(\r\n|\n|\r)/gm, '<br />') }} />
                         </div>
                     </div>
                 </CardContent>
