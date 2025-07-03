@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useRef } from 'react';
@@ -96,52 +97,53 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-             <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
-               {/* Left column for form fields */}
-               <div className="col-span-2 flex flex-col">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Template Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Standard 12-Month Lease" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="body"
-                    render={({ field }) => (
-                      <FormItem className="flex-1 flex flex-col">
-                        <FormLabel>Template Body</FormLabel>
-                        <FormControl className="flex-1">
-                           <Textarea 
-                            ref={(e) => {
-                              field.ref(e);
-                              bodyTextareaRef.current = e;
-                            }}
-                            placeholder="This Residential Lease Agreement is made on..." 
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            className="h-full resize-none" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-               </div>
-               {/* Right column for placeholders */}
-               <div className="col-span-1">
-                 <Card className="h-full flex flex-col">
-                    <CardHeader>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col space-y-4 min-h-0">
+            {/* Main content area */}
+            <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
+              
+              {/* Left Column for form fields */}
+              <div className="col-span-2 flex flex-col space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Template Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Standard 12-Month Lease" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="body"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 flex flex-col">
+                      <FormLabel>Template Body</FormLabel>
+                      <FormControl>
+                         <Textarea 
+                          ref={(e) => {
+                            field.ref(e);
+                            bodyTextareaRef.current = e;
+                          }}
+                          placeholder="This Residential Lease Agreement is made on..." 
+                          className="h-full resize-none" 
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Right column for placeholders */}
+              <div className="col-span-1 flex flex-col">
+                 <Card className="flex-1 flex flex-col min-h-0">
+                    <CardHeader className="flex-shrink-0">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
@@ -165,9 +167,12 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                         </ScrollArea>
                     </CardContent>
                  </Card>
-               </div>
-             </div>
-            <DialogFooter className="flex-shrink-0 pt-4">
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <DialogFooter className="flex-shrink-0">
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit">{isEditing ? 'Save Changes' : 'Create Template'}</Button>
             </DialogFooter>
