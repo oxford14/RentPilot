@@ -31,14 +31,14 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
-  { label: 'Client Logo', tag: '{{{client_logo}}}' },
-  { label: 'Tenant Name', tag: '{{{tenant_name}}}' },
-  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
-  { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
-  { label: 'Join Date', tag: '{{{join_date}}}' },
-  { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
-  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}' },
-  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}' },
+  { label: 'Client Logo', tag: '{{{client_logo}}}', description: "The client's logo, if available." },
+  { label: 'Tenant Name', tag: '{{{tenant_name}}}', description: "The full name of the tenant." },
+  { label: 'Monthly Rate', tag: '{{{monthly_rate}}}', description: "The tenant's monthly rental rate." },
+  { label: 'Security Deposit', tag: '{{{security_deposit}}}', description: "The security deposit amount." },
+  { label: 'Join Date', tag: '{{{join_date}}}', description: "The tenant's official join date." },
+  { label: 'Landlord Name', tag: '{{{landlord_name}}}', description: "The landlord or property manager's name." },
+  { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}', description: 'A block for the tenant to sign.' },
+  { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}', description: 'A textbox for tenant manual input.' },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
@@ -167,14 +167,15 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                               <Label>Placeholder</Label>
                                <Select onValueChange={(tag) => setSelectedPlaceholder(tag)} value={selectedPlaceholder}>
                                   <SelectTrigger>
-                                      <SelectValue placeholder="Select a field...">
-                                          {availablePlaceholders.find(p => p.tag === selectedPlaceholder)?.label}
-                                      </SelectValue>
+                                      <SelectValue placeholder="Select a field..." />
                                   </SelectTrigger>
                                   <SelectContent position="item-aligned">
                                       {availablePlaceholders.map(p => (
                                           <SelectItem key={p.tag} value={p.tag}>
-                                            {p.label}
+                                            <div className="flex flex-col">
+                                              <span className="font-medium">{p.label}</span>
+                                              <span className="text-xs text-muted-foreground">{p.description}</span>
+                                            </div>
                                           </SelectItem>
                                       ))}
                                   </SelectContent>
