@@ -23,9 +23,8 @@ import { generateContract } from '@/ai/flows/generate-contract-flow';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileSignature, Signature } from 'lucide-react';
+import { Loader2, FileSignature, PenLine } from 'lucide-react';
 import type { Tenant, ContractTemplate } from '@/lib/types';
-import { Label } from '../ui/label';
 
 const signNowSchema = z.object({
   signature: z.string().min(3, { message: 'A full name is required for the signature.' }),
@@ -121,7 +120,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
-                                                <Signature className="h-4 w-4"/>
+                                                <PenLine className="h-4 w-4"/>
                                                 Tenant's Signature (Full Name)
                                             </FormLabel>
                                             <FormControl>
