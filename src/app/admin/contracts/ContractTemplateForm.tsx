@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as ShadcnCardDescription } from '@/components/ui/card';
 import { ClipboardPlus, PlusCircle } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -66,8 +66,9 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     }
   }, [isOpen, template, form]);
 
-  const handleTextareaBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
-      cursorPositionRef.current = event.target.selectionStart;
+  // More robust cursor position tracking by updating on every click or key up in the textarea.
+  const handleCursorChange = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      cursorPositionRef.current = event.currentTarget.selectionStart;
   };
 
   const handleAddPlaceholder = () => {
@@ -75,7 +76,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     const textarea = bodyTextareaRef.current;
     if (!textarea) return;
 
-    const currentValue = form.getValues('body');
+    const currentValue = form.getValues('body') || '';
     const cursorPosition = cursorPositionRef.current;
 
     const newValue =
@@ -85,6 +86,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
+    // After inserting, restore focus and update the cursor position
     setTimeout(() => {
         textarea.focus();
         const newCursorPosition = cursorPosition + selectedPlaceholder.length;
@@ -142,7 +144,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                             field.ref(e);
                             bodyTextareaRef.current = e;
                           }}
-                          onBlur={handleTextareaBlur} // Store cursor position on blur
+                          onClick={handleCursorChange}
+                          onKeyUp={handleCursorChange}
                           placeholder="This Residential Lease Agreement is made on..."
                           className="h-full resize-none"
                           {...field}
@@ -161,9 +164,9 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
-                        <DialogDescription> {/* Using DialogDescription for consistency */}
+                        <ShadcnCardDescription>
                             Select a field and click the plus button to add it.
-                        </DialogDescription>
+                        </ShadcnCardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="flex items-end gap-2">
