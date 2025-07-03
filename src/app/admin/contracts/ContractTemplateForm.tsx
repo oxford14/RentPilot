@@ -31,7 +31,6 @@ interface ContractTemplateFormProps {
 }
 
 const availablePlaceholders = [
-  { label: 'Client Logo', tag: '{{{client_logo}}}' },
   { label: 'Tenant Name', tag: '{{{tenant_name}}}' },
   { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
   { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
@@ -45,7 +44,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
   const { addContractTemplate, updateContractTemplate } = useAppContext();
   const isEditing = !!template;
   
-  // Refs for tracking textarea and cursor position
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const cursorPositionRef = useRef<number>(0);
 
@@ -66,12 +64,10 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         body: template?.body || '',
       });
       setSelectedPlaceholder('');
-      cursorPositionRef.current = 0; // Reset cursor position on open
+      cursorPositionRef.current = 0;
     }
   }, [isOpen, template, form]);
 
-  // This function saves the current cursor position whenever the user interacts with the textarea.
-  // It's crucial for knowing where to insert the placeholder later.
   const handleCursorChange = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
       cursorPositionRef.current = event.currentTarget.selectionStart;
   };
@@ -91,13 +87,10 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
-    // After inserting, we restore focus to the textarea and move the cursor
-    // to the end of the newly inserted placeholder.
     setTimeout(() => {
         textarea.focus();
         const newCursorPosition = cursorPosition + selectedPlaceholder.length;
         textarea.setSelectionRange(newCursorPosition, newCursorPosition);
-        // We update our ref so the next insertion is also correct.
         cursorPositionRef.current = newCursorPosition;
     }, 0);
   };
@@ -148,10 +141,9 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                       <FormControl>
                         <Textarea
                           ref={(e) => {
-                            field.ref(e); // This is from react-hook-form
-                            bodyTextareaRef.current = e; // This is our own ref to the DOM element
+                            field.ref(e);
+                            bodyTextareaRef.current = e;
                           }}
-                          // These events ensure we always have the latest cursor position
                           onBlur={handleCursorChange}
                           onClick={handleCursorChange}
                           onKeyUp={handleCursorChange}
@@ -197,7 +189,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                           <Button
                               type="button"
                               size="icon"
-                              // The key change: use onMouseDown and preventDefault to avoid stealing focus
                               onMouseDown={(e) => {
                                 e.preventDefault();
                                 handleAddPlaceholder();

@@ -19,7 +19,6 @@ const GenerateContractInputSchema = z.object({
   security_deposit: z.number().describe("The security deposit amount paid by the tenant."),
   join_date: z.string().describe("The tenant's official join date in a readable format (e.g., 'July 1, 2024')."),
   landlord_name: z.string().describe("The name of the landlord or property manager."),
-  client_logo_url: z.string().optional().describe("The URL for the client's logo."),
 });
 export type GenerateContractInput = z.infer<typeof GenerateContractInputSchema>;
 
@@ -45,7 +44,6 @@ const prompt = ai.definePrompt({
   Carefully replace the Handlebars placeholders in the following template with the provided data.
   The placeholders '{{{tenant_signature_block}}}' and '{{{tenant_manual_input}}}' should NOT be replaced at this stage. They must remain in the final output.
   If you see a '{{{landlord_signature_block}}}' placeholder, replace it with the landlord's name.
-  If a '{{{client_logo}}}' placeholder exists and a client_logo_url is provided, replace the placeholder with an HTML image tag: '<img src="{{{client_logo_url}}}" alt="Client Logo" style="width: 150px; height: auto;">'. If no URL is provided, remove the placeholder.
 
   Template:
   {{{templateBody}}}
@@ -56,7 +54,6 @@ const prompt = ai.definePrompt({
   - Security Deposit: ₱{{{security_deposit}}}
   - Join Date: {{{join_date}}}
   - Landlord Name: {{{landlord_name}}}
-  - Client Logo URL: {{{client_logo_url}}}
   `,
 });
 
