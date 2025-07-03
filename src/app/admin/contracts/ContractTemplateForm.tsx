@@ -66,7 +66,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
     }
   }, [isOpen, template, form]);
 
-  // More robust cursor position tracking by updating on every click or key up in the textarea.
   const handleCursorChange = (event: React.SyntheticEvent<HTMLTextAreaElement>) => {
       cursorPositionRef.current = event.currentTarget.selectionStart;
   };
@@ -86,7 +85,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
     form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
-    // After inserting, restore focus and update the cursor position
     setTimeout(() => {
         textarea.focus();
         const newCursorPosition = cursorPosition + selectedPlaceholder.length;
@@ -189,7 +187,10 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                           <Button
                               type="button"
                               size="icon"
-                              onClick={handleAddPlaceholder}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleAddPlaceholder();
+                              }}
                               disabled={!selectedPlaceholder}
                               aria-label="Add placeholder"
                           >
