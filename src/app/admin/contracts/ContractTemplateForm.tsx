@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,8 +13,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardPlus } from 'lucide-react';
+import { ClipboardPlus, PlusCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
@@ -35,13 +37,14 @@ const availablePlaceholders = [
   { tag: '{{{security_deposit}}}', description: "The security deposit amount." },
   { tag: '{{{join_date}}}', description: "The tenant's join date." },
   { tag: '{{{landlord_name}}}', description: "The name of the landlord or manager." },
-  { tag: '{{{tenant_signature_block}}}', description: "The block where the tenant's digital signature will be placed." },
+  { tag: '{{{tenant_signature_block}}}', description: "The block for the tenant's signature." },
 ];
 
 export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemplateFormProps) {
   const { addContractTemplate, updateContractTemplate } = useAppContext();
   const isEditing = !!template;
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
 
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
@@ -57,21 +60,23 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
         name: template?.name || '',
         body: template?.body || '',
       });
+      setSelectedPlaceholder('');
     }
   }, [isOpen, template, form]);
 
-  const handleInsertPlaceholder = (tag: string) => {
+  const handleAddPlaceholder = () => {
+    if (!selectedPlaceholder) return;
     const textarea = bodyTextareaRef.current;
     if (textarea) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const currentValue = form.getValues('body');
-      const newValue = currentValue.substring(0, start) + tag + currentValue.substring(end);
+      const newValue = currentValue.substring(0, start) + selectedPlaceholder + currentValue.substring(end);
       form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
       setTimeout(() => {
         textarea.focus();
-        const newCursorPosition = start + tag.length;
+        const newCursorPosition = start + selectedPlaceholder.length;
         textarea.selectionStart = newCursorPosition;
         textarea.selectionEnd = newCursorPosition;
       }, 0);
@@ -142,29 +147,46 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
               {/* Right column for placeholders */}
               <div className="col-span-1 flex flex-col">
-                 <Card className="flex-1 flex flex-col min-h-0">
-                    <CardHeader className="flex-shrink-0">
+                 <Card>
+                    <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
+                        <CardDescription>
+                            Select a field and click the plus button to add it.
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1 p-4 pt-0 min-h-0">
-                        <ScrollArea className="h-full">
-                            <div className="space-y-2 pr-4">
-                                {availablePlaceholders.map(p => (
-                                    <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
-                                        <div className="flex justify-between items-center">
-                                            <p className="font-mono text-xs text-primary">{p.tag}</p>
-                                            <Button type="button" size="sm" variant="ghost" onClick={() => handleInsertPlaceholder(p.tag)}>
-                                                Insert
-                                            </Button>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                    <CardContent>
+                      <div className="flex items-end gap-2">
+                          <div className="flex-grow">
+                              <Label>Placeholder</Label>
+                               <Select onValueChange={setSelectedPlaceholder} value={selectedPlaceholder}>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Select a field..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {availablePlaceholders.map(p => (
+                                          <SelectItem key={p.tag} value={p.tag}>
+                                              <div className="flex flex-col items-start py-1">
+                                                  <p className="font-mono text-sm">{p.tag}</p>
+                                                  <p className="text-xs text-muted-foreground">{p.description}</p>
+                                              </div>
+                                          </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <Button
+                              type="button"
+                              size="icon"
+                              onClick={handleAddPlaceholder}
+                              disabled={!selectedPlaceholder}
+                              aria-label="Add placeholder"
+                          >
+                              <PlusCircle className="h-5 w-5"/>
+                          </Button>
+                      </div>
                     </CardContent>
                  </Card>
               </div>
