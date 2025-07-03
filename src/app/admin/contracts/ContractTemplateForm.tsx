@@ -89,17 +89,17 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>{isEditing ? 'Edit Contract Template' : 'Create New Contract Template'}</DialogTitle>
           <DialogDescription>
             {"Use the placeholder palette to insert dynamic fields into your contract body. The system will replace these tags with tenant data when initiated."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col space-y-4 min-h-0">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
             {/* Main content area */}
-            <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
+            <div className="flex-1 grid grid-cols-3 gap-6 px-6 py-4 min-h-0">
               
               {/* Left Column for form fields */}
               <div className="col-span-2 flex flex-col space-y-4">
@@ -172,7 +172,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
             </div>
 
             {/* Footer */}
-            <DialogFooter className="flex-shrink-0">
+            <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t">
               <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
               <Button type="submit">{isEditing ? 'Save Changes' : 'Create Template'}</Button>
             </DialogFooter>
