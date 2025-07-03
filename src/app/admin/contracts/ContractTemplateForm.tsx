@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const templateFormSchema = z.object({
   name: z.string().min(3, "Template name must be at least 3 characters."),
-  body: z.string().min(10, "Template body must be at least 10 characters."),
+  body: z.string().min(1, "Template body is required.").max(50000, "Template body is too long."),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -45,8 +45,8 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
-      name: template?.name || '',
-      body: template?.body || '',
+      name: '',
+      body: '',
     },
   });
 
@@ -68,7 +68,6 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
       const newValue = currentValue.substring(0, start) + tag + currentValue.substring(end);
       form.setValue('body', newValue, { shouldValidate: true, shouldDirty: true });
 
-      // Focus and set cursor position after the inserted tag
       setTimeout(() => {
         textarea.focus();
         const newCursorPosition = start + tag.length;
@@ -97,15 +96,15 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0 space-y-4">
-             <div className="grid grid-cols-3 gap-6 flex-1 min-h-0">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+             <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
                {/* Left column for form fields */}
-               <div className="col-span-2 flex flex-col space-y-4">
+               <div className="col-span-2 flex flex-col">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="mb-4">
                         <FormLabel>Template Name</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Standard 12-Month Lease" {...field} />
@@ -117,52 +116,54 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                   <FormField
                     control={form.control}
                     name="body"
-                    render={({ field }) => {
-                        const { ref: fieldRef, ...fieldProps } = field;
-                        return (
-                          <FormItem className="flex-1 flex flex-col">
-                            <FormLabel>Template Body</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                ref={(el) => {
-                                    fieldRef(el);
-                                    bodyTextareaRef.current = el;
-                                }}
-                                placeholder="This Residential Lease Agreement is made on..." 
-                                {...fieldProps} 
-                                className="flex-1 resize-none" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                    }}
+                    render={({ field }) => (
+                      <FormItem className="flex-1 flex flex-col">
+                        <FormLabel>Template Body</FormLabel>
+                        <FormControl className="flex-1">
+                           <Textarea 
+                            ref={(e) => {
+                              field.ref(e);
+                              bodyTextareaRef.current = e;
+                            }}
+                            placeholder="This Residential Lease Agreement is made on..." 
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            className="h-full resize-none" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                </div>
                {/* Right column for placeholders */}
-               <div className="col-span-1 flex flex-col min-h-0">
-                 <Card className="flex flex-col flex-1">
+               <div className="col-span-1">
+                 <Card className="h-full flex flex-col">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ClipboardPlus className="w-5 h-5"/>
                             Placeholders
                         </CardTitle>
                     </CardHeader>
-                    <ScrollArea className="flex-1">
-                        <CardContent className="space-y-2 p-4 pt-0">
-                            {availablePlaceholders.map(p => (
-                                <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
-                                    <div className="flex justify-between items-center">
-                                        <p className="font-mono text-xs text-primary">{p.tag}</p>
-                                        <Button type="button" size="sm" variant="ghost" onClick={() => handleInsertPlaceholder(p.tag)}>
-                                            Insert
-                                        </Button>
+                    <CardContent className="flex-1 p-4 pt-0 min-h-0">
+                        <ScrollArea className="h-full pr-4">
+                            <div className="space-y-2">
+                                {availablePlaceholders.map(p => (
+                                    <div key={p.tag} className="p-2 border rounded-md bg-muted/50">
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-mono text-xs text-primary">{p.tag}</p>
+                                            <Button type="button" size="sm" variant="ghost" onClick={() => handleInsertPlaceholder(p.tag)}>
+                                                Insert
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">{p.description}</p>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </ScrollArea>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
                  </Card>
                </div>
              </div>
