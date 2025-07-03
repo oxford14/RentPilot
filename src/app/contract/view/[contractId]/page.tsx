@@ -39,61 +39,65 @@ export default function ViewContractPage() {
         if (!element || !contract) return;
 
         setIsExporting(true);
-        toast({ title: 'Preparing PDF...', description: 'Embedding images...' });
+        toast({ title: 'Preparing PDF...', description: 'Please wait, this may take a moment.' });
         
-        // Create a clone of the element to avoid modifying the displayed content
+        // Create a clone to manipulate without affecting the on-screen view
         const clone = element.cloneNode(true) as HTMLDivElement;
-        // The clone needs to be in the DOM to be processed, but can be off-screen
         clone.style.position = 'absolute';
         clone.style.left = '-9999px';
-        clone.style.top = '-9999px';
+        clone.style.top = '0px';
+        clone.style.width = '816px'; // A standard width for rendering
+        clone.style.padding = '0'; // Remove on-screen padding for canvas generation
         document.body.appendChild(clone);
-        
-        try {
-            // Find and replace image URLs with data URIs
-            const images = Array.from(clone.getElementsByTagName('img'));
-            for (const img of images) {
-                if (img.src && img.src.startsWith('https://firebasestorage.googleapis.com')) {
-                    try {
-                        const response = await fetch(img.src);
-                        const blob = await response.blob();
-                        const dataUrl = await new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result as string);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                        img.src = dataUrl;
-                    } catch (error) {
-                        console.error('Failed to embed image:', img.src, error);
-                        // Don't stop the whole PDF generation, just leave the broken image
-                    }
-                }
-            }
-            
-            toast({ title: 'Generating PDF...', description: 'Please wait a moment.' });
 
-            const canvas = await html2canvas(clone, { scale: 2, useCORS: false }); // useCORS is now false
+        // Find all images within the clone and convert their src to data URIs
+        const images = Array.from(clone.getElementsByTagName('img'));
+        const promises = images.map(img => {
+            if (img.src && img.src.startsWith('https://firebasestorage.googleapis.com')) {
+                return new Promise((resolve, reject) => {
+                    const newImg = new window.Image();
+                    newImg.crossOrigin = 'Anonymous';
+                    newImg.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = newImg.naturalWidth;
+                        canvas.height = newImg.naturalHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx?.drawImage(newImg, 0, 0);
+                        img.src = canvas.toDataURL('image/png'); // Replace src with data URI
+                        resolve(true);
+                    };
+                    newImg.onerror = reject; // Reject promise if image fails to load
+                    newImg.src = img.src;
+                });
+            }
+            return Promise.resolve(true);
+        });
+
+        try {
+            await Promise.all(promises); // Wait for all images to be converted
+
+            // Now generate the canvas from the clone which has data URI images
+            const canvas = await html2canvas(clone, { scale: 2 });
             const imgData = canvas.toDataURL('image/png');
             
             const pdf = new jsPDF({
-                orientation: 'p',
+                orientation: 'portrait',
                 unit: 'pt',
-                format: 'legal',
+                format: 'legal', // US Legal size (8.5 x 14 inches)
             });
 
-            const pdfWidth = pdf.internal.pageSize.getWidth(); // 612
-            const pdfHeight = pdf.internal.pageSize.getHeight(); // 1008
-            const margin = 72; // 1 inch
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const margin = 72; // 1 inch = 72 points
 
-            const contentWidth = pdfWidth - (margin * 2); // 468
-            const contentHeight = pdfHeight - (margin * 2); // 864
+            const contentWidth = pdfWidth - (margin * 2);
+            const contentHeight = pdfHeight - (margin * 2);
 
             const canvasWidth = canvas.width;
             const canvasHeight = canvas.height;
-            const canvasRatio = canvasHeight / canvasWidth;
+            const canvasRatio = canvasWidth / contentWidth;
+            const imgHeight = canvasHeight / canvasRatio;
 
-            const imgHeight = contentWidth * canvasRatio;
             let heightLeft = imgHeight;
             let position = 0;
 
@@ -101,9 +105,9 @@ export default function ViewContractPage() {
             heightLeft -= contentHeight;
 
             while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
+                position -= contentHeight;
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, imgHeight);
+                pdf.addImage(imgData, 'PNG', margin, position, contentWidth, imgHeight);
                 heightLeft -= contentHeight;
             }
             
@@ -112,12 +116,13 @@ export default function ViewContractPage() {
 
         } catch (error) {
             console.error("PDF generation failed:", error);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An error occurred while creating the PDF.' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not load contract images. This might be a network or a browser security issue.' });
         } finally {
             setIsExporting(false);
             document.body.removeChild(clone); // Clean up the cloned element
         }
     };
+
 
     if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (!contract) return <div className="flex justify-center items-center h-screen"><p>Contract not found.</p></div>;
@@ -141,7 +146,7 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        {/* The printable area. The styles here are for on-screen viewing. */}
+                        {/* This is the element that will be rendered on screen. Its padding creates the visual margins. */}
                         <div ref={printRef} className="p-12 bg-white" style={{ width: '816px', margin: 'auto' }}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -149,7 +154,7 @@ export default function ViewContractPage() {
                                          src={client.logoUrl} 
                                          alt={`${client.name} Logo`} 
                                          style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
-                                         crossOrigin="anonymous" // Keep this for the initial on-screen load
+                                         crossOrigin="anonymous"
                                      />
                                  </div>
                              )}
