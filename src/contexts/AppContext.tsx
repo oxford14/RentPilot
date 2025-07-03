@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract } from '@/lib/types';
@@ -1259,6 +1260,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: 'destructive', title: 'Error', description: 'Tenant is not associated with a client.' });
       return;
     }
+    if (!tenant.hasAccount || !tenant.username) {
+      toast({ variant: 'destructive', title: 'Error', description: 'This tenant does not have an active portal account to receive a contract.' });
+      return;
+    }
 
     try {
       const { finalContract } = await generateContract({
@@ -1283,13 +1288,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const tenantRef = doc(db, 'tenants', tenant.id);
       await updateDoc(tenantRef, { activeContractId: contractRef.id });
+      
+      await addAnnouncement({
+        title: "Action Required: New Contract",
+        content: `You have a new contract from ${authUser.username} to sign. Please go to your dashboard to review and sign.`,
+        scope: tenant.clientId,
+        audience: 'tenant',
+        senderId: authUser.username,
+        senderName: authUser.username,
+        recipientId: tenant.id,
+        recipientUsername: tenant.username,
+      });
 
       toast({ title: 'Contract Initiated', description: `A new contract has been sent to ${tenant.name}.` });
     } catch (e: any) {
       console.error("Error initiating contract:", e);
       toast({ variant: 'destructive', title: 'Contract Initiation Failed', description: e.message });
     }
-  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser]);
+  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement]);
 
   const signContract = useCallback(async (contractId: string) => {
     if (!authIsAuthenticated || !authUser) {

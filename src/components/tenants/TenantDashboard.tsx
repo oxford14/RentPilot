@@ -1,21 +1,24 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
 import { useAppContext } from "@/contexts/AppContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { calculateTenantBalance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock } from 'lucide-react';
+import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock, FileSignature } from 'lucide-react';
 import { startOfDay } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 
 export function TenantDashboard() {
   const { user } = useAuth();
-  const { tenants, payments, additionalDues } = useAppContext();
+  const { tenants, payments, additionalDues, signedContracts } = useAppContext();
   const [balance, setBalance] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
   const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
@@ -25,6 +28,12 @@ export function TenantDashboard() {
     return tenants.find(t => t.id === user.tenantId);
   }, [user, tenants]);
   
+  const pendingContract = useMemo(() => {
+    if (!currentTenant?.activeContractId) return null;
+    const contract = signedContracts.find(c => c.id === currentTenant.activeContractId);
+    return (contract && contract.status === 'pending') ? contract : null;
+  }, [currentTenant, signedContracts]);
+
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
   }, []);
@@ -138,6 +147,25 @@ export function TenantDashboard() {
         <h1 className="text-3xl font-bold font-headline">My Dashboard</h1>
         <p className="text-muted-foreground">Welcome, {currentTenant.name}. Here is your payment summary.</p>
       </div>
+
+      {pendingContract && (
+        <Card className="shadow-lg border-primary bg-primary/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <FileSignature className="h-6 w-6" />
+              Action Required: New Contract
+            </CardTitle>
+            <CardDescription className="text-primary/90">
+              You have a new contract pending your signature. Please review and sign it at your earliest convenience.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Link href={`/contract/sign/${pendingContract.id}`} passHref>
+              <Button>Review & Sign Contract</Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="shadow-lg">
