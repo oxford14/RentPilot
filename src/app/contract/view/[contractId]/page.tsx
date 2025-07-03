@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
@@ -38,41 +39,84 @@ export default function ViewContractPage() {
         if (!element || !contract) return;
 
         setIsExporting(true);
-        toast({ title: 'Generating PDF...' });
-        const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
+        toast({ title: 'Preparing PDF...', description: 'Embedding images...' });
         
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
-            format: 'a4',
-        });
+        // Create a clone of the element to avoid modifying the displayed content
+        const clone = element.cloneNode(true) as HTMLDivElement;
+        // The clone needs to be in the DOM to be processed, but can be off-screen
+        clone.style.position = 'absolute';
+        clone.style.left = '-9999px';
+        clone.style.top = '-9999px';
+        document.body.appendChild(clone);
+        
+        try {
+            // Find and replace image URLs with data URIs
+            const images = Array.from(clone.getElementsByTagName('img'));
+            for (const img of images) {
+                if (img.src && img.src.startsWith('https://firebasestorage.googleapis.com')) {
+                    try {
+                        const response = await fetch(img.src);
+                        const blob = await response.blob();
+                        const dataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        img.src = dataUrl;
+                    } catch (error) {
+                        console.error('Failed to embed image:', img.src, error);
+                        // Don't stop the whole PDF generation, just leave the broken image
+                    }
+                }
+            }
+            
+            toast({ title: 'Generating PDF...', description: 'Please wait a moment.' });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const ratio = imgWidth / imgHeight;
-        
-        let finalImgWidth = pdfWidth;
-        let finalImgHeight = pdfWidth / ratio;
-        
-        if (finalImgHeight > pdfHeight) {
-            finalImgHeight = pdfHeight;
-            finalImgWidth = pdfHeight * ratio;
+            const canvas = await html2canvas(clone, { scale: 2, useCORS: false }); // useCORS is now false
+            const imgData = canvas.toDataURL('image/png');
+            
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'pt',
+                format: 'legal',
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth(); // 612
+            const pdfHeight = pdf.internal.pageSize.getHeight(); // 1008
+            const margin = 72; // 1 inch
+
+            const contentWidth = pdfWidth - (margin * 2); // 468
+            const contentHeight = pdfHeight - (margin * 2); // 864
+
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const canvasRatio = canvasHeight / canvasWidth;
+
+            const imgHeight = contentWidth * canvasRatio;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, imgHeight);
+            heightLeft -= contentHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', margin, position + margin, contentWidth, imgHeight);
+                heightLeft -= contentHeight;
+            }
+            
+            pdf.save(`contract-${contract.tenantId}.pdf`);
+            toast({ title: 'PDF Downloaded' });
+
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'An error occurred while creating the PDF.' });
+        } finally {
+            setIsExporting(false);
+            document.body.removeChild(clone); // Clean up the cloned element
         }
-
-        const totalPages = Math.ceil(finalImgHeight / pdfHeight);
-        
-        for (let i = 0; i < totalPages; i++) {
-            if (i > 0) pdf.addPage();
-            const yPos = -(pdfHeight * i);
-            pdf.addImage(imgData, 'PNG', 0, yPos, finalImgWidth, finalImgHeight);
-        }
-
-        pdf.save(`contract-${contract.tenantId}.pdf`);
-        toast({ title: 'PDF Downloaded' });
-        setIsExporting(false);
     };
 
     if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -97,14 +141,15 @@ export default function ViewContractPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
-                        <div ref={printRef} className="max-w-none p-8 bg-white">
+                        {/* The printable area. The styles here are for on-screen viewing. */}
+                        <div ref={printRef} className="p-12 bg-white" style={{ width: '816px', margin: 'auto' }}>
                              {client?.logoUrl && (
                                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                                      <img 
                                          src={client.logoUrl} 
                                          alt={`${client.name} Logo`} 
                                          style={{ maxHeight: '80px', maxWidth: '250px', display: 'inline-block' }}
-                                         crossOrigin="anonymous"
+                                         crossOrigin="anonymous" // Keep this for the initial on-screen load
                                      />
                                  </div>
                              )}
