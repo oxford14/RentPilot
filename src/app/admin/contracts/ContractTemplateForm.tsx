@@ -144,12 +144,17 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
                             field.ref(e);
                             bodyTextareaRef.current = e;
                           }}
-                          onBlur={handleCursorChange}
+                          onBlur={(e) => {
+                            field.onBlur(e);
+                            handleCursorChange(e);
+                          }}
                           onClick={handleCursorChange}
                           onKeyUp={handleCursorChange}
+                          onChange={field.onChange}
+                          name={field.name}
+                          value={field.value}
                           placeholder="This Residential Lease Agreement is made on..."
                           className="h-full resize-none"
-                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
