@@ -97,7 +97,7 @@ export default function ViewContractPage() {
                 <CardContent>
                     <div className="p-4 border rounded bg-white text-black">
                         <div ref={printRef} className="p-8">
-                             <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\\n/g, '<br />') }} />
+                             <div dangerouslySetInnerHTML={{ __html: contract.contractBody.replace(/\n/g, '<br />') }} />
                         </div>
                     </div>
                 </CardContent>
