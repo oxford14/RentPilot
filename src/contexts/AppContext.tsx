@@ -309,6 +309,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...(determinedClientId && { clientId: determinedClientId })
       };
       batch.set(tenantRef, newTenantData);
+
+      if (tenantData.securityDeposit && tenantData.securityDeposit > 0) {
+        const paymentRef = doc(collection(db, 'payments'));
+        const paymentData: Omit<Payment, 'id'> = {
+          tenantId: tenantRef.id,
+          date: new Date().toISOString(),
+          amount: tenantData.securityDeposit,
+          paymentMethod: 'Security Deposit',
+          clientId: determinedClientId,
+        };
+        batch.set(paymentRef, paymentData);
+      }
       
       await batch.commit();
 
@@ -366,16 +378,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         const oldDeposit = originalTenant?.securityDeposit || 0;
         const newDeposit = updatedTenant.securityDeposit || 0;
+        const depositDifference = newDeposit - oldDeposit;
 
         batch.set(tenantRef, dataToUpdate, { merge: true });
-
-        if (newDeposit > oldDeposit) {
-            const depositIncrease = newDeposit - oldDeposit;
+        
+        if (depositDifference !== 0) {
             const paymentRef = doc(collection(db, 'payments'));
             const paymentData: Omit<Payment, 'id'> = {
                 tenantId: id,
                 date: new Date().toISOString(),
-                amount: depositIncrease,
+                amount: depositDifference,
                 paymentMethod: 'Security Deposit',
                 clientId: updatedTenant.clientId,
             };

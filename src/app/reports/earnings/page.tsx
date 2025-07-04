@@ -102,7 +102,7 @@ export default function EarningsReportPage() {
 
     const periodPayments = payments.filter(p => {
         const paymentDate = new Date(p.date);
-        return paymentDate >= startDate && paymentDate <= endDate;
+        return paymentDate >= startDate && paymentDate <= endDate && p.paymentMethod !== 'Security Deposit';
     });
     const periodExpenses = allExpenses.filter(e => {
         const expenseDate = new Date(e.date);
