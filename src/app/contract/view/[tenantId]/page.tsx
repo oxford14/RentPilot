@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -71,20 +72,11 @@ export default function ContractViewerPage() {
                 } 
                 else if (tenantForEffect.contractUrl) {
                     try {
-                        const url = new URL(tenantForEffect.contractUrl);
-                        // Pathname is /v0/b/bucket-name/o/encoded-path, so we split by /o/ to get the path
-                        const pathSegments = url.pathname.split('/o/');
-                        const filePathEncoded = pathSegments[1];
-
-                        if (filePathEncoded) {
-                            // Construct URL to the new Cloud Function
-                            const functionUrl = `https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/viewContract?path=${filePathEncoded}`;
-                            setContractSource({ type: 'uploaded', data: functionUrl });
-                        } else {
-                            setError("Could not parse the contract file path from the URL.");
-                        }
+                        const functionUrl = `https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/viewContract?url=${encodeURIComponent(tenantForEffect.contractUrl)}`;
+                        setContractSource({ type: 'uploaded', data: functionUrl });
                     } catch(e) {
-                        setError("Invalid contract URL format stored in the database.");
+                        console.error("Error creating function URL", e);
+                        setError("Failed to construct the viewer URL for the contract.");
                     }
                 }
             } catch (e: any) {

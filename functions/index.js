@@ -108,36 +108,32 @@ exports.viewContract = functions.https.onRequest(async (req, res) => {
     return;
   }
   
-  let filePath = req.query.path;
-  if (!filePath || typeof filePath !== 'string') {
-    res.status(400).send("File path is required.");
+  const fileUrl = req.query.url;
+  if (!fileUrl || typeof fileUrl !== 'string') {
+    res.status(400).send("File URL from storage is required.");
     return;
   }
 
   try {
-    // FIX: Remove query parameters from the file path string
-    const queryIndex = filePath.indexOf('?');
-    if (queryIndex !== -1) {
-        filePath = filePath.substring(0, queryIndex);
-    }
-
-    const file = bucket.file(decodeURIComponent(filePath));
-    const [exists] = await file.exists();
-    if (!exists) {
-        res.status(404).send('File not found in Firebase Storage.');
+    const fetchResponse = await fetch(fileUrl);
+    
+    if (!fetchResponse.ok) {
+        const errorText = await fetchResponse.text();
+        console.error(`Error fetching from storage URL: ${fetchResponse.status}`, errorText);
+        res.status(fetchResponse.status).send(`Failed to fetch file from storage: ${errorText}`);
         return;
     }
     
-    // Download the file into a buffer
-    const [pdfBytes] = await file.download();
+    const pdfBytes = await fetchResponse.arrayBuffer();
 
-    // Set headers to display the PDF inline in the browser
+    // Set headers to display the PDF inline in the browser.
+    // This function acts as a proxy, stripping the original X-Frame-Options header.
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline');
-    res.status(200).send(pdfBytes);
+    res.status(200).send(Buffer.from(pdfBytes));
 
   } catch (error) {
-    console.error("Error getting PDF:", error);
+    console.error("Error proxying PDF request:", error);
     res.status(500).send("An internal server error occurred while retrieving the PDF.");
   }
 });
