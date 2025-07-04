@@ -356,11 +356,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             const oldEntryEnd = addDays(adjustmentStart, -1);
             
             if (currentEntryIndex !== -1) {
-                const currentEntry = newHistory[currentEntryIndex];
-                if (new Date(currentEntry.startDate) >= adjustmentStart) {
-                    toast({ variant: "destructive", title: "Invalid Date", description: "Effective date must be after the current rent period's start date." });
-                    return;
-                }
                 newHistory[currentEntryIndex].endDate = oldEntryEnd.toISOString();
             } else if (newHistory.length > 0) {
                 newHistory.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
