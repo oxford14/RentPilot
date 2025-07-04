@@ -35,15 +35,22 @@ export default function ContractViewerPage() {
     }, [tenantId, tenants]);
 
     useEffect(() => {
-        // Wait until tenants are loaded
-        if (tenants.length === 0 && isLoading) return;
+        // Guard against running the effect until the tenant data is available from the context.
+        if (!tenant) {
+            // If the main tenants list has loaded but this specific tenant isn't found, it's an error.
+            if (tenants.length > 0) { 
+              setError("Tenant not found for the provided ID.");
+              setIsLoading(false);
+            }
+            // Otherwise, just wait for tenants to load.
+            return;
+        }
 
         const fetchContract = async () => {
-            if (!tenant) {
-                setError("Tenant not found for the provided ID.");
-                setIsLoading(false);
-                return;
-            }
+            // Reset state for a clean fetch
+            setIsLoading(true);
+            setError(null);
+            setContractSource(null);
 
             const isSuperAdmin = user?.isSuperAdmin;
             const isOwnerOrAdmin = user?.clientId === tenant.clientId;
@@ -60,6 +67,9 @@ export default function ContractViewerPage() {
                 const contract = signedContracts.find(c => c.id === tenant.activeContractId);
                 if (contract) {
                     setContractSource({ type: 'signed', data: contract });
+                } else if (signedContracts.length > 0) {
+                    // Contracts have loaded, but the one we need isn't there.
+                    setError("Digitally signed contract record could not be found.");
                 }
             } 
             // Case 2: Uploaded PDF Contract
@@ -75,12 +85,14 @@ export default function ContractViewerPage() {
                     setError(`Failed to load uploaded contract: ${err.message}`);
                 }
             }
+            
+            // Finalize state after attempting to fetch
             setIsLoading(false);
         };
 
         fetchContract();
 
-    }, [tenantId, tenant, tenants, signedContracts, user, isLoading]);
+    }, [tenantId, tenant, tenants, signedContracts, user]); // Dependency array is now correct
 
 
     if (isLoading) {
