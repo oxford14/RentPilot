@@ -18,77 +18,70 @@ type ContractSource =
 
 export default function ContractViewerPage() {
     const params = useParams();
-    const { user } = useAuth();
+    const { user, isLoading: isAuthLoading } = useAuth();
     const { tenants, signedContracts } = useAppContext();
 
-    const [contractSource, setContractSource] = useState<ContractSource>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [contractSource, setContractSource] = useState<ContractSource>(null);
 
     const tenantId = params.tenantId as string;
 
     const tenant = useMemo(() => {
-        if (!tenantId) return null;
+        if (!tenantId || tenants.length === 0) return null;
         return tenants.find(t => t.id === tenantId);
     }, [tenantId, tenants]);
 
     useEffect(() => {
-        const fetchContract = async () => {
-            if (!user || !tenantId || tenants.length === 0) {
-              setIsLoading(false);
-              return;
+        // Don't do anything until we have the user and the tenants list is populated.
+        if (isAuthLoading || !user || tenants.length === 0) {
+            return;
+        }
+
+        // If we have a tenantId but no tenant is found in the list, it's an error.
+        if (tenantId && !tenant) {
+            setError("Tenant not found for the provided ID.");
+            setIsLoading(false);
+            return;
+        }
+
+        // If no tenant is selected (e.g., initial state), just stop loading.
+        if (!tenant) {
+            setIsLoading(false);
+            return;
+        }
+
+        setError(null);
+
+        // Authorization Check
+        const isSuperAdmin = user.isSuperAdmin;
+        const isOwnerOrAdmin = user.clientId === tenant.clientId;
+        const isTheTenant = user.tenantId === tenant.id;
+
+        if (!isSuperAdmin && !isOwnerOrAdmin && !isTheTenant) {
+             setError("You are not authorized to view this contract.");
+             setIsLoading(false);
+             return;
+        }
+
+        // Determine contract source
+        if (tenant.activeContractId) {
+            const contract = signedContracts.find(c => c.id === tenant.activeContractId);
+            if (contract) {
+                setContractSource({ type: 'signed', data: contract });
+            } else if (signedContracts.length > 0) { // Only show error if contracts are loaded but not found
+                setError("Digitally signed contract record could not be found.");
             }
-            
-            setIsLoading(true);
-            setError(null);
+        } else if (tenant.contractUrl) {
+            const proxyUrl = `/api/contract-proxy?url=${encodeURIComponent(tenant.contractUrl)}`;
+            setContractSource({ type: 'uploaded', data: proxyUrl });
+        } else {
             setContractSource(null);
+        }
 
-            const tenantForEffect = tenants.find(t => t.id === tenantId);
+        setIsLoading(false);
 
-            if (!tenantForEffect) {
-                setError("Tenant not found for the provided ID.");
-                setIsLoading(false);
-                return;
-            }
-
-            const isSuperAdmin = user.isSuperAdmin;
-            const isOwnerOrAdmin = user.clientId === tenantForEffect.clientId;
-            const isTheTenant = user.tenantId === tenantForEffect.id;
-
-            if (!isSuperAdmin && !isOwnerOrAdmin && !isTheTenant) {
-                 setError("You are not authorized to view this contract.");
-                 setIsLoading(false);
-                 return;
-            }
-
-            try {
-                if (tenantForEffect.activeContractId) {
-                    const contract = signedContracts.find(c => c.id === tenantForEffect.activeContractId);
-                    if (contract) {
-                        setContractSource({ type: 'signed', data: contract });
-                    } else if (signedContracts.length > 0) {
-                        setError("Digitally signed contract record could not be found.");
-                    }
-                } 
-                else if (tenantForEffect.contractUrl) {
-                    try {
-                        const proxyUrl = `/api/contract-proxy?url=${encodeURIComponent(tenantForEffect.contractUrl)}`;
-                        setContractSource({ type: 'uploaded', data: proxyUrl });
-                    } catch(e) {
-                        console.error("Error creating proxy URL", e);
-                        setError("Failed to construct the viewer URL for the contract.");
-                    }
-                }
-            } catch (e: any) {
-                 setError(`Failed to load contract: ${e.message}`);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchContract();
-    }, [tenantId, tenants, signedContracts, user]);
-
+    }, [user, tenantId, tenant, tenants, signedContracts, isAuthLoading]);
 
     if (isLoading) {
         return (
@@ -111,7 +104,23 @@ export default function ContractViewerPage() {
         );
     }
     
-    if (!contractSource && tenantId && tenants.length > 0) {
+    if (!tenant) {
+        return (
+            <div className="container mx-auto py-8 text-center">
+                 <Card className="max-w-xl mx-auto">
+                    <CardHeader>
+                        <FileWarning className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <CardTitle>Tenant Not Found</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">The requested tenant could not be found.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    if (!contractSource) {
          return (
             <div className="container mx-auto py-8 text-center">
                  <Card className="max-w-xl mx-auto">
@@ -120,18 +129,9 @@ export default function ContractViewerPage() {
                         <CardTitle>No Contract Found</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">There is no contract on file for this tenant.</p>
+                        <p className="text-muted-foreground">There is no contract on file for {tenant.name}.</p>
                     </CardContent>
                 </Card>
-            </div>
-        );
-    }
-    
-    if (!tenant) {
-      return (
-            <div className="flex justify-center items-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p className="ml-2">Loading tenant data...</p>
             </div>
         );
     }
