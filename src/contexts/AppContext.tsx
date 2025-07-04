@@ -438,13 +438,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteContract = async (tenantId: string) => {
-    if (!authIsAuthenticated) return;
-    const tenantRef = doc(db, 'tenants', tenantId);
-    await updateDoc(tenantRef, {
-      contractUrl: null,
-      activeContractId: null,
-    });
-    toast({ title: "Contract Unlinked", description: "The contract has been unlinked from the tenant. You can now add a new one." });
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    if (!tenant) {
+        toast({ variant: "destructive", title: "Error", description: "Tenant not found." });
+        return;
+    }
+
+    try {
+        const batch = writeBatch(db);
+        
+        const tenantRef = doc(db, 'tenants', tenantId);
+        batch.update(tenantRef, {
+            contractUrl: null,
+            activeContractId: null,
+        });
+
+        if (tenant.activeContractId) {
+            const contractRef = doc(db, 'signedContracts', tenant.activeContractId);
+            batch.delete(contractRef);
+        }
+        
+        await batch.commit();
+
+        if (tenant.contractUrl) {
+            const storageRef = ref(storage, tenant.contractUrl);
+            await deleteObject(storageRef).catch(error => {
+                if (error.code !== 'storage/object-not-found') {
+                    console.error("Non-critical error: Failed to delete contract file from storage:", error);
+                }
+            });
+        }
+
+        toast({ title: "Contract Deleted", description: "The contract has been successfully deleted." });
+    } catch (error: any) {
+        console.error("Error deleting contract:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete contract: ${error.message}` });
+    }
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
@@ -1345,7 +1378,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
         }
         
-        const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+        const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
         body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
         
         transaction.update(contractRef, {
@@ -1376,7 +1409,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const signedDate = new Date();
-      const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+      const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
       
       const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
 
@@ -1525,5 +1558,7 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
 
     
