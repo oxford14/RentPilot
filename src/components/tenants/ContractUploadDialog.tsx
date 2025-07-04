@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState } from 'react';
@@ -23,9 +24,10 @@ interface ContractUploadDialogProps {
   isOpen: boolean;
   onClose: () => void;
   tenant: Tenant;
+  contractEndDate: Date | null;
 }
 
-export function ContractUploadDialog({ isOpen, onClose, tenant }: ContractUploadDialogProps) {
+export function ContractUploadDialog({ isOpen, onClose, tenant, contractEndDate }: ContractUploadDialogProps) {
   const { uploadContract } = useAppContext();
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -50,7 +52,7 @@ export function ContractUploadDialog({ isOpen, onClose, tenant }: ContractUpload
     }
     setIsLoading(true);
     try {
-      await uploadContract(tenant.id, selectedFile);
+      await uploadContract(tenant.id, selectedFile, contractEndDate);
       onClose();
     } catch (error) {
       // Error toast is already handled in the context function

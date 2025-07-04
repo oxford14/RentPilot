@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -40,9 +41,10 @@ interface InPersonSigningDialogProps {
   onClose: () => void;
   tenant: Tenant;
   template: ContractTemplate;
+  contractEndDate: Date | null;
 }
 
-export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InPersonSigningDialogProps) {
+export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contractEndDate }: InPersonSigningDialogProps) {
     const { finalizeInPersonSignature } = useAppContext();
     const { user } = useAuth();
     const { toast } = useToast();
@@ -70,6 +72,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
                     join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
                     landlord_name: user.username,
                     todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+                    contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
                 });
                 setGeneratedContract(result.finalContract);
             } catch (e: any) {
@@ -81,7 +84,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
         };
 
         generate();
-    }, [isOpen, tenant, template, user, toast, onClose]);
+    }, [isOpen, tenant, template, user, toast, onClose, contractEndDate]);
     
     useEffect(() => {
         // Clear signature pad when dialog opens
@@ -98,7 +101,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
         }
         const signatureDataUrl = sigPad.current!.toDataURL('image/png');
         setIsSubmitting(true);
-        await finalizeInPersonSignature(tenant, template.id, generatedContract, signatureDataUrl);
+        await finalizeInPersonSignature(tenant, template.id, generatedContract, signatureDataUrl, contractEndDate);
         setIsSubmitting(false);
         onClose();
     };

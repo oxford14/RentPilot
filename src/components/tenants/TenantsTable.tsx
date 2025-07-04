@@ -55,24 +55,23 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
-  const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
+  
   const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
   
   const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
-  const [templateSelectData, setTemplateSelectData] = useState<Tenant | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  
+  const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
+
   const [isActionChoiceOpen, setIsActionChoiceOpen] = useState(false);
-  const [actionChoiceData, setActionChoiceData] = useState<{ tenant: Tenant; templateId: string } | null>(null);
-
   const [isSignNowOpen, setIsSignNowOpen] = useState(false);
-  const [signNowData, setSignNowData] = useState<{ tenant: Tenant; template: ContractTemplate } | null>(null);
-
   const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
-  const [durationContext, setDurationContext] = useState<{ tenant: Tenant, action: 'initiate' | 'upload' | 'renew' } | null>(null);
-  
   const [isRenewChoiceOpen, setIsRenewChoiceOpen] = useState(false);
-  const [tenantForRenewChoice, setTenantForRenewChoice] = useState<Tenant | null>(null);
+
+  const [contractFlowContext, setContractFlowContext] = useState<{
+    tenant: Tenant;
+    templateId?: string;
+    endDate?: Date;
+    action?: 'initiate' | 'upload' | 'renew';
+  } | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -165,70 +164,51 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsReminderOpen(true);
   };
   
-  const handleOpenContractUpload = (tenant: Tenant) => {
-    setDurationContext({ tenant, action: 'upload' });
+  const handleDurationConfirm = (endDate: Date) => {
+    if (!contractFlowContext) return;
+    
+    const newContext = { ...contractFlowContext, endDate };
+
+    setIsDurationDialogOpen(false);
+    
+    if (newContext.action === 'renew') {
+      setContractFlowContext(newContext);
+      setIsRenewChoiceOpen(true);
+    } else if (newContext.action === 'initiate') {
+      setContractFlowContext(newContext);
+      setIsTemplateSelectOpen(true);
+    } else if (newContext.action === 'upload') {
+      setContractFlowContext(newContext);
+      setIsContractUploadOpen(true);
+    }
+  };
+
+  const handleOpenDurationDialog = (tenant: Tenant, action: 'initiate' | 'upload' | 'renew') => {
+    setContractFlowContext({ tenant, action });
     setIsDurationDialogOpen(true);
   };
 
-  const handleOpenTemplateSelect = (tenant: Tenant) => {
-    setTemplateSelectData(tenant);
-    setSelectedTemplateId('');
-    setIsTemplateSelectOpen(true);
-  }
-
-  const handleConfirmTemplateSelect = async () => {
-    if (!templateSelectData || !selectedTemplateId) {
+  const handleConfirmTemplateSelect = () => {
+    if (!contractFlowContext || !contractFlowContext.templateId) {
         toast({variant: 'destructive', title: 'Error', description: 'Please select a template.'});
         return;
     }
-    setActionChoiceData({ tenant: templateSelectData, templateId: selectedTemplateId });
     setIsTemplateSelectOpen(false);
     setIsActionChoiceOpen(true);
   }
-
+  
+  const handleCloseFlow = () => {
+    setContractFlowContext(null);
+  };
+  
   const handleViewContract = (tenant: Tenant, signedContract: SignedContract | null) => {
     if (tenant.contractUrl) {
         window.open(tenant.contractUrl, '_blank');
     } else if (signedContract) {
         router.push(`/contract/view/${signedContract.id}`);
     }
-  }
-
-  const handleOpenDurationDialog = (tenant: Tenant, action: 'initiate' | 'upload' | 'renew') => {
-    setDurationContext({ tenant, action });
-    setIsDurationDialogOpen(true);
   };
 
-  const handleDurationConfirm = async (endDate: Date) => {
-    if (!durationContext) return;
-    const { tenant, action } = durationContext;
-    
-    await updateTenant({ ...tenant, contractEndDate: endDate.toISOString() });
-    
-    // The context will update, and we need to find the fresh tenant object
-    const updatedTenant = tenants.find(t => t.id === tenant.id);
-
-    if (!updatedTenant) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to refresh tenant data.' });
-        setIsDurationDialogOpen(false);
-        setDurationContext(null);
-        return;
-    }
-
-    setIsDurationDialogOpen(false);
-    setDurationContext(null);
-
-    if (action === 'renew') {
-      setTenantForRenewChoice(updatedTenant);
-      setIsRenewChoiceOpen(true);
-    } else if (action === 'initiate') {
-      handleOpenTemplateSelect(updatedTenant);
-    } else if (action === 'upload') {
-      setTenantForContract(updatedTenant);
-      setIsContractUploadOpen(true);
-    }
-  };
-  
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
     if (!showInactiveTenants) {
@@ -445,32 +425,33 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           clientName={clientNameForGreeting}
         />
       )}
-      {tenantForContract && (
+      {contractFlowContext?.tenant && contractFlowContext.action === 'upload' && (
         <ContractUploadDialog
           isOpen={isContractUploadOpen}
-          onClose={() => setIsContractUploadOpen(false)}
-          tenant={tenantForContract}
+          onClose={() => { setIsContractUploadOpen(false); handleCloseFlow(); }}
+          tenant={contractFlowContext.tenant}
+          contractEndDate={contractFlowContext.endDate || null}
         />
       )}
-      {durationContext && (
+      {contractFlowContext && (
         <ContractDurationDialog
           isOpen={isDurationDialogOpen}
-          onClose={() => setIsDurationDialogOpen(false)}
-          tenant={durationContext.tenant}
-          mode={durationContext.action === 'renew' ? 'renew' : 'new'}
+          onClose={() => { setIsDurationDialogOpen(false); handleCloseFlow(); }}
+          tenant={contractFlowContext.tenant}
+          mode={contractFlowContext.action === 'renew' ? 'renew' : 'new'}
           onConfirm={handleDurationConfirm}
         />
       )}
-      <Dialog open={isTemplateSelectOpen} onOpenChange={setIsTemplateSelectOpen}>
+      <Dialog open={isTemplateSelectOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsTemplateSelectOpen(open); }}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Initiate Contract for {templateSelectData?.name}</DialogTitle>
+                <DialogTitle>Initiate Contract for {contractFlowContext?.tenant.name}</DialogTitle>
                 <DialogDescription>
                     Select a template to generate the contract.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-                <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId}>
+                <Select onValueChange={(val) => setContractFlowContext(ctx => ctx ? ({ ...ctx, templateId: val }) : null)} value={contractFlowContext?.templateId || ''}>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a contract template..." />
                     </SelectTrigger>
@@ -489,39 +470,40 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleConfirmTemplateSelect} disabled={!selectedTemplateId}>
+                <Button onClick={handleConfirmTemplateSelect} disabled={!contractFlowContext?.templateId}>
                     Next
                 </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isActionChoiceOpen} onOpenChange={setIsActionChoiceOpen}>
+      <Dialog open={isActionChoiceOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsActionChoiceOpen(open); }}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>Choose Signing Method</DialogTitle>
                 <DialogDescription>
-                    How would you like to proceed with the contract for {actionChoiceData?.tenant.name}?
+                    How would you like to proceed with the contract for {contractFlowContext?.tenant.name}?
                 </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                 <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => {
-                    if (!actionChoiceData) return;
-                    initiateContract(actionChoiceData.tenant.id, actionChoiceData.templateId);
+                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant) return;
+                    initiateContract(contractFlowContext.tenant.id, contractFlowContext.templateId, contractFlowContext.endDate);
                     setIsActionChoiceOpen(false);
+                    handleCloseFlow();
                 }}>
                     <SendToBack className="h-5 w-5" />
                     Send Invitation to Tenant
                 </Button>
 
                 <Button variant="default" className="h-20 flex-col gap-2" onClick={() => {
-                    if (!actionChoiceData) return;
-                    const template = contractTemplates.find(t => t.id === actionChoiceData.templateId);
+                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant) return;
+                    const template = contractTemplates.find(t => t.id === contractFlowContext.templateId);
                     if (!template) {
                         toast({ variant: 'destructive', title: 'Error', description: 'Template not found.' });
                         return;
                     }
-                    setSignNowData({ tenant: actionChoiceData.tenant, template: template });
+                    setContractFlowContext(ctx => ctx ? ({ ...ctx, templateId: template.id }) : null);
                     setIsActionChoiceOpen(false);
                     setIsSignNowOpen(true);
                 }}>
@@ -532,28 +514,27 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isRenewChoiceOpen} onOpenChange={setIsRenewChoiceOpen}>
+      <Dialog open={isRenewChoiceOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsRenewChoiceOpen(open); }}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Renew Contract for {tenantForRenewChoice?.name}</DialogTitle>
+                <DialogTitle>Renew Contract for {contractFlowContext?.tenant.name}</DialogTitle>
                 <DialogDescription>
                     The contract end date has been updated. How would you like to add the new contract document?
                 </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                 <Button variant="default" className="h-24 flex-col gap-2" onClick={() => {
-                    if (!tenantForRenewChoice) return;
-                    handleOpenTemplateSelect(tenantForRenewChoice);
+                    if (!contractFlowContext) return;
                     setIsRenewChoiceOpen(false);
+                    setIsTemplateSelectOpen(true);
                 }}>
                     <FileSignature className="h-6 w-6" />
                     Initiate Digital Contract
                 </Button>
                 <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => {
-                    if (!tenantForRenewChoice) return;
-                    setTenantForContract(tenantForRenewChoice);
-                    setIsContractUploadOpen(true);
+                    if (!contractFlowContext) return;
                     setIsRenewChoiceOpen(false);
+                    setIsContractUploadOpen(true);
                 }}>
                     <FileUp className="h-6 w-6" />
                     Upload Signed PDF
@@ -562,12 +543,13 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         </DialogContent>
       </Dialog>
       
-      {isSignNowOpen && signNowData && (
+      {contractFlowContext?.tenant && contractFlowContext?.templateId && (
         <InPersonSigningDialog
             isOpen={isSignNowOpen}
-            onClose={() => setIsSignNowOpen(false)}
-            tenant={signNowData.tenant}
-            template={signNowData.template}
+            onClose={() => { setIsSignNowOpen(false); handleCloseFlow(); }}
+            tenant={contractFlowContext.tenant}
+            template={contractTemplates.find(t => t.id === contractFlowContext.templateId)!}
+            contractEndDate={contractFlowContext.endDate || null}
         />
       )}
     </>

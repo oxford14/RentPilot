@@ -445,7 +445,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const uploadContract = async (tenantId: string, file: File) => {
+  const uploadContract = async (tenantId: string, file: File, contractEndDate?: Date | null) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
@@ -475,7 +475,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const downloadUrl = await getDownloadURL(uploadResult.ref);
 
       const tenantDocRef = doc(db, 'tenants', tenantId);
-      await updateDoc(tenantDocRef, { contractUrl: downloadUrl, activeContractId: null });
+      const updateData: any = { contractUrl: downloadUrl, activeContractId: null };
+      if (contractEndDate) {
+        updateData.contractEndDate = contractEndDate.toISOString();
+      }
+      await updateDoc(tenantDocRef, updateData);
 
       toast({ title: "Contract Uploaded", description: "The new contract has been successfully uploaded." });
     } catch (error: any) {
@@ -1330,7 +1334,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, toast]);
 
-  const initiateContract = useCallback(async (tenantId: string, templateId: string) => {
+  const initiateContract = useCallback(async (tenantId: string, templateId: string, contractEndDate?: Date | null) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1360,7 +1364,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
         landlord_name: authUser.username,
         todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        contract_end_date: tenant.contractEndDate ? new Date(tenant.contractEndDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
+        contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
       });
       
       const newContractData: Omit<SignedContract, 'id'> = {
@@ -1375,7 +1379,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
 
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { activeContractId: contractRef.id, contractUrl: null });
+      await updateDoc(tenantRef, { 
+          activeContractId: contractRef.id, 
+          contractUrl: null,
+          ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() })
+      });
       
       await addAnnouncement({
         title: "Action Required: New Contract",
@@ -1445,7 +1453,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
 
-  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => {
+  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate?: Date | null) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1475,7 +1483,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
       
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { activeContractId: contractRef.id, contractUrl: null });
+      await updateDoc(tenantRef, { 
+          activeContractId: contractRef.id, 
+          contractUrl: null,
+          ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() }) 
+      });
 
       toast({ title: 'Contract Finalized', description: 'The in-person signature has been recorded and the contract is now active.' });
 
