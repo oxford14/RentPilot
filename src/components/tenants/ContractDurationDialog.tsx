@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CalendarClock, CalendarCheck } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
-import { add, format } from 'date-fns';
+import { format } from 'date-fns';
 
 const durationFormSchema = z.object({
   duration: z.coerce.number().int().positive("Duration must be a positive number."),
@@ -57,7 +57,7 @@ export function ContractDurationDialog({ isOpen, onClose, tenant, mode, onConfir
     if (!tenant) return { startDate: null, calculatedEndDate: null };
 
     const start = mode === 'renew' && tenant.contractEndDate
-      ? add(new Date(tenant.contractEndDate), { days: 1 })
+      ? new Date(new Date(tenant.contractEndDate).getUTCFullYear(), new Date(tenant.contractEndDate).getUTCMonth(), new Date(tenant.contractEndDate).getUTCDate() + 1)
       : new Date(tenant.joinDate);
     
     const duration = Number(watchDuration) || 0;
@@ -83,7 +83,7 @@ export function ContractDurationDialog({ isOpen, onClose, tenant, mode, onConfir
     setIsLoading(true);
     try {
       onConfirm(calculatedEndDate);
-      toast({ title: 'Contract End Date Set', description: 'Proceeding to the next step.' });
+      // toast({ title: 'Contract End Date Set', description: 'Proceeding to the next step.' }); // This toast is removed
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Error', description: e.message || 'Failed to set duration.' });
     } finally {
