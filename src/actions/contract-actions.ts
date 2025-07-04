@@ -36,7 +36,7 @@ export async function getUploadedContractAsBase64(tenantId: string): Promise<str
     }
     const filePath = match[1];
     
-    const bucket = adminStorage.bucket('tenanttracker-u4wuw.firebasestorage.app');
+    const bucket = adminStorage.bucket();
     const file = bucket.file(filePath);
     const [contents] = await file.download();
     
