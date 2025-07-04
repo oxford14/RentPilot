@@ -38,7 +38,7 @@ import {
   closeChatSession,
 } from '@/actions/chat-actions';
 import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
-import { calculateTenantBalance } from '@/lib/utils';
+import { calculateTenantBalance, calculateTenantBalanceBreakdown } from '@/lib/utils';
 import { generateContract } from '@/ai/flows/generate-contract-flow';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -309,18 +309,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ...(determinedClientId && { clientId: determinedClientId })
       };
       batch.set(tenantRef, newTenantData);
-
-      if (tenantData.securityDeposit && tenantData.securityDeposit > 0) {
-        const paymentRef = doc(collection(db, 'payments'));
-        const paymentData: Omit<Payment, 'id'> = {
-          tenantId: tenantRef.id,
-          date: tenantData.joinDate,
-          amount: tenantData.securityDeposit,
-          paymentMethod: 'Security Deposit',
-          clientId: determinedClientId,
-        };
-        batch.set(paymentRef, paymentData);
-      }
       
       await batch.commit();
 
