@@ -464,6 +464,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    const batch = writeBatch(db);
+    const tenantDocRef = doc(db, 'tenants', tenantId);
+
     try {
       if (tenant.contractUrl) {
         try {
@@ -475,6 +478,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       }
+      if (tenant.activeContractId) {
+        const oldContractDoc = doc(db, 'signedContracts', tenant.activeContractId);
+        batch.delete(oldContractDoc);
+      }
 
       const uniqueFileName = `${uuidv4()}-${file.name}`;
       const newStorageRef = ref(storage, `contracts/${tenantId}/${uniqueFileName}`);
@@ -482,12 +489,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const uploadResult = await uploadBytes(newStorageRef, file);
       const downloadUrl = await getDownloadURL(uploadResult.ref);
 
-      const tenantDocRef = doc(db, 'tenants', tenantId);
       const updateData: any = { contractUrl: downloadUrl, activeContractId: null };
       if (contractEndDate) {
         updateData.contractEndDate = contractEndDate.toISOString();
       }
-      await updateDoc(tenantDocRef, updateData);
+      batch.update(tenantDocRef, updateData);
+      await batch.commit();
 
       toast({ title: "Contract Uploaded", description: "The new contract has been successfully uploaded." });
     } catch (error: any) {
@@ -515,6 +522,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         batch.update(tenantRef, {
             contractUrl: null,
             activeContractId: null,
+            contractEndDate: null,
         });
 
         if (tenant.activeContractId) {
@@ -1384,15 +1392,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         initiatedAt: new Date().toISOString(),
       };
       
-      const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
+      const batch = writeBatch(db);
+      const contractRef = doc(collection(db, 'signedContracts'));
+      batch.set(contractRef, newContractData);
 
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { 
+      batch.update(tenantRef, { 
           activeContractId: contractRef.id, 
           contractUrl: null,
           ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() })
       });
       
+      await batch.commit();
+
       await addAnnouncement({
         title: "Action Required: New Contract",
         content: `You have a new contract from ${authUser.username} to sign. Please go to your dashboard to review and sign.`,
@@ -1477,6 +1489,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
       
       const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
+      
+      const batch = writeBatch(db);
 
       const newContractData: Omit<SignedContract, 'id'> = {
         clientId: tenant.clientId,
@@ -1488,14 +1502,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         signedAt: signedDate.toISOString(),
       };
 
-      const contractRef = await addDoc(collection(db, 'signedContracts'), newContractData);
+      const contractRef = doc(collection(db, 'signedContracts'));
+      batch.set(contractRef, newContractData);
       
       const tenantRef = doc(db, 'tenants', tenant.id);
-      await updateDoc(tenantRef, { 
+      batch.update(tenantRef, { 
           activeContractId: contractRef.id, 
           contractUrl: null,
           ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() }) 
       });
+      
+      await batch.commit();
 
       toast({ title: 'Contract Finalized', description: 'The in-person signature has been recorded and the contract is now active.' });
 
