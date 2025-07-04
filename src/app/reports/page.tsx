@@ -103,7 +103,7 @@ export default function FinancialSummaryReportsPage() { // Renamed component
     });
     const totalOutstanding = Math.max(0, totalExpectedRentInPeriod - totalCollected);
 
-    const totalSecurityDeposits = tenants.reduce((sum, tenant) => sum + (tenant.securityDeposit || 0), 0);
+    const totalSecurityDeposits = relevantTenants.reduce((sum, tenant) => sum + (tenant.securityDeposit || 0), 0);
 
     setCalculatedSummary({
       totalCollected,
