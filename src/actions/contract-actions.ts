@@ -22,8 +22,8 @@ export async function getUploadedContractAsBase64(contractUrl: string): Promise<
   }
 
   try {
-    // Explicitly specify the bucket name to ensure the correct one is used.
-    const bucket = getStorage().bucket('tenanttracker-u4wuw.appspot.com');
+    // Explicitly specify the CORRECT bucket name from the user's screenshot.
+    const bucket = getStorage().bucket('tenanttracker-u4wuw.firebasestorage.app');
 
     // Use a regular expression to robustly extract the file path.
     // This looks for the content between `/o/` and `?alt=media`.
