@@ -9,7 +9,6 @@ import { Loader2, FileDown } from 'lucide-react';
 import type { SignedContract, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function ViewContractPage() {
     const params = useParams();
@@ -40,69 +39,50 @@ export default function ViewContractPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'Report content not found.' });
             return;
         }
-    
+
         setIsExporting(true);
-        toast({ title: 'Preparing PDF...', description: 'Please wait.' });
-    
-        // 1. Clone the node to avoid modifying the visible content and append it off-screen.
-        const clonedNode = input.cloneNode(true) as HTMLDivElement;
-        clonedNode.style.position = 'absolute';
-        clonedNode.style.left = '-9999px';
-        clonedNode.style.top = '0';
-        document.body.appendChild(clonedNode);
-    
+        toast({ title: 'Generating PDF...', description: 'Please wait.' });
+
+        // Temporarily modify styles for accurate rendering by the PDF library
+        const originalPadding = input.style.padding;
+        const originalBg = input.style.backgroundColor;
+        const originalColor = input.style.color;
+        
+        input.style.padding = '0';
+        input.style.backgroundColor = 'white'; // Ensure background is not transparent
+        input.style.color = 'black';
+
         try {
-            const images = Array.from(clonedNode.getElementsByTagName('img'));
-    
-            // 2. Asynchronously fetch and convert each image to a base64 data URI.
-            const imagePromises = images.map(async (img) => {
-                if (img.src && !img.src.startsWith('data:')) {
-                    try {
-                        const response = await fetch(img.src);
-                        if (!response.ok) {
-                            throw new Error(`Failed to fetch image: ${response.statusText}`);
-                        }
-                        const blob = await response.blob();
-                        const dataUrl = await new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result as string);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                        img.src = dataUrl; // Replace the src with the base64 data.
-                    } catch (error) {
-                        console.error('Failed to embed image:', img.src, error);
-                    }
-                }
-            });
-    
-            // 3. Wait for all images to be processed.
-            await Promise.all(imagePromises);
-    
-            // 4. Now render the cloned, self-contained node to the canvas.
-            const canvas = await html2canvas(clonedNode, {
-                allowTaint: true,
-                useCORS: false,
-                scale: 2,
-            });
-    
-            const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width, canvas.height],
+                orientation: 'p',
+                unit: 'pt',
+                format: 'a4',
             });
-    
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`contract-${contract?.tenantId || 'download'}.pdf`);
-    
-            toast({ title: 'PDF Exported', description: 'Your contract has been downloaded.' });
+
+            await pdf.html(input, {
+                callback: function (doc) {
+                    doc.save(`contract-${contract?.tenantId || 'download'}.pdf`);
+                    toast({ title: 'PDF Exported', description: 'Your contract has been downloaded.' });
+                },
+                margin: [72, 72, 72, 72], // 1-inch margins
+                autoPaging: 'text',
+                html2canvas: {
+                    useCORS: true, // Important for external images
+                    allowTaint: true,
+                    letterRendering: true,
+                },
+                width: 595 - (72 * 2), // A4 width in points minus margins
+                windowWidth: input.scrollWidth,
+            });
+
         } catch (error: any) {
             console.error("PDF generation failed:", error);
-            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not create PDF. There might be a network issue.' });
+            toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not create the PDF. Please try again.' });
         } finally {
-            // 5. Clean up by removing the cloned node.
-            document.body.removeChild(clonedNode);
+            // Restore original styles
+            input.style.padding = originalPadding;
+            input.style.backgroundColor = originalBg;
+            input.style.color = originalColor;
             setIsExporting(false);
         }
     };
