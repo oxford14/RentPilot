@@ -60,7 +60,7 @@ export function ContractDurationDialog({ isOpen, onClose, tenant, mode, onConfir
       ? add(new Date(tenant.contractEndDate), { days: 1 })
       : new Date(tenant.joinDate);
     
-    const duration = watchDuration || 0;
+    const duration = Number(watchDuration) || 0;
     const unit = watchUnit || 'years';
 
     if (duration <= 0) return { startDate: start, calculatedEndDate: null };
