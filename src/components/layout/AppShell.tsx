@@ -97,7 +97,6 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin/users', label: 'All Client Users', icon: UsersRound },
   { isGroup: false, href: '/admin/subscriptions', label: 'Subscriptions', icon: Award },
   { isGroup: false, href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
-  { isGroup: false, href: '/admin/rent-requests', label: 'Rent Requests', icon: Handshake },
   { isGroup: false, href: '/admin/chat', label: 'Live Chat', icon: MessageSquare },
   { isGroup: false, href: '/admin/maintenance/demo-requests', label: 'Demo Requests', icon: CalendarCheck },
   {
@@ -322,7 +321,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
       else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
       else if (!activeItemFound && pathname === '/admin/contracts') currentActivePageLabel = 'Contract Templates';
-      else if (!activeItemFound && pathname === '/admin/rent-requests') currentActivePageLabel = 'Rent Requests';
       else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
       else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
       else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';

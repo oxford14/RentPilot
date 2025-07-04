@@ -11,7 +11,7 @@ export interface User { // For AuthContext user
   tenantId?: string; // Firestore document ID of the tenant if user is a tenant
   email?: string; // Add email to user object
   canApplyDiscount?: boolean;
-  temporaryPassword?: boolean; // NEW
+  temporaryPassword?: boolean; // NEW: flag for forced password change
 }
 
 export interface ManagedUser { // For client-specific users managed by SuperAdmin or ClientAdmin
@@ -36,29 +36,13 @@ export interface RentHistoryEntry {
   endDate: string | null; // ISO String or null for current
 }
 
-export interface RentAdjustmentRequest {
-  id: string; // Firestore doc ID
-  tenantId: string;
-  tenantName: string; // Denormalized for easy display
-  clientId: string;
-  currentRate: number;
-  proposedRate: number;
-  reason: string;
-  status: 'pending' | 'approved' | 'denied';
-  requestedAt: string; // ISO String
-  effectiveDate: string; // ISO String, start of the month
-  adminNotes?: string;
-  resolvedAt?: string; // ISO String
-  resolvedBy?: string; // admin username
-}
-
 export interface Tenant {
   id: string; // Firestore document ID
   name: string;
   email: string;
   phone: string;
-  monthlyRentalRate: number; // For initial creation and display of current rate
-  rent_history: RentHistoryEntry[]; // NEW: For versioned rent rates
+  monthlyRentalRate: number; // Always the CURRENT rate for easy display
+  rent_history: RentHistoryEntry[];
   securityDeposit?: number;
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
@@ -322,7 +306,6 @@ export interface AppContextType {
   announcements: Announcement[];
   contractTemplates: ContractTemplate[];
   signedContracts: SignedContract[];
-  rentAdjustmentRequests: RentAdjustmentRequest[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -386,11 +369,6 @@ export interface AppContextType {
   initiateContract: (tenantId: string, templateId: string) => Promise<void>;
   signContract: (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => Promise<void>;
   finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => Promise<void>;
-
-  // Rent Adjustments
-  addRentAdjustmentRequest: (requestData: Omit<RentAdjustmentRequest, 'id'|'requestedAt'|'status'|'clientId'|'tenantName'>) => Promise<void>;
-  approveRentAdjustmentRequest: (requestId: string) => Promise<void>;
-  denyRentAdjustmentRequest: (requestId: string, adminNotes: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];

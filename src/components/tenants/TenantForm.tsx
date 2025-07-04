@@ -166,7 +166,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                       <Input type="number" {...field} />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      {tenant ? "Changes here will update the current rate. Use the rent adjustment flow for future changes." : "This will be the initial rate."}
+                      Changing this will create a new versioned entry in the tenant's rent history, effective today.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

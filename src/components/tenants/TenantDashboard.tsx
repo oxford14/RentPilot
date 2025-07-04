@@ -11,19 +11,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { calculateTenantBalance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock, FileSignature, Handshake } from 'lucide-react';
+import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock, FileSignature } from 'lucide-react';
 import { startOfDay, format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { RentAdjustmentRequestDialog } from './RentAdjustmentRequestDialog';
 
 export function TenantDashboard() {
   const { user } = useAuth();
-  const { tenants, payments, additionalDues, signedContracts, rentAdjustmentRequests } = useAppContext();
+  const { tenants, payments, additionalDues, signedContracts } = useAppContext();
   const [balance, setBalance] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
   const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
-  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
 
   const currentTenant = useMemo(() => {
     if (!user?.tenantId) return null;
@@ -35,11 +33,6 @@ export function TenantDashboard() {
     const contract = signedContracts.find(c => c.id === currentTenant.activeContractId);
     return (contract && contract.status === 'pending') ? contract : null;
   }, [currentTenant, signedContracts]);
-
-  const pendingRentRequest = useMemo(() => {
-    if (!currentTenant) return null;
-    return rentAdjustmentRequests.find(r => r.tenantId === currentTenant.id && r.status === 'pending');
-  }, [currentTenant, rentAdjustmentRequests]);
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -83,27 +76,25 @@ export function TenantDashboard() {
     if (!currentTenant || !clientToday || !currentTenant.rent_history || currentTenant.rent_history.length === 0) return [];
 
     const history = [];
-    const startDate = new Date(currentTenant.joinDate);
-    // Start loop from the first day of the month the tenant joined
-    let loopMonthStart = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1));
+    let loopDate = new Date(currentTenant.joinDate);
 
-    while(loopMonthStart <= clientToday) {
-        // Find the correct rent rate for this month
-        const activeRentEntry = currentTenant.rent_history.find(entry => {
-            const entryStartDate = new Date(entry.startDate);
-            const entryEndDate = entry.endDate ? new Date(entry.endDate) : null;
-            return loopMonthStart >= entryStartDate && (!entryEndDate || loopMonthStart <= entryEndDate);
-        });
+    while(loopDate <= clientToday) {
+        const activeRentEntry = [...currentTenant.rent_history]
+            .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+            .find(entry => {
+                const entryStart = new Date(entry.startDate);
+                return loopDate >= entryStart && (!entry.endDate || loopDate <= new Date(entry.endDate));
+            });
 
         const rateForMonth = activeRentEntry ? activeRentEntry.rate : 0;
         
         history.push({
-            month: loopMonthStart.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+            month: loopDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
             rent: rateForMonth,
         });
 
-        // Move to next month
-        loopMonthStart.setUTCMonth(loopMonthStart.getUTCMonth() + 1);
+        // Move to the start of the next month
+        loopDate = new Date(Date.UTC(loopDate.getUTCFullYear(), loopDate.getUTCMonth() + 1, 1));
     }
     return history.reverse();
   }, [currentTenant, clientToday]);
@@ -225,12 +216,8 @@ export function TenantDashboard() {
                   <Banknote className="h-5 w-5 text-primary" />
                   Monthly Rent History
                 </CardTitle>
-                <CardDescription>A summary of your monthly rent payments and status.</CardDescription>
+                <CardDescription>A summary of your historical and current monthly rent rates.</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setIsRequestDialogOpen(true)} disabled={!!pendingRentRequest}>
-                  <Handshake className="mr-2 h-4 w-4" />
-                  {pendingRentRequest ? 'Request Pending' : 'Request Rent Adjustment'}
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -239,16 +226,18 @@ export function TenantDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Month</TableHead>
+                      <TableHead>Effective Period</TableHead>
                       <TableHead className="text-right">Rent Amount (₱)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {monthlyRentHistory.map((entry) => (
-                      <TableRow key={entry.month}>
-                        <TableCell className="font-medium">{entry.month}</TableCell>
+                    {currentTenant.rent_history.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()).map((entry, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">
+                            {format(new Date(entry.startDate), 'MMM dd, yyyy')} - {entry.endDate ? format(new Date(entry.endDate), 'MMM dd, yyyy') : 'Present'}
+                        </TableCell>
                         <TableCell className="text-right">
-                          {entry.rent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {entry.rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -353,13 +342,6 @@ export function TenantDashboard() {
           </CardContent>
         </Card>
       </div>
-      {isRequestDialogOpen && (
-        <RentAdjustmentRequestDialog 
-          isOpen={isRequestDialogOpen}
-          onClose={() => setIsRequestDialogOpen(false)}
-          tenant={currentTenant}
-        />
-      )}
     </>
   );
 }

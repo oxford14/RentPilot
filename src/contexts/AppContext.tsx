@@ -285,7 +285,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return rawSignedContractsState.filter(c => c.clientId === clientId);
   }, [rawSignedContractsState, getScopedClientId, authIsAuthenticated, authUser]);
 
-  const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId'>) => {
+  const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
       return;
@@ -299,6 +299,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const newTenantData: Omit<Tenant, 'id'> = {
         ...tenantData,
         hasAccount: false,
+        rent_history: [
+            {
+                rate: tenantData.monthlyRentalRate,
+                startDate: tenantData.joinDate,
+                endDate: null,
+            }
+        ],
         ...(determinedClientId && { clientId: determinedClientId })
       };
       batch.set(tenantRef, newTenantData);
@@ -335,6 +342,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const batch = writeBatch(db);
 
       const originalTenant = rawTenantsState.find(t => t.id === id);
+      
+      if (originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
+          const newHistory = [...(originalTenant.rent_history || [])];
+          const currentEntryIndex = newHistory.findIndex(entry => entry.endDate === null);
+          const today = new Date();
+          const yesterday = addDays(today, -1);
+          
+          if (currentEntryIndex !== -1) {
+              newHistory[currentEntryIndex].endDate = yesterday.toISOString();
+          } else {
+             // Handle case where no current entry exists (data inconsistency)
+             // Find latest entry and end it.
+             if (newHistory.length > 0) {
+                newHistory.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+                newHistory[0].endDate = yesterday.toISOString();
+             }
+          }
+
+          newHistory.push({
+              rate: updatedTenant.monthlyRentalRate,
+              startDate: today.toISOString(),
+              endDate: null,
+          });
+          
+          dataToUpdate.rent_history = newHistory;
+      }
+      
       const oldDeposit = originalTenant?.securityDeposit || 0;
       const newDeposit = updatedTenant.securityDeposit || 0;
 
@@ -1558,7 +1592,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    
-
-    
