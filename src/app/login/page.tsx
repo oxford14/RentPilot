@@ -58,7 +58,7 @@ function LoginBox() {
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center items-center py-4">
             <Image
-              src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media&token=459e8311-68ad-477a-8b52-32408db386ea"
+              src="https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2F3933e2b3-200a-41b0-beb9-a8ab8d2ee234-cropped.png?alt=media&token=02a8c638-ae25-4318-b431-b079ba420602"
               alt="RentPilot Logo"
               width={180}
               height={50}

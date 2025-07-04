@@ -13,7 +13,7 @@ const inter = Inter({
   display: 'swap',
 });
 
-const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
+const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2F3933e2b3-200a-41b0-beb9-a8ab8d2ee234-cropped.png?alt=media&token=02a8c638-ae25-4318-b431-b079ba420602";
 
 export const metadata: Metadata = {
   title: {
