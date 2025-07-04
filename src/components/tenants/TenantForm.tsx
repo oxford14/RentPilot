@@ -106,7 +106,12 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
       const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const submissionData = { ...data, monthlyDueDay: data.monthlyDueDay || null };
+      const { rentAdjustmentDate, ...restOfData } = data;
+
+      const submissionData = { 
+        ...restOfData, 
+        monthlyDueDay: restOfData.monthlyDueDay || null 
+      };
 
       if (tenant) {
         updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
