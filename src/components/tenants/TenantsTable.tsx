@@ -201,12 +201,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setContractFlowContext(null);
   };
   
-  const handleViewContract = (tenant: Tenant, signedContract: SignedContract | null) => {
-    if (tenant.contractUrl) {
-        window.open(tenant.contractUrl, '_blank');
-    } else if (signedContract) {
-        router.push(`/contract/view/${signedContract.id}`);
-    }
+  const handleViewContract = (tenant: Tenant) => {
+    router.push(`/contract/view/${tenant.id}`);
   };
 
   const displayedTenants = useMemo(() => {
@@ -271,7 +267,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                               <TooltipProvider>
                               <Tooltip>
                                   <TooltipTrigger asChild>
-                                  <button onClick={() => handleViewContract(tenant, signedContract)} className="flex items-center">
+                                  <button onClick={() => handleViewContract(tenant)} className="flex items-center">
                                       <FileText className="h-4 w-4 text-primary cursor-pointer" />
                                   </button>
                                   </TooltipTrigger>
@@ -328,7 +324,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         {hasContract && (
-                            <DropdownMenuItem onClick={() => handleViewContract(tenant, signedContract)}>
+                            <DropdownMenuItem onClick={() => handleViewContract(tenant)}>
                                 <FileText className="mr-2 h-4 w-4" /> View Contract
                             </DropdownMenuItem>
                         )}
@@ -556,4 +552,3 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     </>
   );
 }
-
