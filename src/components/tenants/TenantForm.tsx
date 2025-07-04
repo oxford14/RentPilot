@@ -227,14 +227,17 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   render={({ field }) => (
                       <FormItem>
                           <FormLabel>Monthly Due Day</FormLabel>
-                          <Select onValueChange={(val) => field.onChange(val ? Number(val) : null)} value={String(field.value || '')}>
+                          <Select
+                            onValueChange={(val) => field.onChange(val === 'default' ? null : Number(val))}
+                            value={field.value ? String(field.value) : ''}
+                          >
                               <FormControl>
                                   <SelectTrigger>
                                       <SelectValue placeholder="Defaults to join date day" />
                                   </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                  <SelectItem value="">Use Join Date Day</SelectItem>
+                                  <SelectItem value="default">Use Join Date Day</SelectItem>
                                   {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
                                       <SelectItem key={day} value={String(day)}>{day}</SelectItem>
                                   ))}
