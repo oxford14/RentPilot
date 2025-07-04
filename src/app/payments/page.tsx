@@ -190,34 +190,21 @@ export default function PaymentsPage() {
                           {(balanceBreakdown && balanceBreakdown.total > 0) ? (
                             <div className="space-y-2 text-sm">
                               <h4 className="font-semibold">Balance Breakdown</h4>
-                               {balanceBreakdown.rentDue > 0 && (
-                                <div className="flex justify-between items-center">
-                                    <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent Due</span>
-                                    <span>₱{formatCurrency(balanceBreakdown.rentDue)}</span>
-                                </div>
-                              )}
-                              {balanceBreakdown.unpaidDues.map(due => (
-                                  <div key={due.id} className="flex justify-between items-center">
-                                      <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
-                                      <span>₱{formatCurrency(due.amount)}</span>
+                               {balanceBreakdown.rentDueDetails.map((rentDetail, index) => (
+                                  <div key={`rent-${index}`} className="flex justify-between items-center">
+                                      <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent ({rentDetail.month})</span>
+                                      <span>₱{formatCurrency(rentDetail.rate)}</span>
                                   </div>
                               ))}
-                              {balanceBreakdown.creditBalance > 0 && (
-                                <div className="flex justify-between items-center text-green-600">
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span className="font-medium flex items-center gap-1.5 cursor-help">
-                                                <TrendingUp className="w-4 h-4" /> Less Credit on Account
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>This credit is from a previous rent overpayment.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                    <span className="font-medium">- ₱{formatCurrency(balanceBreakdown.creditBalance)}</span>
+                              {balanceBreakdown.unpaidDues.map(due => (
+                                <div key={due.id} className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
+                                    <span>₱{formatCurrency(due.amount)}</span>
                                 </div>
+                              ))}
+                              {(balanceBreakdown.rentDueDetails.length > 0 || balanceBreakdown.unpaidDues.length > 0) && (
+                                <Separator className="my-2"/>
                               )}
-                              <Separator className="my-2"/>
                               <div className="flex justify-between items-center font-bold">
                                   <span>Total Due</span>
                                   <span>₱{formatCurrency(balanceBreakdown.total)}</span>
