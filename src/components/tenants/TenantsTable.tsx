@@ -15,7 +15,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck, Clock } from 'lucide-react';
 import type { Tenant, ContractTemplate, SignedContract } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +37,7 @@ import { ContractUploadDialog } from './ContractUploadDialog';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { InPersonSigningDialog } from './InPersonSigningDialog';
+import { ContractDurationDialog } from './ContractDurationDialog';
 
 
 interface TenantsTableProps {
@@ -66,6 +67,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
 
   const [isSignNowOpen, setIsSignNowOpen] = useState(false);
   const [signNowData, setSignNowData] = useState<{ tenant: Tenant; template: ContractTemplate } | null>(null);
+
+  const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
+  const [durationContext, setDurationContext] = useState<{ tenant: Tenant, action: 'initiate' | 'upload' | 'renew' } | null>(null);
   
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -159,8 +163,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   };
   
   const handleOpenContractUpload = (tenant: Tenant) => {
-    setTenantForContract(tenant);
-    setIsContractUploadOpen(true);
+    setDurationContext({ tenant, action: 'upload' });
+    setIsDurationDialogOpen(true);
   };
 
   const handleOpenTemplateSelect = (tenant: Tenant) => {
@@ -186,6 +190,38 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         router.push(`/contract/view/${signedContract.id}`);
     }
   }
+
+  const handleOpenDurationDialog = (tenant: Tenant, action: 'initiate' | 'upload' | 'renew') => {
+    setDurationContext({ tenant, action });
+    setIsDurationDialogOpen(true);
+  };
+
+  const handleDurationConfirm = async (endDate: Date) => {
+    if (!durationContext) return;
+    const { tenant, action } = durationContext;
+    
+    await updateTenant({ ...tenant, contractEndDate: endDate.toISOString() });
+    
+    // The context will update, and we need to find the fresh tenant object
+    const updatedTenant = tenants.find(t => t.id === tenant.id);
+
+    if (!updatedTenant) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to refresh tenant data.' });
+        setIsDurationDialogOpen(false);
+        setDurationContext(null);
+        return;
+    }
+
+    setIsDurationDialogOpen(false);
+    setDurationContext(null);
+
+    if (action === 'initiate' || action === 'renew') {
+      handleOpenTemplateSelect(updatedTenant);
+    } else if (action === 'upload') {
+      setTenantForContract(updatedTenant);
+      setIsContractUploadOpen(true);
+    }
+  };
   
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
@@ -242,21 +278,27 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               return (
                 <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{tenant.name}</span>
-                       {hasContract && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button onClick={() => handleViewContract(tenant, signedContract)} className="flex items-center">
-                                <FileText className="h-4 w-4 text-primary cursor-pointer" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>View Contract</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                          <span>{tenant.name}</span>
+                          {hasContract && (
+                              <TooltipProvider>
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                  <button onClick={() => handleViewContract(tenant, signedContract)} className="flex items-center">
+                                      <FileText className="h-4 w-4 text-primary cursor-pointer" />
+                                  </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent><p>View Contract</p></TooltipContent>
+                              </Tooltip>
+                              </TooltipProvider>
+                          )}
+                      </div>
+                      {tenant.contractEndDate && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Clock className="h-3 w-3"/>
+                          Ends: {format(new Date(tenant.contractEndDate), "PP")}
+                        </span>
                       )}
                     </div>
                   </TableCell>
@@ -288,12 +330,17 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenTemplateSelect(tenant)} disabled={hasContract}>
+                        <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'initiate')} disabled={hasContract}>
                             <FileSignature className="mr-2 h-4 w-4" /> Initiate Digital Contract
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenContractUpload(tenant)} disabled={hasContract}>
+                        <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'upload')} disabled={hasContract}>
                             <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                         </DropdownMenuItem>
+                        {hasContract && tenant.contractEndDate && (
+                          <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'renew')}>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
+                          </DropdownMenuItem>
+                        )}
                         {hasContract && (
                             <DropdownMenuItem onClick={() => handleViewContract(tenant, signedContract)}>
                                 <FileText className="mr-2 h-4 w-4" /> View Contract
@@ -397,6 +444,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           isOpen={isContractUploadOpen}
           onClose={() => setIsContractUploadOpen(false)}
           tenant={tenantForContract}
+        />
+      )}
+      {durationContext && (
+        <ContractDurationDialog
+          isOpen={isDurationDialogOpen}
+          onClose={() => setIsDurationDialogOpen(false)}
+          tenant={durationContext.tenant}
+          mode={durationContext.action === 'renew' ? 'renew' : 'new'}
+          onConfirm={handleDurationConfirm}
         />
       )}
       <Dialog open={isTemplateSelectOpen} onOpenChange={setIsTemplateSelectOpen}>

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract } from '@/lib/types';
@@ -1181,7 +1182,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
     } catch (error: any) {
       console.error("Error adding demo request:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` });
       throw error;
     }
   };
@@ -1359,6 +1360,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
         landlord_name: authUser.username,
         todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        contract_end_date: tenant.contractEndDate ? new Date(tenant.contractEndDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
       });
       
       const newContractData: Omit<SignedContract, 'id'> = {
@@ -1605,5 +1607,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-    

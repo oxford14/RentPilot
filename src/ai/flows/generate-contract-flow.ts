@@ -20,6 +20,7 @@ const GenerateContractInputSchema = z.object({
   join_date: z.string().describe("The tenant's official join date in a readable format (e.g., 'July 1, 2024')."),
   landlord_name: z.string().describe("The name of the landlord or property manager."),
   todays_date: z.string().describe("The current date when the contract is generated (e.g., 'August 15, 2024')."),
+  contract_end_date: z.string().optional().describe("The calculated end date of the contract (e.g., 'June 30, 2025')."),
 });
 export type GenerateContractInput = z.infer<typeof GenerateContractInputSchema>;
 
@@ -56,6 +57,7 @@ const prompt = ai.definePrompt({
   - Join Date: {{{join_date}}}
   - Landlord Name: {{{landlord_name}}}
   - Today's Date: {{{todays_date}}}
+  - Contract End Date: {{{contract_end_date}}}
   `,
 });
 

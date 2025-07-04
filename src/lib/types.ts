@@ -56,6 +56,7 @@ export interface Tenant {
   invitationTokenExpires?: number; // DEPRECATED
   contractUrl?: string | null;
   activeContractId?: string | null;
+  contractEndDate?: string | null;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
