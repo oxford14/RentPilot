@@ -106,7 +106,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
       const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const submissionData = { ...data, monthlyDueDay: data.monthlyDueDay || undefined };
+      const submissionData = { ...data, monthlyDueDay: data.monthlyDueDay || null };
 
       if (tenant) {
         updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
@@ -229,7 +229,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                           <FormLabel>Monthly Due Day</FormLabel>
                           <Select
                             onValueChange={(val) => field.onChange(val === 'default' ? null : Number(val))}
-                            value={field.value ? String(field.value) : ''}
+                            value={field.value ? String(field.value) : 'default'}
                           >
                               <FormControl>
                                   <SelectTrigger>
