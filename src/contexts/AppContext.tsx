@@ -347,7 +347,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let historyWasModified = false;
         
         if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate) {
-            // If join date changes, the entire rent history is reset from that point.
             newHistory = [{
                 rate: updatedTenant.monthlyRentalRate,
                 startDate: updatedTenant.joinDate,
@@ -355,12 +354,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }];
             historyWasModified = true;
 
+            if (originalTenant.contractEndDate) {
+                const originalJoin = new Date(originalTenant.joinDate);
+                const originalEnd = new Date(originalTenant.contractEndDate);
+                const newJoin = new Date(updatedTenant.joinDate);
+
+                const durationMs = originalEnd.getTime() - originalJoin.getTime();
+                const newEndDate = new Date(newJoin.getTime() + durationMs);
+
+                (dataToUpdate as Partial<Tenant>).contractEndDate = newEndDate.toISOString();
+            }
+
         } else if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
-            // This part handles rent rate changes without changing join date.
             const adjustmentStart = new Date(rentAdjustmentDate);
             const oldEntryEnd = addDays(adjustmentStart, -1);
             
-            // Find the last entry and set its end date
             const previousEntryIndex = newHistory.findIndex((entry: any) => {
                 const entryStart = new Date(entry.startDate);
                 const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
