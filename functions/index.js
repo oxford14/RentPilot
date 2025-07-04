@@ -88,3 +88,49 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
     }
   }
 });
+
+exports.viewContract = functions.https.onRequest(async (req, res) => {
+  // Set CORS headers to allow requests from any origin
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  res.set("Access-Control-Max-Age", "3600");
+
+  if (req.method === "OPTIONS") {
+    // Pre-flight request. Reply successfully:
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== 'GET') {
+    res.status(405).send('Method Not Allowed');
+    return;
+  }
+  
+  const filePath = req.query.path;
+  if (!filePath || typeof filePath !== 'string') {
+    res.status(400).send("File path is required.");
+    return;
+  }
+
+  try {
+    const file = bucket.file(decodeURIComponent(filePath));
+    const [exists] = await file.exists();
+    if (!exists) {
+        res.status(404).send('File not found in Firebase Storage.');
+        return;
+    }
+    
+    // Download the file into a buffer
+    const [pdfBytes] = await file.download();
+
+    // Set headers to display the PDF inline in the browser
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.status(200).send(pdfBytes);
+
+  } catch (error) {
+    console.error("Error getting PDF:", error);
+    res.status(500).send("An internal server error occurred while retrieving the PDF.");
+  }
+});

@@ -9,12 +9,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, FileWarning, AlertTriangle, FileText } from 'lucide-react';
 import type { Tenant, SignedContract } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { getUploadedContractAsBase64 } from '@/actions/contract-actions';
-
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
-  | { type: 'uploaded', data: string }
+  | { type: 'uploaded', data: string } // data will be the function URL
   | null;
 
 export default function ContractViewerPage() {
@@ -28,7 +26,6 @@ export default function ContractViewerPage() {
 
     const tenantId = params.tenantId as string;
 
-    // This useMemo is for the UI and is fine.
     const tenant = useMemo(() => {
         if (!tenantId) return null;
         return tenants.find(t => t.id === tenantId);
@@ -36,9 +33,8 @@ export default function ContractViewerPage() {
 
     useEffect(() => {
         const fetchContract = async () => {
-            // Guard against running before necessary data is available.
             if (!user || !tenantId || tenants.length === 0) {
-              setIsLoading(false); // Stop loading if we can't proceed.
+              setIsLoading(false);
               return;
             }
             
@@ -74,24 +70,31 @@ export default function ContractViewerPage() {
                     }
                 } 
                 else if (tenantForEffect.contractUrl) {
-                    const base64string = await getUploadedContractAsBase64(tenantForEffect.contractUrl);
-                    if (base64string) {
-                        setContractSource({ type: 'uploaded', data: base64string });
-                    } else {
-                        setError("The uploaded contract file could not be loaded from storage. It may have been moved or deleted.");
+                    try {
+                        const url = new URL(tenantForEffect.contractUrl);
+                        // Pathname is /v0/b/bucket-name/o/encoded-path, so we split by /o/ to get the path
+                        const pathSegments = url.pathname.split('/o/');
+                        const filePathEncoded = pathSegments[1];
+
+                        if (filePathEncoded) {
+                            // Construct URL to the new Cloud Function
+                            const functionUrl = `https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/viewContract?path=${filePathEncoded}`;
+                            setContractSource({ type: 'uploaded', data: functionUrl });
+                        } else {
+                            setError("Could not parse the contract file path from the URL.");
+                        }
+                    } catch(e) {
+                        setError("Invalid contract URL format stored in the database.");
                     }
                 }
             } catch (e: any) {
-                 setError(`Failed to load uploaded contract: ${e.message}`);
+                 setError(`Failed to load contract: ${e.message}`);
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchContract();
-
-    // The key change is here: removing the memoized `tenant` object from the dependencies.
-    // This prevents an infinite re-render loop if the `tenants` array reference changes.
     }, [tenantId, tenants, signedContracts, user]);
 
 
@@ -116,7 +119,6 @@ export default function ContractViewerPage() {
         );
     }
     
-    // Check for a "no contract found" scenario after loading is complete and there's no error
     if (!contractSource && tenantId && tenants.length > 0) {
          return (
             <div className="container mx-auto py-8 text-center">
@@ -133,7 +135,6 @@ export default function ContractViewerPage() {
         );
     }
     
-    // Add a check in case we are still loading initial data or tenantId is invalid
     if (!tenant) {
       return (
             <div className="flex justify-center items-center h-full">
@@ -162,7 +163,7 @@ export default function ContractViewerPage() {
                     ) : contractSource?.type === 'uploaded' ? (
                         <div className="h-[calc(100vh-20rem)] border rounded-md bg-muted/30">
                             <iframe 
-                                src={`data:application/pdf;base64,${contractSource.data}`}
+                                src={contractSource.data}
                                 title="Contract PDF Viewer"
                                 className="w-full h-full"
                                 style={{ border: 'none' }}
