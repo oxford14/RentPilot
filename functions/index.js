@@ -2,6 +2,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
+const fetch = require('node-fetch');
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -124,12 +125,12 @@ exports.viewContract = functions.https.onRequest(async (req, res) => {
         return;
     }
     
-    const pdfBytes = await fetchResponse.arrayBuffer();
+    const pdfBuffer = await fetchResponse.buffer();
 
     // Set headers to display the PDF inline in the browser.
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline');
-    res.status(200).send(Buffer.from(pdfBytes));
+    res.status(200).send(pdfBuffer);
 
   } catch (error) {
     console.error("Error proxying PDF request:", error);
