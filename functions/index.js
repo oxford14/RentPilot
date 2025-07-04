@@ -1,3 +1,4 @@
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
@@ -107,13 +108,19 @@ exports.viewContract = functions.https.onRequest(async (req, res) => {
     return;
   }
   
-  const filePath = req.query.path;
+  let filePath = req.query.path;
   if (!filePath || typeof filePath !== 'string') {
     res.status(400).send("File path is required.");
     return;
   }
 
   try {
+    // FIX: Remove query parameters from the file path string
+    const queryIndex = filePath.indexOf('?');
+    if (queryIndex !== -1) {
+        filePath = filePath.substring(0, queryIndex);
+    }
+
     const file = bucket.file(decodeURIComponent(filePath));
     const [exists] = await file.exists();
     if (!exists) {
