@@ -71,6 +71,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
   const [durationContext, setDurationContext] = useState<{ tenant: Tenant, action: 'initiate' | 'upload' | 'renew' } | null>(null);
   
+  const [isRenewChoiceOpen, setIsRenewChoiceOpen] = useState(false);
+  const [tenantForRenewChoice, setTenantForRenewChoice] = useState<Tenant | null>(null);
+  
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
     updateTenant({ ...tenant, status: newStatus });
@@ -215,7 +218,10 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsDurationDialogOpen(false);
     setDurationContext(null);
 
-    if (action === 'initiate' || action === 'renew') {
+    if (action === 'renew') {
+      setTenantForRenewChoice(updatedTenant);
+      setIsRenewChoiceOpen(true);
+    } else if (action === 'initiate') {
       handleOpenTemplateSelect(updatedTenant);
     } else if (action === 'upload') {
       setTenantForContract(updatedTenant);
@@ -521,6 +527,36 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                 }}>
                     <UserRoundCheck className="h-5 w-5" />
                     Sign In Person Now
+                </Button>
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRenewChoiceOpen} onOpenChange={setIsRenewChoiceOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Renew Contract for {tenantForRenewChoice?.name}</DialogTitle>
+                <DialogDescription>
+                    The contract end date has been updated. How would you like to add the new contract document?
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+                <Button variant="default" className="h-24 flex-col gap-2" onClick={() => {
+                    if (!tenantForRenewChoice) return;
+                    handleOpenTemplateSelect(tenantForRenewChoice);
+                    setIsRenewChoiceOpen(false);
+                }}>
+                    <FileSignature className="h-6 w-6" />
+                    Initiate Digital Contract
+                </Button>
+                <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => {
+                    if (!tenantForRenewChoice) return;
+                    setTenantForContract(tenantForRenewChoice);
+                    setIsContractUploadOpen(true);
+                    setIsRenewChoiceOpen(false);
+                }}>
+                    <FileUp className="h-6 w-6" />
+                    Upload Signed PDF
                 </Button>
             </div>
         </DialogContent>
