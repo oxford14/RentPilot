@@ -2,7 +2,6 @@
 'use server';
 
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { getStorage } from 'firebase-admin/storage';
 import { getFirestore } from 'firebase-admin/firestore';
 
 if (getApps().length === 0) {
@@ -10,7 +9,6 @@ if (getApps().length === 0) {
 }
 
 const adminDb = getFirestore();
-const adminStorage = getStorage();
 
 export async function getUploadedContractAsBase64(tenantId: string): Promise<string | null> {
   const tenantDocRef = adminDb.collection('tenants').doc(tenantId);
@@ -28,21 +26,22 @@ export async function getUploadedContractAsBase64(tenantId: string): Promise<str
   }
 
   try {
-    const decodedUrl = decodeURIComponent(contractUrl);
-    const pathRegex = /\/o\/(.*?)\?alt=media/;
-    const match = decodedUrl.match(pathRegex);
-    if (!match || !match[1]) {
-      throw new Error('Could not parse file path from URL.');
+    // The contractUrl is a public download URL with a token. We can fetch it directly.
+    const response = await fetch(contractUrl);
+    if (!response.ok) {
+        // Log the error for more detailed debugging if needed
+        const errorBody = await response.text();
+        console.error(`Failed to fetch contract file with status ${response.status}: ${errorBody}`);
+        throw new Error(`Failed to fetch contract file. Status: ${response.status}`);
     }
-    const filePath = match[1];
-    
-    const bucket = adminStorage.bucket();
-    const file = bucket.file(filePath);
-    const [contents] = await file.download();
-    
-    return contents.toString('base64');
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return buffer.toString('base64');
   } catch (error) {
-    console.error("Error downloading file from storage:", error);
-    throw new Error("Failed to retrieve contract file.");
+    console.error("Error downloading file from storage URL:", error);
+    if (error instanceof Error) {
+        throw new Error(`Failed to retrieve contract file: ${error.message}`);
+    }
+    throw new Error("Failed to retrieve contract file due to an unknown error.");
   }
 }
