@@ -336,11 +336,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
     const { id, ...dataToUpdate } = updatedTenant;
-    
-    // Remove the transient form field before saving to Firestore
-    if ('rentAdjustmentDate' in dataToUpdate) {
-        delete (dataToUpdate as any).rentAdjustmentDate;
-    }
 
     try {
         const tenantRef = doc(db, 'tenants', id);
@@ -348,26 +343,40 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const originalTenant = rawTenantsState.find(t => t.id === id);
         
+        const newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
+        let historyWasModified = false;
+        
+        // Handle join date change
+        if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate && newHistory.length > 0) {
+            newHistory.sort((a:any, b:any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+            newHistory[0].startDate = updatedTenant.joinDate;
+            historyWasModified = true;
+        }
+
+        // Handle rent rate change
         if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
-            const newHistory = [...(originalTenant.rent_history || [])];
-            const currentEntryIndex = newHistory.findIndex(entry => entry.endDate === null);
-            
             const adjustmentStart = new Date(rentAdjustmentDate);
             const oldEntryEnd = addDays(adjustmentStart, -1);
             
-            if (currentEntryIndex !== -1) {
-                newHistory[currentEntryIndex].endDate = oldEntryEnd.toISOString();
-            } else if (newHistory.length > 0) {
-                newHistory.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-                newHistory[0].endDate = oldEntryEnd.toISOString();
-            }
+            const previousEntryIndex = newHistory.findIndex((entry:any) => {
+                const entryStart = new Date(entry.startDate);
+                const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
+                return oldEntryEnd >= entryStart && (!entryEnd || oldEntryEnd <= entryEnd);
+            });
 
+            if (previousEntryIndex !== -1) {
+                newHistory[previousEntryIndex].endDate = oldEntryEnd.toISOString();
+            }
+            
             newHistory.push({
                 rate: updatedTenant.monthlyRentalRate,
                 startDate: adjustmentStart.toISOString(),
                 endDate: null,
             });
-            
+            historyWasModified = true;
+        }
+
+        if (historyWasModified) {
             (dataToUpdate as any).rent_history = newHistory;
         }
         
