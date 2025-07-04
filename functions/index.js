@@ -2,13 +2,12 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
-const fetch = require('node-fetch');
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 const storage = admin.storage();
-const bucket = storage.bucket();
+const bucket = storage.bucket("tenanttracker-u4wuw.appspot.com");
 
 exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
   // Set CORS headers for preflight and actual requests
@@ -88,52 +87,5 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
     } else {
         res.status(500).send("An internal error occurred while processing the PDF.");
     }
-  }
-});
-
-exports.viewContract = functions.https.onRequest(async (req, res) => {
-  // Set CORS headers to allow requests from any origin
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Access-Control-Max-Age", "3600");
-
-  if (req.method === "OPTIONS") {
-    // Pre-flight request. Reply successfully:
-    res.status(204).send("");
-    return;
-  }
-
-  if (req.method !== 'GET') {
-    res.status(405).send('Method Not Allowed');
-    return;
-  }
-  
-  const fileUrl = req.query.url;
-  if (!fileUrl || typeof fileUrl !== 'string') {
-    res.status(400).send("File URL from storage is required.");
-    return;
-  }
-
-  try {
-    const fetchResponse = await fetch(fileUrl);
-    
-    if (!fetchResponse.ok) {
-        const errorText = await fetchResponse.text();
-        console.error(`Error fetching from storage URL: ${fetchResponse.status}`, errorText);
-        res.status(fetchResponse.status).send(`Failed to fetch file from storage: ${errorText}`);
-        return;
-    }
-    
-    const pdfBuffer = await fetchResponse.buffer();
-
-    // Set headers to display the PDF inline in the browser.
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');
-    res.status(200).send(pdfBuffer);
-
-  } catch (error) {
-    console.error("Error proxying PDF request:", error);
-    res.status(500).send("An internal server error occurred while retrieving the PDF.");
   }
 });

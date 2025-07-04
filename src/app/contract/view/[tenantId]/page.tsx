@@ -13,7 +13,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
-  | { type: 'uploaded', data: string } // data will be the function URL
+  | { type: 'uploaded', data: string } // data will be the proxy URL
   | null;
 
 export default function ContractViewerPage() {
@@ -72,10 +72,10 @@ export default function ContractViewerPage() {
                 } 
                 else if (tenantForEffect.contractUrl) {
                     try {
-                        const functionUrl = `https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/viewContract?url=${encodeURIComponent(tenantForEffect.contractUrl)}`;
-                        setContractSource({ type: 'uploaded', data: functionUrl });
+                        const proxyUrl = `/api/contract-proxy?url=${encodeURIComponent(tenantForEffect.contractUrl)}`;
+                        setContractSource({ type: 'uploaded', data: proxyUrl });
                     } catch(e) {
-                        console.error("Error creating function URL", e);
+                        console.error("Error creating proxy URL", e);
                         setError("Failed to construct the viewer URL for the contract.");
                     }
                 }
