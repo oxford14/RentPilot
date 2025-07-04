@@ -4,44 +4,20 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
+// This file's functions are deprecated in favor of a direct client-side fetch,
+// but the file is kept to avoid breaking imports in other files if they exist.
+// The functions will be removed in a future update.
+
 if (getApps().length === 0) {
   initializeApp();
 }
 
 const adminDb = getFirestore();
 
+/**
+ * @deprecated This function is no longer recommended. The client should fetch the public URL directly.
+ */
 export async function getUploadedContractAsBase64(tenantId: string): Promise<string | null> {
-  const tenantDocRef = adminDb.collection('tenants').doc(tenantId);
-  const tenantDoc = await tenantDocRef.get();
-
-  if (!tenantDoc.exists) {
-    throw new Error('Tenant not found');
-  }
-
-  const tenantData = tenantDoc.data();
-  const contractUrl = tenantData?.contractUrl;
-
-  if (!contractUrl) {
-    return null;
-  }
-
-  try {
-    // The contractUrl is a public download URL with a token. We can fetch it directly.
-    const response = await fetch(contractUrl);
-    if (!response.ok) {
-        // Log the error for more detailed debugging if needed
-        const errorBody = await response.text();
-        console.error(`Failed to fetch contract file with status ${response.status}: ${errorBody}`);
-        throw new Error(`Failed to fetch contract file. Status: ${response.status}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    return buffer.toString('base64');
-  } catch (error) {
-    console.error("Error downloading file from storage URL:", error);
-    if (error instanceof Error) {
-        throw new Error(`Failed to retrieve contract file: ${error.message}`);
-    }
-    throw new Error("Failed to retrieve contract file due to an unknown error.");
-  }
+  console.warn("getUploadedContractAsBase64 is deprecated and should not be used.");
+  return null;
 }

@@ -8,13 +8,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, FileWarning, AlertTriangle } from 'lucide-react';
-import { getUploadedContractAsBase64 } from '@/actions/contract-actions';
 import type { Tenant, SignedContract } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
-  | { type: 'uploaded', data: string } // base64 pdf data
+  | { type: 'uploaded', data: string } // This will now be the URL string
   | null;
 
 export default function ContractViewerPage() {
@@ -26,7 +25,6 @@ export default function ContractViewerPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // The slug is named 'tenantId' because of the folder structure.
     const tenantId = params.tenantId as string;
 
     const tenant = useMemo(() => {
@@ -35,19 +33,15 @@ export default function ContractViewerPage() {
     }, [tenantId, tenants]);
 
     useEffect(() => {
-        // Guard against running the effect until the tenant data is available from the context.
         if (!tenant) {
-            // If the main tenants list has loaded but this specific tenant isn't found, it's an error.
             if (tenants.length > 0) { 
               setError("Tenant not found for the provided ID.");
               setIsLoading(false);
             }
-            // Otherwise, just wait for tenants to load.
             return;
         }
 
         const fetchContract = async () => {
-            // Reset state for a clean fetch
             setIsLoading(true);
             setError(null);
             setContractSource(null);
@@ -68,31 +62,21 @@ export default function ContractViewerPage() {
                 if (contract) {
                     setContractSource({ type: 'signed', data: contract });
                 } else if (signedContracts.length > 0) {
-                    // Contracts have loaded, but the one we need isn't there.
                     setError("Digitally signed contract record could not be found.");
                 }
             } 
-            // Case 2: Uploaded PDF Contract
+            // Case 2: Uploaded PDF Contract - SIMPLIFIED LOGIC
             else if (tenant.contractUrl) {
-                try {
-                    const pdfBase64 = await getUploadedContractAsBase64(tenant.id);
-                    if (pdfBase64) {
-                        setContractSource({ type: 'uploaded', data: pdfBase64 });
-                    } else {
-                        setError("Could not retrieve the uploaded contract file.");
-                    }
-                } catch (err: any) {
-                    setError(`Failed to load uploaded contract: ${err.message}`);
-                }
+                // Simply use the URL directly, no server action needed.
+                setContractSource({ type: 'uploaded', data: tenant.contractUrl });
             }
             
-            // Finalize state after attempting to fetch
             setIsLoading(false);
         };
 
         fetchContract();
 
-    }, [tenantId, tenant, tenants, signedContracts, user]); // Dependency array is now correct
+    }, [tenantId, tenant, tenants, signedContracts, user]);
 
 
     if (isLoading) {
@@ -150,7 +134,7 @@ export default function ContractViewerPage() {
                         </ScrollArea>
                     ) : (
                          <iframe 
-                            src={`data:application/pdf;base64,${contractSource.data}`}
+                            src={contractSource.data} // Use the direct URL here
                             className="w-full h-[calc(100vh-20rem)] border rounded-md"
                             title={`Contract for ${tenant?.name}`}
                          ></iframe>
