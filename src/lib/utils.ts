@@ -14,52 +14,57 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const joinDate = new Date(tenant.joinDate);
   const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 
-  if (joinDate >= boundaryDate) {
-    return { rentDue: 0, rentDueDetails: [], unpaidDues: [], total: 0, creditBalance: 0 };
-  }
+  // --- Step 1: Calculate total credits first, regardless of join date ---
+  const totalCredits = allPayments
+    .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
+    .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
 
-  // --- Step 1: Generate all liabilities (charges) chronologically ---
+  // --- Step 2: Generate all liabilities (charges) chronologically ---
   const allCharges: { date: Date; type: string; amount: number; original: any }[] = [];
 
-  // Add rent liabilities from history
-  if (tenant.rent_history && tenant.rent_history.length > 0) {
-    let chargeDate = new Date(joinDate); 
+  // Only calculate rent if the join date is in the past, otherwise no rent is due yet.
+  if (joinDate < boundaryDate) {
+    if (tenant.rent_history && tenant.rent_history.length > 0) {
+      let chargeDate = new Date(joinDate);
 
-    while (chargeDate < boundaryDate) {
-      const activeRentEntry = [...tenant.rent_history]
-        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-        .find(entry => {
-          const entryStart = new Date(entry.startDate);
-          const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
-          return chargeDate >= entryStart && (!entryEnd || chargeDate < entryEnd);
-        });
-      
-      const rateForMonth = activeRentEntry ? activeRentEntry.rate : 0;
-      if (rateForMonth > 0) {
-        allCharges.push({
-          date: new Date(chargeDate),
-          type: 'Rent',
-          amount: rateForMonth,
-          original: { month: chargeDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), rate: rateForMonth }
-        });
-      }
+      while (chargeDate < boundaryDate) {
+        const activeRentEntry = [...tenant.rent_history]
+            .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+            .find(entry => {
+                const entryStart = new Date(entry.startDate);
+                const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
+                // A charge is valid if the chargeDate is on or after the entry start,
+                // and before the entry end (if it exists)
+                return chargeDate >= entryStart && (!entryEnd || chargeDate < entryEnd);
+            });
+        
+        const rateForMonth = activeRentEntry ? activeRentEntry.rate : 0;
+        if (rateForMonth > 0) {
+          allCharges.push({
+            date: new Date(chargeDate),
+            type: 'Rent',
+            amount: rateForMonth,
+            original: { month: chargeDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), rate: rateForMonth }
+          });
+        }
 
-      // Advance to the next due date
-      const currentMonth = chargeDate.getUTCMonth();
-      const currentYear = chargeDate.getUTCFullYear();
-      
-      let nextMonth = currentMonth + 1;
-      let nextYear = currentYear;
-      
-      if (nextMonth > 11) {
-        nextMonth = 0;
-        nextYear++;
+        // Advance to the next due date
+        const currentMonth = chargeDate.getUTCMonth();
+        const currentYear = chargeDate.getUTCFullYear();
+        
+        let nextMonth = currentMonth + 1;
+        let nextYear = currentYear;
+        
+        if (nextMonth > 11) {
+          nextMonth = 0;
+          nextYear++;
+        }
+        
+        const lastDayOfNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+        const nextDueDayInMonth = Math.min(dueDay, lastDayOfNextMonth);
+        
+        chargeDate = new Date(Date.UTC(nextYear, nextMonth, nextDueDayInMonth));
       }
-      
-      const lastDayOfNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
-      const nextDueDayInMonth = Math.min(dueDay, lastDayOfNextMonth);
-      
-      chargeDate = new Date(Date.UTC(nextYear, nextMonth, nextDueDayInMonth));
     }
   }
 
@@ -70,11 +75,6 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
 
   // Sort all charges by date, oldest first
   allCharges.sort((a, b) => a.date.getTime() - b.date.getTime());
-  
-  // --- Step 2: Sum up all credits ---
-  const totalCredits = allPayments
-    .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
-    .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
   
   // --- Step 3: Calculate net balance ---
   const totalLiability = allCharges.reduce((sum, charge) => sum + charge.amount, 0);
