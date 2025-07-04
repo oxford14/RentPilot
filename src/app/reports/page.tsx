@@ -8,7 +8,7 @@ import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
 import { DelinquencyCard } from '@/components/reports/DelinquencyCard';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Tenant, Payment } from '@/lib/types';
-import { DollarSign, Users, TrendingUp, TrendingDown, FileText, FileDown } from 'lucide-react';
+import { DollarSign, Users, TrendingUp, TrendingDown, FileText, FileDown, ShieldCheck } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ interface FinancialSummary {
   totalOutstanding: number;
   activeTenantsInRange: number;
   paymentsCount: number;
+  totalSecurityDeposits: number;
 }
 
 const initialFinancialSummary: FinancialSummary = {
@@ -28,6 +29,7 @@ const initialFinancialSummary: FinancialSummary = {
   totalOutstanding: 0,
   activeTenantsInRange: 0,
   paymentsCount: 0,
+  totalSecurityDeposits: 0,
 };
 
 export default function FinancialSummaryReportsPage() { // Renamed component
@@ -101,13 +103,16 @@ export default function FinancialSummaryReportsPage() { // Renamed component
     });
     const totalOutstanding = Math.max(0, totalExpectedRentInPeriod - totalCollected);
 
+    const totalSecurityDeposits = tenants.reduce((sum, tenant) => sum + (tenant.securityDeposit || 0), 0);
+
     setCalculatedSummary({
       totalCollected,
       totalOutstanding,
       activeTenantsInRange: relevantTenants.filter(t => t.status === 'active').length,
       paymentsCount: filteredPayments.length,
+      totalSecurityDeposits,
     });
-  }, [filteredData, dateRange, clientNow]);
+  }, [filteredData, dateRange, clientNow, tenants]);
 
 
   const tenantReportData = useMemo(() => {
@@ -120,6 +125,7 @@ export default function FinancialSummaryReportsPage() { // Renamed component
             status: tenant.status,
             totalPaid: totalPaidByTenant,
             numberOfPayments: tenantPayments.length,
+            securityDeposit: tenant.securityDeposit || 0,
         };
     }).sort((a,b) => b.totalPaid - a.totalPaid);
   }, [filteredData]);
@@ -188,7 +194,7 @@ export default function FinancialSummaryReportsPage() { // Renamed component
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Card className="shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium font-headline">Total Collected</CardTitle>
@@ -229,6 +235,16 @@ export default function FinancialSummaryReportsPage() { // Renamed component
               <p className="text-xs text-muted-foreground">Total payments in period</p>
             </CardContent>
           </Card>
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium font-headline">Deposits Held</CardTitle>
+              <ShieldCheck className="h-5 w-5 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">₱{clientNow ? displaySummary.totalSecurityDeposits.toLocaleString() : '...'}</div>
+              <p className="text-xs text-muted-foreground">Total security deposits on file</p>
+            </CardContent>
+          </Card>
         </div>
         
         <Card className="shadow-xl">
@@ -244,6 +260,7 @@ export default function FinancialSummaryReportsPage() { // Renamed component
                               <TableHead>Tenant Name</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead className="text-right">Total Paid (₱)</TableHead>
+                              <TableHead className="text-right">Deposit on File (₱)</TableHead>
                               <TableHead className="text-center"># Payments</TableHead>
                           </TableRow>
                       </TableHeader>
@@ -253,11 +270,12 @@ export default function FinancialSummaryReportsPage() { // Renamed component
                                   <TableCell className="font-medium">{item.name}</TableCell>
                                   <TableCell>{item.status === 'active' ? 'Active' : 'Inactive'}</TableCell>
                                   <TableCell className="text-right">{item.totalPaid.toLocaleString()}</TableCell>
+                                  <TableCell className="text-right">{item.securityDeposit.toLocaleString()}</TableCell>
                                   <TableCell className="text-center">{item.numberOfPayments}</TableCell>
                               </TableRow>
                           )) : (
                               <TableRow>
-                                  <TableCell colSpan={4} className="text-center text-muted-foreground h-24">
+                                  <TableCell colSpan={5} className="text-center text-muted-foreground h-24">
                                       { clientNow ? 'No tenant payment data for the selected period.' : 'Loading report data...'}
                                   </TableCell>
                               </TableRow>
