@@ -44,22 +44,24 @@ export default function ViewContractPage() {
         setIsExporting(true);
         toast({ title: 'Preparing PDF...', description: 'Please wait.' });
     
+        // 1. Clone the node to avoid modifying the visible content and append it off-screen.
+        const clonedNode = input.cloneNode(true) as HTMLDivElement;
+        clonedNode.style.position = 'absolute';
+        clonedNode.style.left = '-9999px';
+        clonedNode.style.top = '0';
+        document.body.appendChild(clonedNode);
+    
         try {
-            // Clone the node to avoid modifying the original
-            const clonedNode = input.cloneNode(true) as HTMLDivElement;
-            document.body.appendChild(clonedNode);
-            
-            // Find all images within the cloned node
             const images = Array.from(clonedNode.getElementsByTagName('img'));
-            
-            // Create a function to convert image src to data URI
-            const embedImage = async (img: HTMLImageElement) => {
-                // Check if the src is a Firebase URL and not already a data URI
-                if (img.src && img.src.startsWith('https://firebasestorage.googleapis.com')) {
+    
+            // 2. Asynchronously fetch and convert each image to a base64 data URI.
+            const imagePromises = images.map(async (img) => {
+                if (img.src && !img.src.startsWith('data:')) {
                     try {
-                        // Use a proxy or server-side fetch if CORS continues to be an issue.
-                        // For a client-side solution, this direct fetch assumes CORS is properly configured on Firebase Storage.
                         const response = await fetch(img.src);
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch image: ${response.statusText}`);
+                        }
                         const blob = await response.blob();
                         const dataUrl = await new Promise<string>((resolve, reject) => {
                             const reader = new FileReader();
@@ -67,25 +69,22 @@ export default function ViewContractPage() {
                             reader.onerror = reject;
                             reader.readAsDataURL(blob);
                         });
-                        img.src = dataUrl;
+                        img.src = dataUrl; // Replace the src with the base64 data.
                     } catch (error) {
                         console.error('Failed to embed image:', img.src, error);
-                        // Don't stop the whole PDF generation, just leave the broken image
                     }
                 }
-            };
-            
-            // Wait for all images to be converted and embedded
-            await Promise.all(images.map(embedImage));
-    
-            const canvas = await html2canvas(clonedNode, {
-                useCORS: true, // Still useful for other potential cross-origin content
-                allowTaint: true,
-                scale: 2, // Higher scale for better quality
             });
-            
-            // Remove the cloned node after processing
-            document.body.removeChild(clonedNode);
+    
+            // 3. Wait for all images to be processed.
+            await Promise.all(imagePromises);
+    
+            // 4. Now render the cloned, self-contained node to the canvas.
+            const canvas = await html2canvas(clonedNode, {
+                allowTaint: true,
+                useCORS: false,
+                scale: 2,
+            });
     
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
@@ -102,6 +101,8 @@ export default function ViewContractPage() {
             console.error("PDF generation failed:", error);
             toast({ variant: 'destructive', title: 'PDF Generation Failed', description: 'Could not create PDF. There might be a network issue.' });
         } finally {
+            // 5. Clean up by removing the cloned node.
+            document.body.removeChild(clonedNode);
             setIsExporting(false);
         }
     };
