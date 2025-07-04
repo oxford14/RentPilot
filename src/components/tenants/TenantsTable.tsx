@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -202,6 +201,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   };
   
   const handleViewContract = (tenant: Tenant) => {
+    // The dynamic part of the URL is the tenant's ID, which will be received
+    // by the page component as 'params.contractId' because of the folder name.
     router.push(`/contract/view/${tenant.id}`);
   };
 
