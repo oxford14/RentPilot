@@ -342,28 +342,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const batch = writeBatch(db);
 
         const originalTenant = rawTenantsState.find(t => t.id === id);
-        
-        const newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
+        let newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
         let historyWasModified = false;
         
-        // Handle join date change
-        if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate && newHistory.length > 0) {
-            newHistory.sort((a:any, b:any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-            newHistory[0].startDate = updatedTenant.joinDate;
+        if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate) {
+            // If join date changes, the entire rent history is reset from that point.
+            newHistory = [{
+                rate: updatedTenant.monthlyRentalRate,
+                startDate: updatedTenant.joinDate,
+                endDate: null,
+            }];
             historyWasModified = true;
-        }
 
-        // Handle rent rate change
-        if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
+        } else if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
+            // This part handles rent rate changes without changing join date.
             const adjustmentStart = new Date(rentAdjustmentDate);
             const oldEntryEnd = addDays(adjustmentStart, -1);
             
-            const previousEntryIndex = newHistory.findIndex((entry:any) => {
+            // Find the last entry and set its end date
+            const previousEntryIndex = newHistory.findIndex((entry: any) => {
                 const entryStart = new Date(entry.startDate);
                 const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
                 return oldEntryEnd >= entryStart && (!entryEnd || oldEntryEnd <= entryEnd);
             });
-
+            
             if (previousEntryIndex !== -1) {
                 newHistory[previousEntryIndex].endDate = oldEntryEnd.toISOString();
             }
@@ -1603,3 +1605,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
