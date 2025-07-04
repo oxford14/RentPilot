@@ -127,7 +127,6 @@ exports.viewContract = functions.https.onRequest(async (req, res) => {
     const pdfBytes = await fetchResponse.arrayBuffer();
 
     // Set headers to display the PDF inline in the browser.
-    // This function acts as a proxy, stripping the original X-Frame-Options header.
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline');
     res.status(200).send(Buffer.from(pdfBytes));
