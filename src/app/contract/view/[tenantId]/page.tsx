@@ -7,9 +7,12 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, FileWarning, AlertTriangle } from 'lucide-react';
+import { Loader2, FileWarning, AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import type { Tenant, SignedContract } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
@@ -133,11 +136,17 @@ export default function ContractViewerPage() {
                            <div className="whitespace-pre-wrap prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: contractSource.data.contractBody.replace(/\n/g, '<br />') }} />
                         </ScrollArea>
                     ) : (
-                         <iframe 
-                            src={contractSource.data} // Use the direct URL here
-                            className="w-full h-[calc(100vh-20rem)] border rounded-md"
-                            title={`Contract for ${tenant?.name}`}
-                         ></iframe>
+                         <div className="flex flex-col items-center justify-center h-[calc(100vh-25rem)] border rounded-md bg-muted/30 p-8 text-center">
+                            <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                            <h3 className="text-xl font-semibold">PDF Contract Ready</h3>
+                            <p className="text-muted-foreground mb-6 max-w-md">
+                                Your browser's security settings prevent this PDF from being shown directly on the page. For the best viewing experience, please open it in a new tab.
+                            </p>
+                            <a href={contractSource.data} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ size: "lg" }))}>
+                                <ExternalLink className="mr-2 h-5 w-5" />
+                                Open Contract in New Tab
+                            </a>
+                        </div>
                     )}
                 </CardContent>
              </Card>
