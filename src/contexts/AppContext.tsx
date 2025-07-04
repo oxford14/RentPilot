@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract } from '@/lib/types';
@@ -1028,7 +1027,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Business Updated", description: `${updatedBusiness.name} has been updated.`});
     } catch (error: any) {
         console.error("Error updating business:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to update business: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${error.message}` });
     }
   };
 
@@ -1336,12 +1335,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const signedDate = new Date();
         
-        // Upload signature
-        const storageRef = ref(storage, `signatures/${tenant.id}/${uuidv4()}.png`);
-        const base64String = signatureDataUrl.split(',')[1];
-        await uploadString(storageRef, base64String, 'base64', { contentType: 'image/png' });
-        const downloadUrl = await getDownloadURL(storageRef);
-        
         // Replace manual inputs
         if (manualInputs && manualInputs.length > 0) {
             let inputIndex = 0;
@@ -1352,7 +1345,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
         }
         
-        const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+        const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
         body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
         
         transaction.update(contractRef, {
@@ -1382,17 +1375,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // 1. Upload signature image to storage
-      const storageRef = ref(storage, `signatures/${tenant.id}/${uuidv4()}.png`);
-      const base64String = signatureDataUrl.split(',')[1];
-      await uploadString(storageRef, base64String, 'base64', { contentType: 'image/png' });
-      const downloadUrl = await getDownloadURL(storageRef);
-      
-      // 2. Create signature block with image
       const signedDate = new Date();
-      const signatureBlock = `<img src="${downloadUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+      const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
       
-      // 3. Replace placeholder
       const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
 
       const newContractData: Omit<SignedContract, 'id'> = {
@@ -1540,3 +1525,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
+    
