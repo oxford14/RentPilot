@@ -337,6 +337,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const { id, ...dataToUpdate } = updatedTenant;
     
+    // Remove the transient form field before saving to Firestore
+    if ('rentAdjustmentDate' in dataToUpdate) {
+        delete (dataToUpdate as any).rentAdjustmentDate;
+    }
+
     try {
         const tenantRef = doc(db, 'tenants', id);
         const batch = writeBatch(db);
