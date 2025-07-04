@@ -330,68 +330,70 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateTenant = async (updatedTenant: Tenant) => {
+  const updateTenant = async (updatedTenant: Tenant, rentAdjustmentDate?: string) => {
     if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
-      return;
+        toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
+        return;
     }
     const { id, ...dataToUpdate } = updatedTenant;
     
     try {
-      const tenantRef = doc(db, 'tenants', id);
-      const batch = writeBatch(db);
+        const tenantRef = doc(db, 'tenants', id);
+        const batch = writeBatch(db);
 
-      const originalTenant = rawTenantsState.find(t => t.id === id);
-      
-      if (originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
-          const newHistory = [...(originalTenant.rent_history || [])];
-          const currentEntryIndex = newHistory.findIndex(entry => entry.endDate === null);
-          const today = new Date();
-          const yesterday = addDays(today, -1);
-          
-          if (currentEntryIndex !== -1) {
-              newHistory[currentEntryIndex].endDate = yesterday.toISOString();
-          } else {
-             // Handle case where no current entry exists (data inconsistency)
-             // Find latest entry and end it.
-             if (newHistory.length > 0) {
+        const originalTenant = rawTenantsState.find(t => t.id === id);
+        
+        if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
+            const newHistory = [...(originalTenant.rent_history || [])];
+            const currentEntryIndex = newHistory.findIndex(entry => entry.endDate === null);
+            
+            const adjustmentStart = new Date(rentAdjustmentDate);
+            const oldEntryEnd = addDays(adjustmentStart, -1);
+            
+            if (currentEntryIndex !== -1) {
+                const currentEntry = newHistory[currentEntryIndex];
+                if (new Date(currentEntry.startDate) >= adjustmentStart) {
+                    toast({ variant: "destructive", title: "Invalid Date", description: "Effective date must be after the current rent period's start date." });
+                    return;
+                }
+                newHistory[currentEntryIndex].endDate = oldEntryEnd.toISOString();
+            } else if (newHistory.length > 0) {
                 newHistory.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-                newHistory[0].endDate = yesterday.toISOString();
-             }
-          }
+                newHistory[0].endDate = oldEntryEnd.toISOString();
+            }
 
-          newHistory.push({
-              rate: updatedTenant.monthlyRentalRate,
-              startDate: today.toISOString(),
-              endDate: null,
-          });
-          
-          dataToUpdate.rent_history = newHistory;
-      }
-      
-      const oldDeposit = originalTenant?.securityDeposit || 0;
-      const newDeposit = updatedTenant.securityDeposit || 0;
+            newHistory.push({
+                rate: updatedTenant.monthlyRentalRate,
+                startDate: adjustmentStart.toISOString(),
+                endDate: null,
+            });
+            
+            (dataToUpdate as any).rent_history = newHistory;
+        }
+        
+        const oldDeposit = originalTenant?.securityDeposit || 0;
+        const newDeposit = updatedTenant.securityDeposit || 0;
 
-      batch.set(tenantRef, dataToUpdate, { merge: true });
+        batch.set(tenantRef, dataToUpdate, { merge: true });
 
-      if (newDeposit > oldDeposit) {
-        const depositIncrease = newDeposit - oldDeposit;
-        const paymentRef = doc(collection(db, 'payments'));
-        const paymentData: Omit<Payment, 'id'> = {
-          tenantId: id,
-          date: new Date().toISOString(),
-          amount: depositIncrease,
-          paymentMethod: 'Security Deposit',
-          clientId: updatedTenant.clientId,
-        };
-        batch.set(paymentRef, paymentData);
-      }
+        if (newDeposit > oldDeposit) {
+            const depositIncrease = newDeposit - oldDeposit;
+            const paymentRef = doc(collection(db, 'payments'));
+            const paymentData: Omit<Payment, 'id'> = {
+                tenantId: id,
+                date: new Date().toISOString(),
+                amount: depositIncrease,
+                paymentMethod: 'Security Deposit',
+                clientId: updatedTenant.clientId,
+            };
+            batch.set(paymentRef, paymentData);
+        }
 
-      await batch.commit();
+        await batch.commit();
 
     } catch (error: any) {
-      console.error("Error updating tenant in Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update tenant: ${error.message}` });
+        console.error("Error updating tenant in Firestore:", error);
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update tenant: ${error.message}` });
     }
   };
 
@@ -1252,7 +1254,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await runTransaction(db, async (transaction) => {
         const announcementDoc = await transaction.get(announcementRef);
         if (!announcementDoc.exists()) {
-          throw "Announcement not found.";
+          throw new Error("Announcement not found.");
         }
         const currentReadBy = announcementDoc.data().readBy || [];
         if (!currentReadBy.includes(userId)) {

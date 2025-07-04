@@ -23,6 +23,7 @@ const tenantFormSchema = z.object({
   securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
+  rentAdjustmentDate: z.string().optional(),
 });
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>;
@@ -36,6 +37,7 @@ interface TenantFormProps {
 export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
   const { addTenant, updateTenant } = useAppContext();
   const { toast } = useToast();
+  const [initialRentRate, setInitialRentRate] = useState<number | null>(null);
 
   const [newTenantJoinDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -46,6 +48,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       phone: tenant.phone || '',
       securityDeposit: tenant.securityDeposit || 0,
       joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+      rentAdjustmentDate: undefined,
     } : {
       name: '',
       email: '',
@@ -54,6 +57,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       securityDeposit: 0,
       status: 'active' as 'active' | 'inactive',
       joinDate: newTenantJoinDate,
+      rentAdjustmentDate: undefined,
     };
   }, [tenant, newTenantJoinDate]);
   
@@ -71,33 +75,42 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
             email: tenant.email || '',
             phone: tenant.phone || '',
             securityDeposit: tenant.securityDeposit || 0,
-            joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate
+            joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+            rentAdjustmentDate: undefined
           }
-        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate }
+        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, rentAdjustmentDate: undefined }
       );
+      if (tenant) {
+        setInitialRentRate(tenant.monthlyRentalRate);
+      } else {
+        setInitialRentRate(null);
+      }
     }
   }, [tenant, isOpen, form, newTenantJoinDate]);
 
+  const watchedRentRate = form.watch('monthlyRentalRate');
+  const rentRateChanged = tenant && initialRentRate !== null && watchedRentRate !== initialRentRate;
 
   const onSubmit = (data: TenantFormValues) => {
+    if (rentRateChanged && !data.rentAdjustmentDate) {
+      form.setError("rentAdjustmentDate", { type: "manual", message: "Effective date is required for rent changes." });
+      return;
+    }
+    
     try {
-      // Fix for timezone issue:
-      // The date string from the input is "YYYY-MM-DD". We append "T00:00:00.000Z"
-      // to ensure it's parsed as midnight UTC, regardless of the user's timezone.
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
+      const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const submissionData = {
-        ...data,
-      };
+      const submissionData = { ...data };
 
       if (tenant) {
-        updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate });
+        updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
         toast({ title: "Tenant Updated", description: `${data.name} has been updated successfully.` });
       } else {
         addTenant({...submissionData, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
-      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate};
+      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, rentAdjustmentDate: undefined };
       form.reset(resetValues); 
       onClose();
     } catch (error) {
@@ -166,7 +179,9 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                       <Input type="number" {...field} />
                     </FormControl>
                     <FormDescription className="text-xs">
-                      Changing this will create a new versioned entry in the tenant's rent history, effective today.
+                      {rentRateChanged 
+                        ? "Please select the effective date for this new rate."
+                        : "Changing this will create a new versioned entry in the tenant's rent history."}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -186,7 +201,8 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 )}
               />
             </div>
-             <FormField
+
+            <FormField
                 control={form.control}
                 name="joinDate"
                 render={({ field }) => (
@@ -199,6 +215,25 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
+            
+            {rentRateChanged && (
+               <FormField
+                control={form.control}
+                name="rentAdjustmentDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rent Adjustment Effective Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ''}/>
+                    </FormControl>
+                     <FormDescription className="text-xs">
+                       The new rent rate will apply starting from this date.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
             <FormField
               control={form.control}

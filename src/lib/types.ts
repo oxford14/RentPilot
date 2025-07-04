@@ -320,7 +320,7 @@ export interface AppContextType {
   updateBackupScheduleSettings: (settings: BackupScheduleSettings) => Promise<void>;
 
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<void>;
-  updateTenant: (tenant: Tenant) => Promise<void>;
+  updateTenant: (tenant: Tenant, rentAdjustmentDate?: string) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
   uploadContract: (tenantId: string, file: File) => Promise<void>;
   deleteContract: (tenantId: string) => Promise<void>;
