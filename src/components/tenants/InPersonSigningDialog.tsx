@@ -140,7 +140,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template }: InP
                                         </Button>
                                     </FormLabel>
                                     <FormControl>
-                                        <div className="w-full h-[150px] rounded-md border bg-background">
+                                        <div className="w-full h-[120px] rounded-md border bg-background">
                                             <SignatureCanvas
                                                 ref={sigPad}
                                                 penColor='black'
