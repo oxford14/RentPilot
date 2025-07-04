@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -167,13 +166,14 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const handleDurationConfirm = (endDate: Date) => {
     if (!contractFlowContext) return;
     
+    // This is the "all-or-nothing" change from before. End date is held in state.
     const newContext = { ...contractFlowContext, endDate };
 
     setIsDurationDialogOpen(false);
     
     if (newContext.action === 'renew') {
-      setContractFlowContext(newContext);
-      setIsRenewChoiceOpen(true);
+      setContractFlowContext(newContext); // This context has action: 'renew'
+      setIsRenewChoiceOpen(true); // Opens the dialog in the screenshot
     } else if (newContext.action === 'initiate') {
       setContractFlowContext(newContext);
       setIsTemplateSelectOpen(true);
@@ -487,7 +487,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                 <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => {
-                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant) return;
+                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant || !contractFlowContext?.endDate) return;
                     initiateContract(contractFlowContext.tenant.id, contractFlowContext.templateId, contractFlowContext.endDate);
                     setIsActionChoiceOpen(false);
                     handleCloseFlow();
@@ -533,6 +533,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                 </Button>
                 <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => {
                     if (!contractFlowContext) return;
+                    setContractFlowContext(ctx => ctx ? { ...ctx, action: 'upload' } : null);
                     setIsRenewChoiceOpen(false);
                     setIsContractUploadOpen(true);
                 }}>
@@ -555,3 +556,4 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     </>
   );
 }
+
