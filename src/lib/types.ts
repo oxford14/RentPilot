@@ -46,6 +46,7 @@ export interface Tenant {
   securityDeposit?: number;
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
+  monthlyDueDay?: number;
   clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants
   username?: string; // NEW
   password?: string; // For tenant login

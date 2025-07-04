@@ -14,6 +14,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -23,6 +24,7 @@ const tenantFormSchema = z.object({
   securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
+  monthlyDueDay: z.coerce.number().min(1).max(31).optional().nullable(),
   rentAdjustmentDate: z.string().optional(),
 });
 
@@ -48,6 +50,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       phone: tenant.phone || '',
       securityDeposit: tenant.securityDeposit || 0,
       joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+      monthlyDueDay: tenant.monthlyDueDay || undefined,
       rentAdjustmentDate: undefined,
     } : {
       name: '',
@@ -57,6 +60,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       securityDeposit: 0,
       status: 'active' as 'active' | 'inactive',
       joinDate: newTenantJoinDate,
+      monthlyDueDay: undefined,
       rentAdjustmentDate: undefined,
     };
   }, [tenant, newTenantJoinDate]);
@@ -76,9 +80,10 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
             phone: tenant.phone || '',
             securityDeposit: tenant.securityDeposit || 0,
             joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+            monthlyDueDay: tenant.monthlyDueDay || undefined,
             rentAdjustmentDate: undefined
           }
-        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, rentAdjustmentDate: undefined }
+        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, monthlyDueDay: undefined, rentAdjustmentDate: undefined }
       );
       if (tenant) {
         setInitialRentRate(tenant.monthlyRentalRate);
@@ -101,7 +106,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
       const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const submissionData = { ...data };
+      const submissionData = { ...data, monthlyDueDay: data.monthlyDueDay || undefined };
 
       if (tenant) {
         updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
@@ -110,7 +115,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         addTenant({...submissionData, joinDate: finalJoinDate});
         toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
       }
-      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, rentAdjustmentDate: undefined };
+      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, monthlyDueDay: undefined, rentAdjustmentDate: undefined };
       form.reset(resetValues); 
       onClose();
     } catch (error) {
@@ -201,8 +206,9 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 )}
               />
             </div>
-
-            <FormField
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
                 control={form.control}
                 name="joinDate"
                 render={({ field }) => (
@@ -215,7 +221,34 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
-            
+              <FormField
+                  control={form.control}
+                  name="monthlyDueDay"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Monthly Due Day</FormLabel>
+                          <Select onValueChange={(val) => field.onChange(val ? Number(val) : null)} value={String(field.value || '')}>
+                              <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Defaults to join date day" />
+                                  </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                  <SelectItem value="">Use Join Date Day</SelectItem>
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                      <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                          <FormDescription className="text-xs">
+                              The day of the month rent is due.
+                          </FormDescription>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
+            </div>
+
             {rentRateChanged && (
                <FormField
                 control={form.control}

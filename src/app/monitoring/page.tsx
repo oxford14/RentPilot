@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -46,12 +47,12 @@ export default function MonitoringPage() {
 
     const getAnniversaryForMonth = (tenant: import('@/lib/types').Tenant, refDate: Date): Date => {
         const joinDate = new Date(tenant.joinDate);
-        const joinDay = joinDate.getUTCDate();
+        const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
         const refYear = refDate.getUTCFullYear();
         const refMonth = refDate.getUTCMonth();
         
         const lastDayInMonth = new Date(Date.UTC(refYear, refMonth + 1, 0)).getUTCDate();
-        const anniversaryDay = Math.min(joinDay, lastDayInMonth);
+        const anniversaryDay = Math.min(dueDay, lastDayInMonth);
         
         return new Date(Date.UTC(refYear, refMonth, anniversaryDay));
     };

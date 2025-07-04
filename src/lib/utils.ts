@@ -12,6 +12,7 @@ export function cn(...inputs: ClassValue[]) {
 export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Payment[], allDues: AdditionalDue[], upToDate: Date): BalanceBreakdown {
   const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
   const joinDate = new Date(tenant.joinDate);
+  const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 
   if (joinDate >= boundaryDate) {
     return { rentDue: 0, rentDueDetails: [], unpaidDues: [], total: 0, creditBalance: 0 };
@@ -22,32 +23,43 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
 
   // Add rent liabilities from history
   if (tenant.rent_history && tenant.rent_history.length > 0) {
-    let cursorDate = new Date(tenant.joinDate);
-    while (cursorDate < boundaryDate) {
+    let chargeDate = new Date(joinDate); 
+
+    while (chargeDate < boundaryDate) {
       const activeRentEntry = [...tenant.rent_history]
         .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
         .find(entry => {
           const entryStart = new Date(entry.startDate);
           const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
-          return cursorDate >= entryStart && (!entryEnd || cursorDate < entryEnd);
+          return chargeDate >= entryStart && (!entryEnd || chargeDate < entryEnd);
         });
       
       const rateForMonth = activeRentEntry ? activeRentEntry.rate : 0;
       if (rateForMonth > 0) {
         allCharges.push({
-          date: new Date(cursorDate),
+          date: new Date(chargeDate),
           type: 'Rent',
           amount: rateForMonth,
-          original: { month: cursorDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), rate: rateForMonth }
+          original: { month: chargeDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), rate: rateForMonth }
         });
       }
 
-      const d = new Date(cursorDate);
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      if (d.getUTCDate() !== joinDate.getUTCDate()) {
-        d.setUTCDate(0);
+      // Advance to the next due date
+      const currentMonth = chargeDate.getUTCMonth();
+      const currentYear = chargeDate.getUTCFullYear();
+      
+      let nextMonth = currentMonth + 1;
+      let nextYear = currentYear;
+      
+      if (nextMonth > 11) {
+        nextMonth = 0;
+        nextYear++;
       }
-      cursorDate = d;
+      
+      const lastDayOfNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
+      const nextDueDayInMonth = Math.min(dueDay, lastDayOfNextMonth);
+      
+      chargeDate = new Date(Date.UTC(nextYear, nextMonth, nextDueDayInMonth));
     }
   }
 
@@ -123,10 +135,10 @@ export const isTenantCurrentlyDueForRent = (
 
   const currentUTCDate = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
   const joinDate = new Date(tenant.joinDate);
-  const dueDayOfMonthBasedOnJoin = joinDate.getUTCDate();
+  const dueDayOfMonth = tenant.monthlyDueDay || joinDate.getUTCDate();
   
   const lastDayOfCurrentMonth = new Date(Date.UTC(currentUTCDate.getUTCFullYear(), currentUTCDate.getUTCMonth() + 1, 0)).getUTCDate();
-  const effectiveDueDayThisMonth = Math.min(dueDayOfMonthBasedOnJoin, lastDayOfCurrentMonth);
+  const effectiveDueDayThisMonth = Math.min(dueDayOfMonth, lastDayOfCurrentMonth);
 
   if (currentUTCDate.getUTCDate() !== effectiveDueDayThisMonth) {
     return false;
