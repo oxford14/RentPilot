@@ -22,24 +22,29 @@ export async function getUploadedContractAsBase64(contractUrl: string): Promise<
   }
 
   try {
-    // Get a reference to the default bucket from the initialized app.
     const bucket = getStorage().bucket();
 
-    // Extract the file path from the full HTTPS URL.
-    // Example URL: https://firebasestorage.googleapis.com/v0/b/bucket-name/o/folder%2Ffile.pdf?alt=media&token=...
-    const url = new URL(contractUrl);
-    const pathName = url.pathname;
-    
-    // The actual file path is after the '/o/' part and is URL-encoded.
-    const pathParts = pathName.split('/o/');
-    if (pathParts.length < 2) {
-      console.error("Invalid Firebase Storage URL format. Could not extract file path.", { contractUrl });
+    // Use a regular expression to robustly extract the file path.
+    // This looks for the content between `/o/` and `?alt=media`.
+    const filePathRegex = /\/o\/(.+)\?alt=media/;
+    const match = contractUrl.match(filePathRegex);
+
+    if (!match || match.length < 2) {
+      console.error("Invalid Firebase Storage URL format. Could not extract file path using regex.", { contractUrl });
       return null;
     }
-    const filePath = decodeURIComponent(pathParts[1]);
+    
+    // The captured group is URL-encoded, so we need to decode it.
+    const filePath = decodeURIComponent(match[1]);
 
-    // Download the file into a buffer
     const file = bucket.file(filePath);
+    const [fileExists] = await file.exists();
+
+    if (!fileExists) {
+      console.error(`File does not exist at path: ${filePath}`);
+      return null;
+    }
+
     const [pdfBuffer] = await file.download();
 
     // Convert the buffer to a Base64 string to be sent to the client.
@@ -47,11 +52,9 @@ export async function getUploadedContractAsBase64(contractUrl: string): Promise<
 
   } catch (error: any) {
     console.error("Error downloading contract from Firebase Storage:", error);
-    // Log the specific error code if available, which is helpful for debugging permissions.
     if (error.code) {
       console.error(`Firebase Storage Error Code: ${error.code}`);
     }
-    // Return null to allow the frontend to handle the error gracefully.
     return null;
   }
 }
