@@ -65,7 +65,13 @@ export function ContractDurationDialog({ isOpen, onClose, tenant, mode, onConfir
 
     if (duration <= 0) return { startDate: start, calculatedEndDate: null };
     
-    const endDate = add(start, { [unit]: duration });
+    const endDate = new Date(start);
+    if (unit === 'months') {
+      endDate.setUTCMonth(endDate.getUTCMonth() + duration);
+    } else if (unit === 'years') {
+      endDate.setUTCFullYear(endDate.getUTCFullYear() + duration);
+    }
+    
     return { startDate: start, calculatedEndDate: endDate };
   }, [tenant, mode, watchDuration, watchUnit]);
 
