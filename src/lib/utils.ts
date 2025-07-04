@@ -14,70 +14,92 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const joinDate = new Date(tenant.joinDate);
 
   if (joinDate >= boundaryDate) {
-    return { rentDue: 0, unpaidDues: [], total: 0, creditBalance: 0 };
+    return { rentDue: 0, rentDueDetails: [], unpaidDues: [], total: 0, creditBalance: 0 };
   }
 
-  // 1. Calculate total rent liability
-  let monthsBilled = 0;
-  let cursorYear = joinDate.getUTCFullYear();
-  let cursorMonth = joinDate.getUTCMonth();
-  const joinDay = joinDate.getUTCDate();
+  // --- Step 1: Generate all liabilities (charges) chronologically ---
+  const allCharges: { date: Date; type: string; amount: number; original: any }[] = [];
 
-  while (true) {
-    const lastDayOfCursorMonth = new Date(Date.UTC(cursorYear, cursorMonth + 1, 0)).getUTCDate();
-    const anniversaryDay = Math.min(joinDay, lastDayOfCursorMonth);
-    const anniversaryDate = new Date(Date.UTC(cursorYear, cursorMonth, anniversaryDay));
+  // Add rent liabilities from history
+  if (tenant.rent_history && tenant.rent_history.length > 0) {
+    let cursorDate = new Date(tenant.joinDate);
+    while (cursorDate < boundaryDate) {
+      const activeRentEntry = [...tenant.rent_history]
+        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+        .find(entry => {
+          const entryStart = new Date(entry.startDate);
+          const entryEnd = entry.endDate ? new Date(entry.endDate) : null;
+          return cursorDate >= entryStart && (!entryEnd || cursorDate < entryEnd);
+        });
+      
+      const rateForMonth = activeRentEntry ? activeRentEntry.rate : 0;
+      if (rateForMonth > 0) {
+        allCharges.push({
+          date: new Date(cursorDate),
+          type: 'Rent',
+          amount: rateForMonth,
+          original: { month: cursorDate.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }), rate: rateForMonth }
+        });
+      }
 
-    if (anniversaryDate >= boundaryDate) {
-      break;
-    }
-    monthsBilled++;
-    cursorMonth++;
-    if (cursorMonth > 11) {
-      cursorMonth = 0;
-      cursorYear++;
+      const d = new Date(cursorDate);
+      d.setUTCMonth(d.getUTCMonth() + 1);
+      if (d.getUTCDate() !== joinDate.getUTCDate()) {
+        d.setUTCDate(0);
+      }
+      cursorDate = d;
     }
   }
-  const totalRentLiability = monthsBilled * tenant.monthlyRentalRate;
 
-  // 2. Calculate total additional dues liability
-  const tenantDues = allDues.filter(d => d.tenantId === tenant.id && new Date(d.createdAt) < boundaryDate);
-  const totalDuesLiability = tenantDues.reduce((sum, d) => sum + d.amount, 0);
+  // Add additional dues liabilities
+  allDues.filter(d => d.tenantId === tenant.id && new Date(d.dueDate) < boundaryDate).forEach(due => {
+    allCharges.push({ date: new Date(due.dueDate), type: 'Due', amount: due.amount, original: due });
+  });
 
-  // 3. Calculate total credits from real payments, excluding internal credit transfers
-  const tenantPayments = allPayments.filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit' && p.paymentMethod !== 'From Credit');
-  const totalCredits = tenantPayments.reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
+  // Sort all charges by date, oldest first
+  allCharges.sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  // 4. Calculate the final, true balance
-  const totalLiability = totalRentLiability + totalDuesLiability;
+  // --- Step 2: Sum up all credits ---
+  const totalCredits = allPayments
+    .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
+    .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
+  
+  // --- Step 3: Calculate net balance ---
+  const totalLiability = allCharges.reduce((sum, charge) => sum + charge.amount, 0);
   const totalBalance = totalLiability - totalCredits;
 
-  // 5. Create the user-friendly breakdown
   if (totalBalance <= 0) {
-    return { rentDue: 0, unpaidDues: [], creditBalance: Math.abs(totalBalance), total: totalBalance };
+    return { rentDue: 0, rentDueDetails: [], unpaidDues: [], creditBalance: Math.abs(totalBalance), total: totalBalance };
   }
 
-  // --- Breakdown for positive balance ---
-  const rentDueForBreakdown = Math.max(0, totalRentLiability - totalCredits);
-  const creditAfterRent = Math.max(0, totalCredits - totalRentLiability);
-  
-  const unpaidDuesFromDB = tenantDues.filter(d => d.status === 'unpaid');
-  
-  let tempCredit = creditAfterRent;
-  const finalUnpaidDuesForBreakdown: AdditionalDue[] = [];
+  // --- Step 4: Determine unpaid charges by working backwards (LIFO on liability) ---
+  let balanceToAccountFor = totalBalance;
+  const unpaidRentDetails: { month: string; rate: number }[] = [];
+  const unpaidDues: AdditionalDue[] = [];
 
-  for (const due of unpaidDuesFromDB) {
-      if (tempCredit >= due.amount) {
-          tempCredit -= due.amount; // This due is considered paid by credit for breakdown purposes
-      } else {
-          finalUnpaidDuesForBreakdown.push(due);
+  const reversedCharges = allCharges.slice().reverse();
+
+  for (const charge of reversedCharges) {
+      if (balanceToAccountFor <= 0) break;
+
+      const amountToAttribute = Math.min(charge.amount, balanceToAccountFor);
+      
+      if (charge.type === 'Rent') {
+          unpaidRentDetails.unshift({ ...charge.original, rate: amountToAttribute });
+      } else if (charge.type === 'Due') {
+          unpaidDues.unshift({ ...charge.original, amount: amountToAttribute });
       }
+
+      balanceToAccountFor -= amountToAttribute;
   }
   
+  const finalRentDue = unpaidRentDetails.reduce((sum, r) => sum + r.rate, 0);
+
   return {
-    rentDue: rentDueForBreakdown,
-    unpaidDues: finalUnpaidDuesForBreakdown,
-    creditBalance: 0, // Cannot have a credit if totalBalance is positive
+    rentDue: finalRentDue,
+    rentDueDetails: unpaidRentDetails,
+    unpaidDues: unpaidDues,
+    creditBalance: 0,
     total: totalBalance,
   };
 }

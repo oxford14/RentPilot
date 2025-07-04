@@ -265,6 +265,7 @@ export interface MonitoredTenant {
 
 export interface BalanceBreakdown {
   rentDue: number; // Will only hold positive due amounts
+  rentDueDetails: { month: string; rate: number }[];
   unpaidDues: AdditionalDue[];
   creditBalance: number; // Will hold any credit amount
   total: number; // The final, net balance
