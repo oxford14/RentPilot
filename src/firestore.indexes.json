@@ -126,9 +126,19 @@
       "fields": [
         { "fieldPath": "tenantId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "rentAdjustmentRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "requestedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
 }
+
 
 

@@ -30,13 +30,35 @@ export interface SuperAdminUser {
   password?: string; // WARNING: Stored in plain text. Use Firebase Auth in production.
 }
 
+export interface RentHistoryEntry {
+  rate: number;
+  startDate: string; // ISO String
+  endDate: string | null; // ISO String or null for current
+}
+
+export interface RentAdjustmentRequest {
+  id: string; // Firestore doc ID
+  tenantId: string;
+  tenantName: string; // Denormalized for easy display
+  clientId: string;
+  currentRate: number;
+  proposedRate: number;
+  reason: string;
+  status: 'pending' | 'approved' | 'denied';
+  requestedAt: string; // ISO String
+  effectiveDate: string; // ISO String, start of the month
+  adminNotes?: string;
+  resolvedAt?: string; // ISO String
+  resolvedBy?: string; // admin username
+}
 
 export interface Tenant {
   id: string; // Firestore document ID
   name: string;
   email: string;
   phone: string;
-  monthlyRentalRate: number;
+  monthlyRentalRate: number; // For initial creation and display of current rate
+  rent_history: RentHistoryEntry[]; // NEW: For versioned rent rates
   securityDeposit?: number;
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
@@ -300,6 +322,7 @@ export interface AppContextType {
   announcements: Announcement[];
   contractTemplates: ContractTemplate[];
   signedContracts: SignedContract[];
+  rentAdjustmentRequests: RentAdjustmentRequest[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -312,7 +335,7 @@ export interface AppContextType {
   updateSystemTimezone: (timezone: string) => void;
   updateBackupScheduleSettings: (settings: BackupScheduleSettings) => Promise<void>;
 
-  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId'>) => Promise<void>;
+  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<void>;
   updateTenant: (tenant: Tenant) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
   uploadContract: (tenantId: string, file: File) => Promise<void>;
@@ -363,6 +386,11 @@ export interface AppContextType {
   initiateContract: (tenantId: string, templateId: string) => Promise<void>;
   signContract: (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => Promise<void>;
   finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => Promise<void>;
+
+  // Rent Adjustments
+  addRentAdjustmentRequest: (requestData: Omit<RentAdjustmentRequest, 'id'|'requestedAt'|'status'|'clientId'|'tenantName'>) => Promise<void>;
+  approveRentAdjustmentRequest: (requestId: string) => Promise<void>;
+  denyRentAdjustmentRequest: (requestId: string, adminNotes: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
