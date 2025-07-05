@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Handshake } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -72,7 +72,6 @@ const appNavItems: AppSidebarNavItem[] = [
   { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
   { isGroup: false, href: '/announcements', label: 'Announcements', icon: Megaphone, clientAdminOnly: true },
   { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
-  { isGroup: false, href: '/admin/contracts', label: 'Contract Templates', icon: FileText, clientAdminOnly: true },
   {
     isGroup: true,
     label: 'Reports',
@@ -514,7 +513,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements', '/admin/contracts'].includes(item.href)}
+                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements'].includes(item.href)}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />

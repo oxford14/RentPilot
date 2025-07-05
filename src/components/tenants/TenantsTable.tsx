@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -13,8 +12,8 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileSignature, SendToBack, UserRoundCheck, Clock } from 'lucide-react';
-import type { Tenant, ContractTemplate } from '@/lib/types';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, Clock } from 'lucide-react';
+import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMinutes } from 'date-fns';
@@ -30,13 +29,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ReminderDialog } from './ReminderDialog';
 import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ContractUploadDialog } from './ContractUploadDialog';
-import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { InPersonSigningDialog } from './InPersonSigningDialog';
-import { ContractDurationDialog } from './ContractDurationDialog';
-import { LandlordInfoDialog, type LandlordInfo } from './LandlordInfoDialog';
 
 
 interface TenantsTableProps {
@@ -44,36 +36,14 @@ interface TenantsTableProps {
   showInactiveTenants: boolean;
 }
 
-interface ContractFlowContext {
-  tenant: Tenant;
-  templateId?: string;
-  endDate?: Date;
-  action?: 'initiate' | 'upload' | 'renew';
-  landlordInfo?: LandlordInfo;
-}
-
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, signedContracts, initiateContract, deleteContract } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
   const { toast } = useToast();
   
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
-  const [contractToDelete, setContractToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
-  
-  const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
-  const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
-
-  const [isActionChoiceOpen, setIsActionChoiceOpen] = useState(false);
-  const [isSignNowOpen, setIsSignNowOpen] = useState(false);
-  const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
-  const [isRenewChoiceOpen, setIsRenewChoiceOpen] = useState(false);
-
-  const [contractFlowContext, setContractFlowContext] = useState<ContractFlowContext | null>(null);
-  
-  const [isLandlordInfoOpen, setIsLandlordInfoOpen] = useState(false);
-  const [requiredLandlordFields, setRequiredLandlordFields] = useState({ name: false, position: false, signature: false });
 
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -103,17 +73,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       setTenantToDelete(null);
     }
   };
-
-  const confirmDeleteContract = (tenant: Tenant) => {
-    setContractToDelete(tenant);
-  }
-
-  const handleDeleteContractConfirmed = async () => {
-    if (contractToDelete) {
-      await deleteContract(contractToDelete.id);
-      setContractToDelete(null);
-    }
-  }
 
   const handleGenerateAccount = async (tenant: Tenant) => {
     if (tenant.hasAccount) {
@@ -165,66 +124,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setTenantForReminder(tenant);
     setIsReminderOpen(true);
   };
-  
-  const handleDurationConfirm = (endDate: Date) => {
-    if (!contractFlowContext) return;
-    
-    const newContext = { ...contractFlowContext, endDate };
-
-    setIsDurationDialogOpen(false);
-    
-    if (newContext.action === 'renew') {
-      setContractFlowContext(newContext); 
-      setIsRenewChoiceOpen(true); 
-    } else if (newContext.action === 'initiate') {
-      setContractFlowContext(newContext);
-      setIsTemplateSelectOpen(true);
-    } else if (newContext.action === 'upload') {
-      setContractFlowContext(newContext);
-      setIsContractUploadOpen(true);
-    }
-  };
-
-  const handleOpenDurationDialog = (tenant: Tenant, action: 'initiate' | 'upload' | 'renew') => {
-    setContractFlowContext({ tenant, action });
-    setIsDurationDialogOpen(true);
-  };
-
-  const handleConfirmTemplateSelect = () => {
-    if (!contractFlowContext || !contractFlowContext.templateId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Please select a template.' });
-      return;
-    }
-    const template = contractTemplates.find(t => t.id === contractFlowContext.templateId);
-    if (!template) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Selected template could not be found.' });
-      return;
-    }
-
-    const body = template.body;
-    const requiresName = body.includes('{{{landlord_name}}}');
-    const requiresPosition = body.includes('{{{landlord_position}}}');
-    const requiresSignature = body.includes('{{{landlord_signature_block}}}');
-
-    if (requiresName || requiresPosition || requiresSignature) {
-      setRequiredLandlordFields({ name: requiresName, position: requiresPosition, signature: requiresSignature });
-      setIsTemplateSelectOpen(false);
-      setIsLandlordInfoOpen(true);
-    } else {
-      setIsTemplateSelectOpen(false);
-      setIsActionChoiceOpen(true);
-    }
-  };
-
-  const handleLandlordInfoSubmit = (info: LandlordInfo) => {
-    setContractFlowContext(ctx => ctx ? { ...ctx, landlordInfo: info } : null);
-    setIsLandlordInfoOpen(false);
-    setIsActionChoiceOpen(true);
-  };
-  
-  const handleCloseFlow = () => {
-    setContractFlowContext(null);
-  };
 
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
@@ -272,100 +171,76 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedTenants.map((tenant) => {
-              const signedContract = tenant.activeContractId ? signedContracts.find(c => c.id === tenant.activeContractId) : null;
-              const hasSignedContract = signedContract?.status === 'signed';
-              const hasUploadedContract = !!tenant.contractUrl;
-              const hasContract = hasSignedContract || hasUploadedContract;
-              
-              return (
-                <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                          <span>{tenant.name}</span>
-                      </div>
-                      {tenant.contractEndDate && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                          <Clock className="h-3 w-3"/>
-                          Ends: {format(new Date(tenant.contractEndDate), "PP")}
-                        </span>
-                      )}
+            {displayedTenants.map((tenant) => (
+              <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
+                <TableCell className="font-medium">
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                        <span>{tenant.name}</span>
                     </div>
-                  </TableCell>
-                  <TableCell>{tenant.email}</TableCell>
-                  <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
-                  <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'} className={tenant.status === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-red-500/20 text-red-700 border-red-400'}>
-                      {tenant.status === 'active' ? <UserCheck className="h-3 w-3 mr-1" /> : <UserX className="h-3 w-3 mr-1" />}
-                      {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
+                    {tenant.contractEndDate && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3"/>
+                        Ends: {format(new Date(tenant.contractEndDate), "PP")}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>{tenant.email}</TableCell>
+                <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
+                <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
+                <TableCell className="text-center">
+                  <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'} className={tenant.status === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-red-500/20 text-red-700 border-red-400'}>
+                    {tenant.status === 'active' ? <UserCheck className="h-3 w-3 mr-1" /> : <UserX className="h-3 w-3 mr-1" />}
+                    {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      {tenant.status === 'active' && (
+                        <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
+                          <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                         </DropdownMenuItem>
-                        {tenant.status === 'active' && (
-                          <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
-                            <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
+                      )}
+                      <DropdownMenuSeparator />
+                      {tenant.hasAccount ? (
+                        <>
+                          <DropdownMenuItem onClick={() => handleViewCredentials(tenant)}>
+                            <UserSearch className="mr-2 h-4 w-4" /> View Credentials
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'initiate')} disabled={hasContract}>
-                            <FileSignature className="mr-2 h-4 w-4" /> Initiate Digital Contract
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'upload')} disabled={hasContract}>
-                            <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
-                        </DropdownMenuItem>
-                        {hasContract && tenant.contractEndDate && (
-                          <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'renew')}>
-                            <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
+                          <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
                           </DropdownMenuItem>
-                        )}
-                        {hasContract && (
-                            <DropdownMenuItem onClick={() => confirmDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Contract
-                            </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        {tenant.hasAccount ? (
-                          <>
-                            <DropdownMenuItem onClick={() => handleViewCredentials(tenant)}>
-                              <UserSearch className="mr-2 h-4 w-4" /> View Credentials
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
-                              <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
-                            <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
-                          {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
-                          Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
+                        </>
+                      ) : (
+                        <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
+                          <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete Tenant
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
+                        {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+                        Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete Tenant
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -391,25 +266,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         )}
       </AlertDialog>
 
-      <AlertDialog open={!!contractToDelete} onOpenChange={(isOpen) => { if (!isOpen) setContractToDelete(null); }}>
-        {contractToDelete && (
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Delete Contract for {contractToDelete.name}</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete the contract associated with this tenant? This will allow you to upload or initiate a new one. This action is not reversible.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setContractToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteContractConfirmed} className={buttonVariants({ variant: "destructive" })}>
-                Delete Contract
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        )}
-      </AlertDialog>
-
       <ReminderDialog 
         isOpen={isReminderOpen}
         onClose={() => setIsReminderOpen(false)}
@@ -423,143 +279,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           username={credentials.username}
           password={credentials.password}
           clientName={clientNameForGreeting}
-        />
-      )}
-      {contractFlowContext?.tenant && contractFlowContext.action === 'upload' && (
-        <ContractUploadDialog
-          isOpen={isContractUploadOpen}
-          onClose={() => { setIsContractUploadOpen(false); handleCloseFlow(); }}
-          tenant={contractFlowContext.tenant}
-          contractEndDate={contractFlowContext.endDate || null}
-        />
-      )}
-      {contractFlowContext && (
-        <ContractDurationDialog
-          isOpen={isDurationDialogOpen}
-          onClose={() => { setIsDurationDialogOpen(false); handleCloseFlow(); }}
-          tenant={contractFlowContext.tenant}
-          mode={contractFlowContext.action === 'renew' ? 'renew' : 'new'}
-          onConfirm={handleDurationConfirm}
-        />
-      )}
-      <Dialog open={isTemplateSelectOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsTemplateSelectOpen(open); }}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Initiate Contract for {contractFlowContext?.tenant.name}</DialogTitle>
-                <DialogDescription>
-                    Select a template to generate the contract.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                <Select onValueChange={(val) => setContractFlowContext(ctx => ctx ? ({ ...ctx, templateId: val }) : null)} value={contractFlowContext?.templateId || ''}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a contract template..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {contractTemplates.length > 0 ? (
-                            contractTemplates.map(template => (
-                                <SelectItem key={template.id} value={template.id}>
-                                    {template.name}
-                                </SelectItem>
-                            ))
-                        ) : (
-                            <SelectItem value="no-templates" disabled>No templates available</SelectItem>
-                        )}
-                    </SelectContent>
-                </Select>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                <Button onClick={handleConfirmTemplateSelect} disabled={!contractFlowContext?.templateId}>
-                    Next
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {contractFlowContext?.tenant && (
-        <LandlordInfoDialog
-          isOpen={isLandlordInfoOpen}
-          onClose={() => { setIsLandlordInfoOpen(false); handleCloseFlow(); }}
-          onSubmit={handleLandlordInfoSubmit}
-          requiredFields={requiredLandlordFields}
-        />
-      )}
-
-      <Dialog open={isActionChoiceOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsActionChoiceOpen(open); }}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Choose Signing Method</DialogTitle>
-                <DialogDescription>
-                    How would you like to proceed with the contract for {contractFlowContext?.tenant.name}?
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
-                <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => {
-                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant || !contractFlowContext?.endDate) return;
-                    initiateContract(contractFlowContext.tenant.id, contractFlowContext.templateId, contractFlowContext.endDate, contractFlowContext.landlordInfo);
-                    setIsActionChoiceOpen(false);
-                    handleCloseFlow();
-                }}>
-                    <SendToBack className="h-5 w-5" />
-                    Send Invitation to Tenant
-                </Button>
-
-                <Button variant="default" className="h-20 flex-col gap-2" onClick={() => {
-                    if (!contractFlowContext?.templateId || !contractFlowContext?.tenant) return;
-                    const template = contractTemplates.find(t => t.id === contractFlowContext.templateId);
-                    if (!template) {
-                        toast({ variant: 'destructive', title: 'Error', description: 'Template not found.' });
-                        return;
-                    }
-                    setIsActionChoiceOpen(false);
-                    setIsSignNowOpen(true);
-                }}>
-                    <UserRoundCheck className="h-5 w-5" />
-                    Sign In Person Now
-                </Button>
-            </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isRenewChoiceOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsRenewChoiceOpen(open); }}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Renew Contract for {contractFlowContext?.tenant.name}</DialogTitle>
-                <DialogDescription>
-                    The contract end date has been updated. How would you like to add the new contract document?
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
-                <Button variant="default" className="h-24 flex-col gap-2" onClick={() => {
-                    if (!contractFlowContext) return;
-                    setIsRenewChoiceOpen(false);
-                    setIsTemplateSelectOpen(true);
-                }}>
-                    <FileSignature className="h-6 w-6" />
-                    Initiate Digital Contract
-                </Button>
-                <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => {
-                    if (!contractFlowContext) return;
-                    setContractFlowContext(ctx => ctx ? { ...ctx, action: 'upload' } : null);
-                    setIsRenewChoiceOpen(false);
-                    setIsContractUploadOpen(true);
-                }}>
-                    <FileUp className="h-6 w-6" />
-                    Upload Signed PDF
-                </Button>
-            </div>
-        </DialogContent>
-      </Dialog>
-      
-      {contractFlowContext?.tenant && contractFlowContext?.templateId && (
-        <InPersonSigningDialog
-            isOpen={isSignNowOpen}
-            onClose={() => { setIsSignNowOpen(false); handleCloseFlow(); }}
-            tenant={contractFlowContext.tenant}
-            template={contractTemplates.find(t => t.id === contractFlowContext.templateId)!}
-            contractEndDate={contractFlowContext.endDate || null}
-            landlordInfo={contractFlowContext.landlordInfo}
         />
       )}
     </>

@@ -454,98 +454,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const uploadContract = async (tenantId: string, file: File, contractEndDate?: Date | null) => {
-    if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    const tenant = rawTenantsState.find(t => t.id === tenantId);
-    if (!tenant) {
-      toast({ variant: "destructive", title: "Tenant not found" });
-      return;
-    }
-
-    const batch = writeBatch(db);
-    const tenantDocRef = doc(db, 'tenants', tenantId);
-
-    try {
-      if (tenant.contractUrl) {
-        try {
-          const oldStorageRef = ref(storage, tenant.contractUrl);
-          await deleteObject(oldStorageRef);
-        } catch (error: any) {
-          if (error.code !== 'storage/object-not-found') {
-            console.warn("Could not delete old contract file:", error);
-          }
-        }
-      }
-      if (tenant.activeContractId) {
-        const oldContractDoc = doc(db, 'signedContracts', tenant.activeContractId);
-        batch.delete(oldContractDoc);
-      }
-
-      const uniqueFileName = `${uuidv4()}-${file.name}`;
-      const newStorageRef = ref(storage, `contracts/${tenantId}/${uniqueFileName}`);
-      
-      const uploadResult = await uploadBytes(newStorageRef, file);
-      const downloadUrl = await getDownloadURL(uploadResult.ref);
-
-      const updateData: any = { contractUrl: downloadUrl, activeContractId: null };
-      if (contractEndDate) {
-        updateData.contractEndDate = contractEndDate.toISOString();
-      }
-      batch.update(tenantDocRef, updateData);
-      await batch.commit();
-
-      toast({ title: "Contract Uploaded", description: "The new contract has been successfully uploaded." });
-    } catch (error: any) {
-      console.error("Error uploading contract:", error);
-      toast({ variant: "destructive", title: "Upload Failed", description: error.message });
-      throw error;
-    }
+    // Feature disabled
+    return;
   };
 
   const deleteContract = async (tenantId: string) => {
-    if (!authIsAuthenticated) {
-        toast({ variant: "destructive", title: "Unauthorized" });
-        return;
-    }
-    const tenant = rawTenantsState.find(t => t.id === tenantId);
-    if (!tenant) {
-        toast({ variant: "destructive", title: "Error", description: "Tenant not found." });
-        return;
-    }
-
-    try {
-        const batch = writeBatch(db);
-        
-        const tenantRef = doc(db, 'tenants', tenantId);
-        batch.update(tenantRef, {
-            contractUrl: null,
-            activeContractId: null,
-            contractEndDate: null,
-        });
-
-        if (tenant.activeContractId) {
-            const contractRef = doc(db, 'signedContracts', tenant.activeContractId);
-            batch.delete(contractRef);
-        }
-        
-        await batch.commit();
-
-        if (tenant.contractUrl) {
-            const storageRef = ref(storage, tenant.contractUrl);
-            await deleteObject(storageRef).catch(error => {
-                if (error.code !== 'storage/object-not-found') {
-                    console.error("Non-critical error: Failed to delete contract file from storage:", error);
-                }
-            });
-        }
-
-        toast({ title: "Contract Deleted", description: "The contract has been successfully deleted." });
-    } catch (error: any) {
-        console.error("Error deleting contract:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to delete contract: ${error.message}` });
-    }
+    // Feature disabled
+    return;
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
@@ -1301,236 +1216,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addContractTemplate = useCallback(async (templateData: Omit<ContractTemplate, 'id' | 'clientId' | 'createdAt'>) => {
-    if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    const determinedClientId = getScopedClientId();
-    if (!determinedClientId) {
-      toast({ variant: "destructive", title: "Client scope not determined." });
-      return;
-    }
-    try {
-      await addDoc(collection(db, 'contractTemplates'), {
-        ...templateData,
-        clientId: determinedClientId,
-        createdAt: new Date().toISOString(),
-      });
-      toast({ title: 'Template Added', description: 'The new contract template has been saved.' });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error saving template", description: e.message });
-    }
-  }, [getScopedClientId, authIsAuthenticated, toast]);
-
-  const updateContractTemplate = useCallback(async (template: ContractTemplate) => {
-    if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    const { id, ...dataToUpdate } = template;
-    try {
-      await setDoc(doc(db, 'contractTemplates', id), dataToUpdate, { merge: true });
-      toast({ title: 'Template Updated', description: 'The contract template has been updated.' });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error updating template", description: e.message });
-    }
-  }, [authIsAuthenticated, toast]);
-
-  const deleteContractTemplate = useCallback(async (templateId: string) => {
-    if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    try {
-      await deleteDoc(doc(db, 'contractTemplates', templateId));
-      toast({ title: 'Template Deleted', description: 'The contract template has been deleted.' });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Error deleting template", description: e.message });
-    }
-  }, [authIsAuthenticated, toast]);
-
-  const initiateContract = useCallback(async (tenantId: string, templateId: string, contractEndDate?: Date | null, landlordInfo?: LandlordInfo) => {
-    if (!authIsAuthenticated || !authUser) {
-      toast({ variant: 'destructive', title: 'Unauthorized' });
-      return;
-    }
-    const tenant = rawTenantsState.find(t => t.id === tenantId);
-    const template = rawContractTemplatesState.find(t => t.id === templateId);
-
-    if (!tenant || !template) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Tenant or template not found.' });
-      return;
-    }
-    if (!tenant.clientId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Tenant is not associated with a client.' });
-      return;
-    }
-    if (!tenant.hasAccount || !tenant.username) {
-      toast({ variant: 'destructive', title: 'Error', description: 'This tenant does not have an active portal account to receive a contract.' });
-      return;
-    }
-
-    try {
-      let templateBodyWithLandlordSig = template.body;
-      if (landlordInfo?.signatureDataUrl) {
-          const landlordSignatureBlock = `<img src="${landlordInfo.signatureDataUrl}" alt="Landlord Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" />`;
-          templateBodyWithLandlordSig = templateBodyWithLandlordSig.replace(/\{\{\{landlord_signature_block\}\}\}/g, landlordSignatureBlock);
-      }
-
-      const { finalContract } = await generateContract({
-        templateBody: templateBodyWithLandlordSig,
-        tenant_name: tenant.name,
-        monthly_rate: tenant.monthlyRentalRate,
-        security_deposit: tenant.securityDeposit || 0,
-        join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
-        landlord_name: landlordInfo?.name || authUser.username,
-        landlord_position: landlordInfo?.position,
-        todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
-      });
-      
-      const newContractData: Omit<SignedContract, 'id'> = {
-        clientId: tenant.clientId,
-        tenantId: tenant.id,
-        templateId: template.id,
-        contractBody: finalContract,
-        status: 'pending',
-        initiatedAt: new Date().toISOString(),
-      };
-      
-      const batch = writeBatch(db);
-      const contractRef = doc(collection(db, 'signedContracts'));
-      batch.set(contractRef, newContractData);
-
-      const tenantRef = doc(db, 'tenants', tenant.id);
-      batch.update(tenantRef, { 
-          activeContractId: contractRef.id, 
-          contractUrl: null,
-          ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() })
-      });
-      
-      await batch.commit();
-
-      await addAnnouncement({
-        title: "Action Required: New Contract",
-        content: `You have a new contract from ${authUser.username} to sign. Please go to your dashboard to review and sign.`,
-        scope: tenant.clientId,
-        audience: 'tenant',
-        senderId: authUser.username,
-        senderName: authUser.username,
-        recipientId: tenant.id,
-        recipientUsername: tenant.username,
-      });
-
-      toast({ title: 'Contract Initiated', description: `A new contract has been sent to ${tenant.name}.` });
-    } catch (e: any) {
-      console.error("Error initiating contract:", e);
-      toast({ variant: 'destructive', title: 'Contract Initiation Failed', description: e.message });
-    }
-  }, [authIsAuthenticated, toast, rawTenantsState, rawContractTemplatesState, authUser, addAnnouncement]);
-
-  const signContract = useCallback(async (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => {
-    if (!authIsAuthenticated || !authUser) {
-      toast({ variant: 'destructive', title: 'Unauthorized' });
-      return;
-    }
-    const contractRef = doc(db, 'signedContracts', contractId);
-    try {
-      await runTransaction(db, async (transaction) => {
-        const contractDoc = await transaction.get(contractRef);
-        if (!contractDoc.exists()) {
-            throw new Error("Contract could not be found.");
-        }
-        let body = contractDoc.data().contractBody as string;
-        const tenantId = contractDoc.data().tenantId as string;
-        const tenant = rawTenantsState.find(t => t.id === tenantId);
-        
-        if (!tenant) {
-            throw new Error("Associated tenant could not be found.");
-        }
-
-        const signedDate = new Date();
-        
-        // Replace manual inputs
-        if (manualInputs && manualInputs.length > 0) {
-            let inputIndex = 0;
-            body = body.replace(/\{\{\{tenant_manual_input\}\}\}/g, () => {
-                const value = manualInputs[inputIndex] || '[NOT FILLED]';
-                inputIndex++;
-                return `\n\n--- Tenant Input ---\n${value}\n--------------------\n\n`;
-            });
-        }
-        
-        const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed by ${tenant.name} on ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
-        body = body.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
-        
-        transaction.update(contractRef, {
-          contractBody: body,
-          status: 'signed',
-          signedAt: signedDate.toISOString(),
-          signedByIp: 'X.X.X.X', // Placeholder
-        });
-      });
-
-      toast({ title: 'Contract Signed!', description: 'Your agreement has been recorded.' });
-    } catch (e: any) {
-      console.error("Error signing contract:", e);
-      toast({ variant: 'destructive', title: 'Signing Failed', description: e.message });
-    }
-  }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
-
-  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => {
-    if (!authIsAuthenticated || !authUser) {
-      toast({ variant: 'destructive', title: 'Unauthorized' });
-      return;
-    }
-
-    if (!tenant.clientId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Tenant is not associated with a client.' });
-        return;
-    }
-
-    try {
-      const signedDate = new Date();
-      const tenantSignatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
-      
-      const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, tenantSignatureBlock);
-      
-      const batch = writeBatch(db);
-
-      const newContractData: Omit<SignedContract, 'id'> = {
-        clientId: tenant.clientId,
-        tenantId: tenant.id,
-        templateId: templateId,
-        contractBody: finalBody,
-        status: 'signed',
-        initiatedAt: signedDate.toISOString(),
-        signedAt: signedDate.toISOString(),
-        landlordName: landlordInfo?.name,
-        landlordPosition: landlordInfo?.position,
-      };
-
-      const contractRef = doc(collection(db, 'signedContracts'));
-      batch.set(contractRef, newContractData);
-      
-      const tenantRef = doc(db, 'tenants', tenant.id);
-      batch.update(tenantRef, { 
-          activeContractId: contractRef.id, 
-          contractUrl: null,
-          ...(contractEndDate && { contractEndDate: contractEndDate.toISOString() }) 
-      });
-      
-      await batch.commit();
-
-      toast({ title: 'Contract Finalized', description: 'The in-person signature has been recorded and the contract is now active.' });
-
-    } catch (e: any) {
-        console.error("Error finalizing in-person signature:", e);
-        toast({ variant: 'destructive', title: 'Failed to Finalize', description: e.message });
-    }
-  }, [authIsAuthenticated, authUser, toast]);
-
   const contextValue: AppContextType = {
     tenants,
     payments,
@@ -1546,8 +1231,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     weeklyIncomes,
     backupScheduleSettings,
     announcements,
-    contractTemplates,
-    signedContracts,
+    // Contracts state and functions are removed
+    contractTemplates: [], 
+    signedContracts: [],
     
     // Chat
     chatSessions: rawChatSessionsState,
@@ -1563,8 +1249,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addTenant,
     updateTenant,
     attemptDeleteTenant,
-    uploadContract,
-    deleteContract,
+    uploadContract: async () => {}, // No-op
+    deleteContract: async () => {}, // No-op
     generateTenantAccount,
     forceChangeTenantPassword,
     resetTenantPassword,
@@ -1605,12 +1291,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     markAnnouncementAsRead,
 
     // Contracts
-    addContractTemplate,
-    updateContractTemplate,
-    deleteContractTemplate,
-    initiateContract,
-    signContract,
-    finalizeInPersonSignature,
+    addContractTemplate: async () => {}, // No-op
+    updateContractTemplate: async () => {}, // No-op
+    deleteContractTemplate: async () => {}, // No-op
+    initiateContract: async () => {}, // No-op
+    signContract: async () => {}, // No-op
+    finalizeInPersonSignature: async () => {}, // No-op
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,
