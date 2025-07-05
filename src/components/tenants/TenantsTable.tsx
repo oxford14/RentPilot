@@ -13,7 +13,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck, Clock } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileSignature, SendToBack, UserRoundCheck, Clock } from 'lucide-react';
 import type { Tenant, ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -55,8 +55,7 @@ interface ContractFlowContext {
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
   const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, contractTemplates, signedContracts, initiateContract, deleteContract } = useAppContext();
   const { toast } = useToast();
-  const router = useRouter();
-
+  
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [contractToDelete, setContractToDelete] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
@@ -226,10 +225,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const handleCloseFlow = () => {
     setContractFlowContext(null);
   };
-  
-  const handleViewContract = (tenant: Tenant) => {
-    router.push(`/contract/view/${tenant.id}`);
-  };
 
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
@@ -289,18 +284,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                           <span>{tenant.name}</span>
-                          {hasContract && (
-                              <TooltipProvider>
-                              <Tooltip>
-                                  <TooltipTrigger asChild>
-                                  <button onClick={() => handleViewContract(tenant)} className="flex items-center">
-                                      <FileText className="h-4 w-4 text-primary cursor-pointer" />
-                                  </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>View Contract</p></TooltipContent>
-                              </Tooltip>
-                              </TooltipProvider>
-                          )}
                       </div>
                       {tenant.contractEndDate && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
@@ -348,11 +331,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                           <DropdownMenuItem onClick={() => handleOpenDurationDialog(tenant, 'renew')}>
                             <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
                           </DropdownMenuItem>
-                        )}
-                        {hasContract && (
-                            <DropdownMenuItem onClick={() => handleViewContract(tenant)}>
-                                <FileText className="mr-2 h-4 w-4" /> View Contract
-                            </DropdownMenuItem>
                         )}
                         {hasContract && (
                             <DropdownMenuItem onClick={() => confirmDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
