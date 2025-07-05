@@ -136,8 +136,6 @@ export async function serverGenerateTenantAccount(tenantId: string): Promise<{su
         password: hashedPassword,
         hasAccount: true,
         temporaryPassword: true,
-        invitationToken: null, 
-        invitationTokenExpires: null,
     });
     
     return { success: true, username: username, password: temporaryPassword };

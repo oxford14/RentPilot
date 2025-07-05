@@ -51,8 +51,6 @@ export interface Tenant {
   password?: string; // For tenant login
   temporaryPassword?: boolean; // NEW: flag for forced password change
   hasAccount?: boolean; // To track if tenant has created a login
-  invitationToken?: string; // DEPRECATED
-  invitationTokenExpires?: number; // DEPRECATED
   rentAdjustmentDate?: string;
 }
 
