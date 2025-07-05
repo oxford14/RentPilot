@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -89,7 +88,7 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                 <DialogHeader>
                     <DialogTitle>Set Contract Duration</DialogTitle>
                     <DialogDescription>
-                        Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({tenant?.joinDate ? format(new Date(tenant.joinDate), 'PP') : ''}).
+                        Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({tenant?.joinDate ? format(new Date(tenant.joinDate), 'PPP') : ''}).
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
@@ -120,7 +119,7 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                     <div className="p-3 bg-muted rounded-md space-y-2 text-sm">
                          <div className="flex items-center justify-between">
                             <span className="text-muted-foreground flex items-center gap-2"><Calendar className="h-4 w-4"/>Start Date (from Join Date):</span>
-                            <span className="font-semibold">{tenant?.joinDate ? format(new Date(tenant.joinDate), 'PP') : 'N/A'}</span>
+                            <span className="font-semibold">{tenant?.joinDate ? format(new Date(tenant.joinDate), 'PPP') : 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Calculated Contract End Date:</span>
