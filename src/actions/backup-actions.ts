@@ -16,9 +16,6 @@ export async function pushBackupToGoogleDrive(backupData: any): Promise<{ succes
         const fileContent = JSON.stringify(backupData, null, 2);
         const mimeType = 'application/json';
 
-        // Google Apps Script web apps handle POST data differently. We need to construct a form data payload.
-        // Using fetch with application/x-www-form-urlencoded header will make the parameters
-        // available in the `e.parameter` object of the `doPost(e)` function.
         const formData = new URLSearchParams();
         formData.append('file', fileContent);
         formData.append('filename', filename);
@@ -30,17 +27,24 @@ export async function pushBackupToGoogleDrive(backupData: any): Promise<{ succes
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: formData.toString(),
-            // Apps Script web apps often perform a redirect, which fetch handles automatically.
-            // The final response body is what we need to parse.
         });
         
-        const result = await response.json();
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            const result = await response.json();
 
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || `Request failed with status ${response.status}`);
+            if (!response.ok || !result.success) {
+                // If the script returned success: false, use its error message.
+                throw new Error(result.error || `Request failed with status ${response.status}`);
+            }
+
+            return { success: true, fileUrl: result.fileUrl };
+        } else {
+            // The response is not JSON, so it's likely a Google auth page or some other HTML error.
+            const textResponse = await response.text();
+            console.error("Non-JSON response from Google Apps Script:", textResponse);
+            throw new Error("Received an unexpected response from the backup server. This often happens due to incorrect Apps Script permissions. Please ensure it's deployed to be accessible by 'Anyone' (even anonymous).");
         }
-
-        return { success: true, fileUrl: result.fileUrl };
 
     } catch (error: any) {
         console.error("Error pushing backup to Google Drive:", error);
