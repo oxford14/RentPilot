@@ -40,7 +40,7 @@ import {
 } from '@/actions/chat-actions';
 import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
 import { calculateTenantBalance, calculateTenantBalanceBreakdown } from '@/lib/utils';
-import { generateContract } from '@/ai/flows/generate-contract-flow';
+
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 

@@ -105,27 +105,6 @@
         { "fieldPath": "scope", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "contractTemplates",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "clientId", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "signedContracts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "clientId", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "signedContracts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "tenantId", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

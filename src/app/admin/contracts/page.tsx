@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -13,7 +14,7 @@ export default function FeatureDisabledPage() {
           <CardTitle>Feature Disabled</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">The contract management feature is temporarily disabled to resolve a system issue. Please contact support for assistance.</p>
+          <p className="text-muted-foreground">The contract management feature is currently disabled.</p>
         </CardContent>
       </Card>
     </div>
