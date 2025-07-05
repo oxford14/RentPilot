@@ -178,7 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
-  const { viewingAsClientId, clients, setViewMode, announcements, markAnnouncementAsRead } = useAppContext();
+  const { viewingAsClientId, clients, setViewMode, tenants, announcements, markAnnouncementAsRead } = useAppContext();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
@@ -277,6 +277,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
   const activeClientForDisplay = viewingClient || loggedInClient;
+  
+  const currentTenant = React.useMemo(() => {
+      if (authUser?.role !== 'tenant' || !authUser.tenantId) return null;
+      return tenants.find(t => t.id === authUser.tenantId);
+  }, [authUser, tenants]);
 
   React.useEffect(() => {
     if (loggedInClient && !authUser?.isSuperAdmin) {
@@ -673,6 +678,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <Settings className="mr-2 h-4 w-4" />
                         Settings
                     </DropdownMenuItem>
+                )}
+                {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && (
+                  <DropdownMenuItem asChild>
+                    <a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>View My Contract</span>
+                    </a>
+                  </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>

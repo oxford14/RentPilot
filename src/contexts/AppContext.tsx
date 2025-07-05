@@ -415,9 +415,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, message: `Operation failed: ${error.message}`, action: 'error' };
     }
   };
+  
+  const addAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => {
+    if (!authIsAuthenticated || !authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const newAnnouncement = {
+      ...announcementData,
+      createdAt: new Date().toISOString(),
+      readBy: [],
+    };
+    try {
+      await addDoc(collection(db, 'announcements'), newAnnouncement);
+      toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
+    }
+  };
 
   const uploadSignedContract = async (tenantId: string, file: File, contractEndDate: string) => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
@@ -440,6 +459,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       
       toast({ title: "Upload Complete", description: "The signed contract has been saved." });
+
+      // Send notification to tenant
+      const tenant = rawTenantsState.find(t => t.id === tenantId);
+      if (tenant && tenant.hasAccount && tenant.username && tenant.clientId) {
+        await addAnnouncement({
+          title: "Your Contract is Available",
+          content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
+          scope: tenant.clientId,
+          audience: 'tenant',
+          senderId: authUser.username,
+          senderName: authUser.username,
+          recipientId: tenant.id,
+          recipientUsername: tenant.username,
+        });
+      }
+
     } catch (error: any) {
       console.error("Error uploading contract:", error);
       toast({ variant: "destructive", title: "Upload Failed", description: error.message });
@@ -447,7 +482,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const renewSignedContract = async (tenantId: string, file: File, newContractEndDate: string) => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
@@ -1124,25 +1159,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
         console.error("Error updating backup schedule:", error);
         toast({ variant: "destructive", title: "Error", description: `Failed to save schedule: ${error.message}` });
-    }
-  };
-
-  const addAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => {
-    if (!authIsAuthenticated || !authUser) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    const newAnnouncement = {
-      ...announcementData,
-      createdAt: new Date().toISOString(),
-      readBy: [],
-    };
-    try {
-      await addDoc(collection(db, 'announcements'), newAnnouncement);
-      toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
-    } catch (error: any) {
-      console.error("Error posting announcement:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
     }
   };
 
