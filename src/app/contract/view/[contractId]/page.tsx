@@ -1,17 +1,5 @@
-
-"use client";
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-// This page is a fallback to resolve a build conflict and should redirect.
-export default function DeprecatedContractView() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Redirect to the main dashboard or another appropriate page.
-    router.replace('/');
-  }, [router]);
-
-  return null; // Render nothing while redirecting
-}
+// This file is intentionally left with only an export statement.
+// It resolves a Next.js build conflict caused by having two dynamic route files,
+// `[contractId]` and `[tenantId]`, at the same level. This approach
+// ensures this file is not treated as a page, fixing the server startup error.
+export {};
