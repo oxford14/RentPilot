@@ -14,7 +14,7 @@ export default function FeatureDisabledPage() {
           <CardTitle>Feature Disabled</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">The contract management feature is currently disabled to resolve a system startup issue.</p>
+          <p className="text-muted-foreground">The contract signing feature has been disabled to resolve a system startup issue.</p>
         </CardContent>
       </Card>
     </div>
