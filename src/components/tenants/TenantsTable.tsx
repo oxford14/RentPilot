@@ -14,7 +14,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText, FileSignature, SendToBack, UserRoundCheck, Clock } from 'lucide-react';
-import type { Tenant, ContractTemplate, SignedContract } from '@/lib/types';
+import type { Tenant, ContractTemplate } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMinutes } from 'date-fns';
@@ -36,11 +36,20 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, Di
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { InPersonSigningDialog } from './InPersonSigningDialog';
 import { ContractDurationDialog } from './ContractDurationDialog';
+import { LandlordInfoDialog, type LandlordInfo } from './LandlordInfoDialog';
 
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
   showInactiveTenants: boolean;
+}
+
+interface ContractFlowContext {
+  tenant: Tenant;
+  templateId?: string;
+  endDate?: Date;
+  action?: 'initiate' | 'upload' | 'renew';
+  landlordInfo?: LandlordInfo;
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
@@ -54,8 +63,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   
-  const [tenantForContract, setTenantForContract] = useState<Tenant | null>(null);
-  
   const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
   const [isContractUploadOpen, setIsContractUploadOpen] = useState(false);
 
@@ -64,13 +71,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [isDurationDialogOpen, setIsDurationDialogOpen] = useState(false);
   const [isRenewChoiceOpen, setIsRenewChoiceOpen] = useState(false);
 
-  const [contractFlowContext, setContractFlowContext] = useState<{
-    tenant: Tenant;
-    templateId?: string;
-    endDate?: Date;
-    action?: 'initiate' | 'upload' | 'renew';
-  } | null>(null);
+  const [contractFlowContext, setContractFlowContext] = useState<ContractFlowContext | null>(null);
   
+  const [isLandlordInfoOpen, setIsLandlordInfoOpen] = useState(false);
+  const [requiredLandlordFields, setRequiredLandlordFields] = useState({ name: false, position: false, signature: false });
+
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
     updateTenant({ ...tenant, status: newStatus });
@@ -165,14 +170,13 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const handleDurationConfirm = (endDate: Date) => {
     if (!contractFlowContext) return;
     
-    // This is the "all-or-nothing" change from before. End date is held in state.
     const newContext = { ...contractFlowContext, endDate };
 
     setIsDurationDialogOpen(false);
     
     if (newContext.action === 'renew') {
-      setContractFlowContext(newContext); // This context has action: 'renew'
-      setIsRenewChoiceOpen(true); // Opens the dialog in the screenshot
+      setContractFlowContext(newContext); 
+      setIsRenewChoiceOpen(true); 
     } else if (newContext.action === 'initiate') {
       setContractFlowContext(newContext);
       setIsTemplateSelectOpen(true);
@@ -189,20 +193,41 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
 
   const handleConfirmTemplateSelect = () => {
     if (!contractFlowContext || !contractFlowContext.templateId) {
-        toast({variant: 'destructive', title: 'Error', description: 'Please select a template.'});
-        return;
+      toast({ variant: 'destructive', title: 'Error', description: 'Please select a template.' });
+      return;
     }
-    setIsTemplateSelectOpen(false);
+    const template = contractTemplates.find(t => t.id === contractFlowContext.templateId);
+    if (!template) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Selected template could not be found.' });
+      return;
+    }
+
+    const body = template.body;
+    const requiresName = body.includes('{{{landlord_name}}}');
+    const requiresPosition = body.includes('{{{landlord_position}}}');
+    const requiresSignature = body.includes('{{{landlord_signature_block}}}');
+
+    if (requiresName || requiresPosition || requiresSignature) {
+      setRequiredLandlordFields({ name: requiresName, position: requiresPosition, signature: requiresSignature });
+      setIsTemplateSelectOpen(false);
+      setIsLandlordInfoOpen(true);
+    } else {
+      setIsTemplateSelectOpen(false);
+      setIsActionChoiceOpen(true);
+    }
+  };
+
+  const handleLandlordInfoSubmit = (info: LandlordInfo) => {
+    setContractFlowContext(ctx => ctx ? { ...ctx, landlordInfo: info } : null);
+    setIsLandlordInfoOpen(false);
     setIsActionChoiceOpen(true);
-  }
+  };
   
   const handleCloseFlow = () => {
     setContractFlowContext(null);
   };
   
   const handleViewContract = (tenant: Tenant) => {
-    // The dynamic part of the URL is the tenant's ID, which will be received
-    // by the page component as 'params.contractId' because of the folder name.
     router.push(`/contract/view/${tenant.id}`);
   };
 
@@ -473,6 +498,15 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {contractFlowContext?.tenant && (
+        <LandlordInfoDialog
+          isOpen={isLandlordInfoOpen}
+          onClose={() => { setIsLandlordInfoOpen(false); handleCloseFlow(); }}
+          onSubmit={handleLandlordInfoSubmit}
+          requiredFields={requiredLandlordFields}
+        />
+      )}
 
       <Dialog open={isActionChoiceOpen} onOpenChange={(open) => { if (!open) handleCloseFlow(); setIsActionChoiceOpen(open); }}>
         <DialogContent>
@@ -485,7 +519,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                 <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => {
                     if (!contractFlowContext?.templateId || !contractFlowContext?.tenant || !contractFlowContext?.endDate) return;
-                    initiateContract(contractFlowContext.tenant.id, contractFlowContext.templateId, contractFlowContext.endDate);
+                    initiateContract(contractFlowContext.tenant.id, contractFlowContext.templateId, contractFlowContext.endDate, contractFlowContext.landlordInfo);
                     setIsActionChoiceOpen(false);
                     handleCloseFlow();
                 }}>
@@ -500,7 +534,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         toast({ variant: 'destructive', title: 'Error', description: 'Template not found.' });
                         return;
                     }
-                    setContractFlowContext(ctx => ctx ? ({ ...ctx, templateId: template.id }) : null);
                     setIsActionChoiceOpen(false);
                     setIsSignNowOpen(true);
                 }}>
@@ -548,6 +581,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             tenant={contractFlowContext.tenant}
             template={contractTemplates.find(t => t.id === contractFlowContext.templateId)!}
             contractEndDate={contractFlowContext.endDate || null}
+            landlordInfo={contractFlowContext.landlordInfo}
         />
       )}
     </>
