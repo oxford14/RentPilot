@@ -200,22 +200,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   const handleDownloadApp = () => {
-    if (!installPrompt) {
-      toast({
-        title: "Installation Not Available",
-        description: "Your browser doesn't support app installation, or the app isn't ready. Please try again later or use a supported browser like Chrome.",
+    if (installPrompt) {
+      installPrompt.prompt();
+      installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
+        if (choiceResult.outcome === 'accepted') {
+          toast({ title: 'App Installed!', description: 'RentPilot has been added to your home screen.' });
+        } else {
+          toast({ title: 'Installation Cancelled', description: 'You can install the app later from the menu.' });
+        }
+        setInstallPrompt(null);
       });
-      return;
+    } else {
+        toast({
+            title: "Manual Installation",
+            description: "To install, use your browser's 'Add to Home Screen' or 'Install App' option from the menu.",
+            duration: 9000,
+        });
     }
-    installPrompt.prompt();
-    installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
-      if (choiceResult.outcome === 'accepted') {
-        toast({ title: 'App Installed!', description: 'RentPilot has been added to your home screen.' });
-      } else {
-        toast({ title: 'Installation Cancelled', description: 'You can install the app later from the menu.' });
-      }
-      setInstallPrompt(null);
-    });
   };
 
   // Announcement logic
@@ -534,18 +535,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarContent>
           <SidebarFooter className="p-2 border-t">
              <SidebarMenu>
-                {installPrompt && (
-                  <SidebarMenuItem>
-                      <SidebarMenuButton
-                          tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
-                          className="justify-start"
-                          onClick={handleDownloadApp}
-                          >
-                          <Download className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">Download App</span>
-                      </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                <SidebarMenuItem>
+                    <SidebarMenuButton
+                        tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
+                        className="justify-start"
+                        onClick={handleDownloadApp}
+                        >
+                        <Download className="h-5 w-5" />
+                        <span className="group-data-[collapsible=icon]:hidden">Download App</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
@@ -567,7 +566,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex-1 flex items-center gap-3">
               {(() => {
                 if (isTrueAdminView) {
-                  return null; 
+                  return (
+                    <Image
+                      src={MAIN_APP_LOGO_URL}
+                      alt="RentPilot app logo"
+                      width={160}
+                      height={45}
+                      className="h-12 w-auto object-contain"
+                      data-ai-hint="app logo small"
+                      unoptimized
+                    />
+                  );
                 }
                 if (activeClientForDisplay?.logoUrl) {
                   return (
