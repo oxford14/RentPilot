@@ -460,7 +460,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       toast({ title: "Upload Complete", description: "The signed contract has been saved." });
 
-      // Send notification to tenant
+      // Send notification to tenant if they have an account
       const tenant = rawTenantsState.find(t => t.id === tenantId);
       if (tenant && tenant.hasAccount && tenant.username && tenant.clientId) {
         await addAnnouncement({
@@ -942,11 +942,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const generateTenantAccount = async (tenantId: string): Promise<{success: boolean, username?: string, password?: string, message?: string}> => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
       return { success: false, message: "You must be logged in." };
     }
     try {
       const result = await serverGenerateTenantAccount(tenantId);
+
+      if (result.success) {
+        const tenant = rawTenantsState.find(t => t.id === tenantId);
+        if (tenant && tenant.signedContractUrl && tenant.clientId && result.username) {
+            await addAnnouncement({
+              title: "Your Contract is Available",
+              content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
+              scope: tenant.clientId,
+              audience: 'tenant',
+              senderId: authUser.username,
+              senderName: authUser.username,
+              recipientId: tenant.id,
+              recipientUsername: result.username,
+            });
+            toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
+        }
+      }
+      
       return result;
     } catch (error: any) {
       console.error("Error generating tenant account:", error);

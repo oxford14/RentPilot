@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -163,6 +164,11 @@ export function RenewContractDialog({ isOpen, onClose, tenant }: RenewContractDi
                         <div className="text-sm text-muted-foreground">
                         Selected file: {selectedFile.name}
                         </div>
+                    )}
+                    {tenant && !tenant.hasAccount && (
+                        <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
+                            A notification about this contract will be sent to the tenant once their account is generated.
+                        </p>
                     )}
                 </div>
                 <DialogFooter>
