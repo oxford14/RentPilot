@@ -202,29 +202,6 @@ export interface Announcement {
   recipientUsername?: string; // NEW: username of the specific tenant recipient
 }
 
-export interface ContractTemplate {
-  id: string;
-  clientId: string;
-  name: string;
-  body: string; // The Handlebars template string
-  createdAt: string;
-}
-
-export interface SignedContract {
-    id: string;
-    clientId: string;
-    tenantId: string;
-    templateId: string;
-    contractBody: string; // The final, rendered contract text
-    status: 'pending' | 'signed';
-    initiatedAt: string;
-    signedAt?: string;
-    signedByIp?: string; // For audit purposes
-    landlordName?: string;
-    landlordPosition?: string;
-}
-
-
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -293,12 +270,6 @@ export type AttemptDeleteTenantResult = {
   action: 'deleted' | 'inactivated' | 'not_found' | 'error';
 };
 
-export interface LandlordInfo {
-  name: string;
-  position: string;
-  signatureDataUrl: string | null;
-}
-
 // AppContextType now reflects that CRUD operations are async (return Promise)
 export interface AppContextType {
   tenants: Tenant[];
@@ -315,8 +286,6 @@ export interface AppContextType {
   weeklyIncomes: WeeklyIncome[];
   backupScheduleSettings: BackupScheduleSettings | null;
   announcements: Announcement[];
-  contractTemplates: ContractTemplate[];
-  signedContracts: SignedContract[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -332,8 +301,6 @@ export interface AppContextType {
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<void>;
   updateTenant: (tenant: Tenant, rentAdjustmentDate?: string) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
-  uploadContract: (tenantId: string, file: File, contractEndDate?: Date | null) => Promise<void>;
-  deleteContract: (tenantId: string) => Promise<void>;
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
@@ -373,14 +340,6 @@ export interface AppContextType {
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
 
-  // Contracts
-  addContractTemplate: (template: Omit<ContractTemplate, 'id' | 'clientId' | 'createdAt'>) => Promise<void>;
-  updateContractTemplate: (template: ContractTemplate) => Promise<void>;
-  deleteContractTemplate: (templateId: string) => Promise<void>;
-  initiateContract: (tenantId: string, templateId: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => Promise<void>;
-  signContract: (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => Promise<void>;
-  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => Promise<void>;
-
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
   rawPayments: Payment[];
@@ -390,7 +349,7 @@ export interface AppContextType {
   
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];
-
+  
   addDemoRequest: (request: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateDemoRequestStatus: (requestId: string, status: DemoRequest['status']) => Promise<void>;
   deleteDemoRequest: (requestId: string) => Promise<void>;

@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract, LandlordInfo } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,8 +64,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
   const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
   const [rawAnnouncementsState, setRawAnnouncementsState] = useState<Announcement[]>([]);
-  const [rawContractTemplatesState, setRawContractTemplatesState] = useState<ContractTemplate[]>([]);
-  const [rawSignedContractsState, setRawSignedContractsState] = useState<SignedContract[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -88,8 +86,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawChatSessionsState([]);
       setRawDemoRequestsState([]);
       setRawAnnouncementsState([]);
-      setRawContractTemplatesState([]);
-      setRawSignedContractsState([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
@@ -113,8 +109,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
       { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
       { name: 'announcements', setter: setRawAnnouncementsState, label: 'announcements' },
-      { name: 'contractTemplates', setter: setRawContractTemplatesState, label: 'contract templates' },
-      { name: 'signedContracts', setter: setRawSignedContractsState, label: 'signed contracts' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -264,27 +258,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     return rawAnnouncementsState;
   }, [rawAnnouncementsState, authIsAuthenticated]);
-
-  const contractTemplates = useMemo(() => {
-    if (!authIsAuthenticated) return [];
-    const clientId = getScopedClientId();
-    if (authUser?.isSuperAdmin && !clientId) {
-      return rawContractTemplatesState.filter(t => !t.clientId);
-    }
-    return rawContractTemplatesState.filter(t => t.clientId === clientId);
-  }, [rawContractTemplatesState, getScopedClientId, authIsAuthenticated, authUser?.isSuperAdmin]);
-
-  const signedContracts = useMemo(() => {
-    if (!authIsAuthenticated) return [];
-    if (authUser?.role === 'tenant') {
-        return rawSignedContractsState.filter(c => c.tenantId === authUser.tenantId);
-    }
-    const clientId = getScopedClientId();
-     if (authUser?.isSuperAdmin && !clientId) {
-      return rawSignedContractsState.filter(c => !c.clientId);
-    }
-    return rawSignedContractsState.filter(c => c.clientId === clientId);
-  }, [rawSignedContractsState, getScopedClientId, authIsAuthenticated, authUser]);
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => {
     if (!authIsAuthenticated) {
@@ -453,16 +426,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const uploadContract = async (tenantId: string, file: File, contractEndDate?: Date | null) => {
-    // Feature disabled
-    return;
-  };
-
-  const deleteContract = async (tenantId: string) => {
-    // Feature disabled
-    return;
-  };
-  
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
@@ -1231,9 +1194,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     weeklyIncomes,
     backupScheduleSettings,
     announcements,
-    // Contracts state and functions are removed
-    contractTemplates: [], 
-    signedContracts: [],
     
     // Chat
     chatSessions: rawChatSessionsState,
@@ -1249,8 +1209,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addTenant,
     updateTenant,
     attemptDeleteTenant,
-    uploadContract: async () => {}, // No-op
-    deleteContract: async () => {}, // No-op
     generateTenantAccount,
     forceChangeTenantPassword,
     resetTenantPassword,
@@ -1289,14 +1247,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addAnnouncement,
     deleteAnnouncement,
     markAnnouncementAsRead,
-
-    // Contracts
-    addContractTemplate: async () => {}, // No-op
-    updateContractTemplate: async () => {}, // No-op
-    deleteContractTemplate: async () => {}, // No-op
-    initiateContract: async () => {}, // No-op
-    signContract: async () => {}, // No-op
-    finalizeInPersonSignature: async () => {}, // No-op
 
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,
