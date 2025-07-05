@@ -534,16 +534,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SidebarContent>
           <SidebarFooter className="p-2 border-t">
              <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton
-                        tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
-                        className="justify-start"
-                        onClick={handleDownloadApp}
-                        >
-                        <Download className="h-5 w-5" />
-                        <span className="group-data-[collapsible=icon]:hidden">Download App</span>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
+                {installPrompt && (
+                  <SidebarMenuItem>
+                      <SidebarMenuButton
+                          tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
+                          className="justify-start"
+                          onClick={handleDownloadApp}
+                          >
+                          <Download className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">Download App</span>
+                      </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
