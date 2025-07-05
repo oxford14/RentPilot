@@ -351,5 +351,3 @@ export interface AppContextType {
 
   // Tenant Portal
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
-  restoreDataFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
-}
