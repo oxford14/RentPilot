@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,30 +27,31 @@ export default function ContractViewerPage() {
 
     const tenantId = params.tenantId as string;
 
-    const tenant = useMemo(() => {
-        if (!tenantId || tenants.length === 0) return null;
-        return tenants.find(t => t.id === tenantId);
-    }, [tenantId, tenants]);
-
     useEffect(() => {
-        // Don't do anything until we have the user and the tenants list is populated.
-        if (isAuthLoading || !user || tenants.length === 0) {
+        // Guard against running before essential data is loaded.
+        if (isAuthLoading || !user) {
             return;
         }
 
-        // If we have a tenantId but no tenant is found in the list, it's an error.
-        if (tenantId && !tenant) {
-            setError("Tenant not found for the provided ID.");
+        // The context provides filtered tenants. If it's empty, we either
+        // have no tenants for this user, or they haven't loaded yet.
+        // We set loading to false to show either the content or the "not found" message.
+        if (tenants.length === 0 && !isAuthLoading) {
             setIsLoading(false);
-            return;
         }
 
-        // If no tenant is selected (e.g., initial state), just stop loading.
+        const tenant = tenants.find(t => t.id === tenantId);
+
         if (!tenant) {
+            // Only set an error if tenants are loaded but the specific one isn't found.
+            if (tenants.length > 0) {
+                 setError("Tenant not found for the provided ID.");
+            }
             setIsLoading(false);
             return;
         }
 
+        // Reset error if tenant is found on a subsequent run
         setError(null);
 
         // Authorization Check
@@ -81,7 +82,7 @@ export default function ContractViewerPage() {
 
         setIsLoading(false);
 
-    }, [user, tenantId, tenant, tenants, signedContracts, isAuthLoading]);
+    }, [isAuthLoading, user, tenantId, tenants, signedContracts]);
 
     if (isLoading) {
         return (
@@ -104,22 +105,6 @@ export default function ContractViewerPage() {
         );
     }
     
-    if (!tenant) {
-        return (
-            <div className="container mx-auto py-8 text-center">
-                 <Card className="max-w-xl mx-auto">
-                    <CardHeader>
-                        <FileWarning className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <CardTitle>Tenant Not Found</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">The requested tenant could not be found.</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
     if (!contractSource) {
          return (
             <div className="container mx-auto py-8 text-center">
@@ -129,18 +114,20 @@ export default function ContractViewerPage() {
                         <CardTitle>No Contract Found</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">There is no contract on file for {tenant.name}.</p>
+                        <p className="text-muted-foreground">There is no contract on file for the selected tenant.</p>
                     </CardContent>
                 </Card>
             </div>
         );
     }
 
+    const tenantForTitle = tenants.find(t => t.id === tenantId);
+
     return (
         <div className="container mx-auto py-2">
              <Card className="shadow-xl">
                 <CardHeader>
-                    <CardTitle>Contract for {tenant.name}</CardTitle>
+                    <CardTitle>Contract for {tenantForTitle?.name || '...'}</CardTitle>
                     <CardDescription>
                         {contractSource?.type === 'signed' && contractSource.data.signedAt
                             ? `Digitally signed on ${new Date(contractSource.data.signedAt).toLocaleDateString()}`
