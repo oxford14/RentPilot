@@ -220,6 +220,8 @@ export interface SignedContract {
     initiatedAt: string;
     signedAt?: string;
     signedByIp?: string; // For audit purposes
+    landlordName?: string;
+    landlordPosition?: string;
 }
 
 
@@ -291,6 +293,12 @@ export type AttemptDeleteTenantResult = {
   action: 'deleted' | 'inactivated' | 'not_found' | 'error';
 };
 
+interface LandlordInfo {
+  name: string;
+  position: string;
+  signatureDataUrl: string | null;
+}
+
 // AppContextType now reflects that CRUD operations are async (return Promise)
 export interface AppContextType {
   tenants: Tenant[];
@@ -324,7 +332,7 @@ export interface AppContextType {
   addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<void>;
   updateTenant: (tenant: Tenant, rentAdjustmentDate?: string) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
-  uploadContract: (tenantId: string, file: File) => Promise<void>;
+  uploadContract: (tenantId: string, file: File, contractEndDate?: Date | null) => Promise<void>;
   deleteContract: (tenantId: string) => Promise<void>;
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
@@ -369,9 +377,9 @@ export interface AppContextType {
   addContractTemplate: (template: Omit<ContractTemplate, 'id' | 'clientId' | 'createdAt'>) => Promise<void>;
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
-  initiateContract: (tenantId: string, templateId: string) => Promise<void>;
+  initiateContract: (tenantId: string, templateId: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => Promise<void>;
   signContract: (contractId: string, signatureDataUrl: string, manualInputs?: string[]) => Promise<void>;
-  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string) => Promise<void>;
+  finalizeInPersonSignature: (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];

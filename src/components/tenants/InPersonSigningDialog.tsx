@@ -27,6 +27,7 @@ import { Loader2, FileSignature, PenLine, Eraser } from 'lucide-react';
 import type { Tenant, ContractTemplate } from '@/lib/types';
 import SignatureCanvas from 'react-signature-canvas';
 import { cn } from '@/lib/utils';
+import type { LandlordInfo } from './LandlordInfoDialog';
 
 const signNowSchema = z.object({
   agree: z.literal(true, {
@@ -42,9 +43,10 @@ interface InPersonSigningDialogProps {
   tenant: Tenant;
   template: ContractTemplate;
   contractEndDate: Date | null;
+  landlordInfo?: LandlordInfo;
 }
 
-export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contractEndDate }: InPersonSigningDialogProps) {
+export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contractEndDate, landlordInfo }: InPersonSigningDialogProps) {
     const { finalizeInPersonSignature } = useAppContext();
     const { user } = useAuth();
     const { toast } = useToast();
@@ -70,7 +72,9 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contr
                     monthly_rate: tenant.monthlyRentalRate,
                     security_deposit: tenant.securityDeposit || 0,
                     join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
-                    landlord_name: user.username,
+                    landlord_name: landlordInfo?.name || user.username,
+                    landlord_position: landlordInfo?.position,
+                    landlord_signature_data_url: landlordInfo?.signatureDataUrl,
                     todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
                     contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
                 });
@@ -84,7 +88,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contr
         };
 
         generate();
-    }, [isOpen, tenant, template, user, toast, onClose, contractEndDate]);
+    }, [isOpen, tenant, template, user, toast, onClose, contractEndDate, landlordInfo]);
     
     useEffect(() => {
         // Clear signature pad when dialog opens
@@ -101,7 +105,7 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contr
         }
         const signatureDataUrl = sigPad.current!.toDataURL('image/png');
         setIsSubmitting(true);
-        await finalizeInPersonSignature(tenant, template.id, generatedContract, signatureDataUrl, contractEndDate);
+        await finalizeInPersonSignature(tenant, template.id, generatedContract, signatureDataUrl, contractEndDate, landlordInfo);
         setIsSubmitting(false);
         onClose();
     };

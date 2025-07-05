@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -39,8 +40,11 @@ const availablePlaceholders = [
   { label: 'Monthly Rate', tag: '{{{monthly_rate}}}' },
   { label: 'Security Deposit', tag: '{{{security_deposit}}}' },
   { label: 'Join Date', tag: '{{{join_date}}}' },
-  { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
   { label: "Today's Date", tag: '{{{todays_date}}}' },
+  { label: 'Contract End Date', tag: '{{{contract_end_date}}}' },
+  { label: 'Landlord Name', tag: '{{{landlord_name}}}' },
+  { label: 'Landlord Position', tag: '{{{landlord_position}}}' },
+  { label: 'Landlord Signature Block', tag: '{{{landlord_signature_block}}}' },
   { label: 'Tenant Signature Block', tag: '{{{tenant_signature_block}}}' },
   { label: 'Tenant Manual Input', tag: '{{{tenant_manual_input}}}' },
 ];
@@ -122,6 +126,7 @@ export function ContractTemplateForm({ isOpen, onClose, template }: ContractTemp
       security_deposit: 30000,
       join_date: "July 1, 2024",
       landlord_name: "John Smith (Landlord)",
+      landlord_position: "Property Manager",
       todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     };
 
