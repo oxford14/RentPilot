@@ -14,12 +14,14 @@ export async function pushBackupToGoogleDrive(backupData: any): Promise<{ succes
     try {
         const filename = `rentpilot-backup-${format(new Date(), 'yyyy-MM-dd-HH-mm-ss')}.json`;
         const fileContent = JSON.stringify(backupData, null, 2);
+        const base64Content = Buffer.from(fileContent).toString('base64');
         const mimeType = 'application/json';
 
         const formData = new URLSearchParams();
-        formData.append('file', fileContent);
+        formData.append('file', base64Content);
         formData.append('filename', filename);
         formData.append('mimeType', mimeType);
+        formData.append('isBase64', 'true');
 
         const response = await fetch(url, {
             method: 'POST',
