@@ -39,10 +39,11 @@ interface TenantsTableProps {
 }
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract } = useAppContext();
   const { toast } = useToast();
   
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [tenantToDeleteContract, setTenantToDeleteContract] = useState<Tenant | null>(null);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [tenantForReminder, setTenantForReminder] = useState<Tenant | null>(null);
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
@@ -134,6 +135,16 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setIsUploadContractOpen(true);
   };
 
+  const handleOpenDeleteContract = (tenant: Tenant) => {
+    setTenantToDeleteContract(tenant);
+  };
+
+  const handleConfirmDeleteContract = async () => {
+    if (!tenantToDeleteContract) return;
+    await deleteSignedContract(tenantToDeleteContract.id);
+    setTenantToDeleteContract(null);
+  };
+
   const displayedTenants = useMemo(() => {
     let filtered = tenants;
     if (!showInactiveTenants) {
@@ -217,15 +228,20 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                       <DropdownMenuItem onClick={() => handleOpenUploadContract(tenant)}>
+                       <DropdownMenuItem onClick={() => handleOpenUploadContract(tenant)} disabled={!!tenant.signedContractUrl}>
                         <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                       </DropdownMenuItem>
                       {tenant.signedContractUrl && (
-                        <DropdownMenuItem asChild>
-                            <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                                <FileViewIcon className="mr-2 h-4 w-4" /> View Signed Contract
-                            </a>
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem asChild>
+                              <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
+                                  <FileViewIcon className="mr-2 h-4 w-4" /> View Signed Contract
+                              </a>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleOpenDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete Contract
+                          </DropdownMenuItem>
+                        </>
                       )}
                       <DropdownMenuSeparator />
                       {tenant.hasAccount ? (
@@ -274,6 +290,25 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               <AlertDialogCancel onClick={() => setTenantToDelete(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteConfirmed} className={buttonVariants({ variant: "destructive" })}>
                 Proceed
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+
+      <AlertDialog open={!!tenantToDeleteContract} onOpenChange={(isOpen) => { if (!isOpen) setTenantToDeleteContract(null); }}>
+        {tenantToDeleteContract && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Contract for {tenantToDeleteContract.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the signed contract from storage.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setTenantToDeleteContract(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteContract} className={buttonVariants({ variant: "destructive" })}>
+                Delete Contract
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

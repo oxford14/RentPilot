@@ -27,6 +27,7 @@ import {
   runTransaction,
   limit,
   orderBy,
+  deleteField,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, uploadString } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast'; 
@@ -441,6 +442,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error uploading contract:", error);
       toast({ variant: "destructive", title: "Upload Failed", description: error.message });
+    }
+  };
+
+  const deleteSignedContract = async (tenantId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    if (!tenant || !tenant.signedContractUrl) {
+        toast({ variant: "destructive", title: "Error", description: "No contract found for this tenant." });
+        return;
+    }
+
+    try {
+        const storageRef = ref(storage, tenant.signedContractUrl);
+        await deleteObject(storageRef);
+    } catch (error: any) {
+        if (error.code !== 'storage/object-not-found') {
+            console.error("Error deleting contract file from Storage:", error);
+            toast({ variant: "destructive", title: "Deletion Failed", description: `Could not delete file from storage: ${error.message}` });
+            return; // Stop if storage deletion fails for reasons other than not found
+        }
+        console.warn("File not found in storage, but proceeding to remove link from Firestore.");
+    }
+    
+    try {
+        const tenantRef = doc(db, 'tenants', tenantId);
+        await updateDoc(tenantRef, {
+            signedContractUrl: deleteField()
+        });
+        toast({ title: "Contract Deleted", description: "The signed contract has been successfully deleted." });
+    } catch (error: any) {
+        console.error("Error removing contract URL from Firestore:", error);
+        toast({ variant: "destructive", title: "Update Failed", description: `Could not remove contract link from database: ${error.message}` });
     }
   };
 
@@ -1213,6 +1250,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     forceChangeTenantPassword,
     resetTenantPassword,
     uploadSignedContract,
+    deleteSignedContract,
 
     addPayment,
     updatePayment,
