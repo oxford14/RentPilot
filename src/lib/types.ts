@@ -351,3 +351,4 @@ export interface AppContextType {
 
   // Tenant Portal
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
+}

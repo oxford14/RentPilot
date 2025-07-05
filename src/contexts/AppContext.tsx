@@ -873,92 +873,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const restoreDataFromBackup = async (backupFileContent: any): Promise<{ success: boolean; message: string; }> => {
-    if (!authUser?.isSuperAdmin) {
-      const msg = "You do not have permission to restore data.";
-      toast({ variant: "destructive", title: "Unauthorized", description: msg });
-      return { success: false, message: msg };
-    }
-  
-    if (!backupFileContent || typeof backupFileContent !== 'object' || !backupFileContent.data || !backupFileContent.backupType) {
-      return { success: false, message: "Invalid backup file format. Missing 'data' or 'backupType' property." };
-    }
-  
-    const { backupType, data } = backupFileContent;
-    let collectionsToClear: string[];
-    
-    if (backupType === 'Full System Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'superAdminUsers', 'businesses', 'weeklyIncomes', 'additionalDues'];
-    } else if (backupType === 'All Client Data Backup') {
-        collectionsToClear = ['clients', 'tenants', 'payments', 'expenses', 'managedUsers', 'businesses', 'weeklyIncomes', 'additionalDues'];
-    } else {
-        return { success: false, message: `Unknown backup type: "${backupType}". Restore aborted.` };
-    }
-
-    const collectionsToRestore = collectionsToClear.filter(
-        collName => data[collName] && Array.isArray(data[collName])
-    ).map(collName => ({
-        name: collName,
-        data: data[collName],
-    }));
-
-    if (collectionsToRestore.length === 0) {
-      return { success: false, message: "No valid data arrays matching the backup type were found in the file." };
-    }
-  
-    try {
-      let batch = writeBatch(db);
-      let operationCount = 0;
-      const commitLimit = 490;
-  
-      for (const collName of collectionsToClear) {
-        const collRef = collection(db, collName);
-        const snapshot = await getDocs(query(collRef));
-        for (const docSnapshot of snapshot.docs) {
-          batch.delete(docSnapshot.ref);
-          operationCount++;
-          if (operationCount >= commitLimit) {
-            await batch.commit();
-            batch = writeBatch(db);
-            operationCount = 0;
-          }
-        }
-      }
-      if (operationCount > 0) {
-        await batch.commit();
-        batch = writeBatch(db);
-        operationCount = 0;
-      }
-  
-      for (const { name: collName, data: collData } of collectionsToRestore) {
-        for (const item of collData) {
-          if (!item.id) continue;
-          const { id, ...itemData } = item;
-          const docRef = doc(db, collName, id);
-          batch.set(docRef, itemData);
-          operationCount++;
-          if (operationCount >= commitLimit) {
-            await batch.commit();
-            batch = writeBatch(db);
-            operationCount = 0;
-          }
-        }
-      }
-      if (operationCount > 0) {
-        await batch.commit();
-      }
-      
-      const successMsg = `Data successfully restored using '${backupType}'.`;
-      toast({ title: "Restore Successful", description: successMsg });
-      return { success: true, message: successMsg };
-  
-    } catch (error: any) {
-      console.error("Error restoring data from backup:", error);
-      toast({ variant: "destructive", title: "Restore Failed", description: error.message });
-      return { success: false, message: `Restore failed: ${error.message}` };
-    }
-  };
-
   const addBusiness = async (businessName: string) => {
     if (!authIsAuthenticated) {
         toast({ variant: "destructive", title: "Unauthorized" });
@@ -1253,7 +1167,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // Tenant Portal
     cleanClientData,
-    restoreDataFromBackup,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {
