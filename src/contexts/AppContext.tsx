@@ -327,17 +327,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }];
             historyWasModified = true;
 
-            if (originalTenant.contractEndDate) {
-                const originalJoin = new Date(originalTenant.joinDate);
-                const originalEnd = new Date(originalTenant.contractEndDate);
-                const newJoin = new Date(updatedTenant.joinDate);
-
-                const durationMs = originalEnd.getTime() - originalJoin.getTime();
-                const newEndDate = new Date(newJoin.getTime() + durationMs);
-
-                (dataToUpdate as Partial<Tenant>).contractEndDate = newEndDate.toISOString();
-            }
-
         } else if (rentAdjustmentDate && originalTenant && originalTenant.monthlyRentalRate !== updatedTenant.monthlyRentalRate) {
             const adjustmentStart = new Date(rentAdjustmentDate);
             const oldEntryEnd = addDays(adjustmentStart, -1);
