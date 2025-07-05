@@ -1081,6 +1081,74 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // No toast here to avoid bothering user
     }
   };
+  
+  const restoreFromBackup = async (backupData: any): Promise<{ success: boolean; message: string; }> => {
+    if (!authUser?.isSuperAdmin) {
+      const msg = "You do not have permission to restore data.";
+      toast({ variant: "destructive", title: "Unauthorized", description: msg });
+      return { success: false, message: msg };
+    }
+    
+    if (!backupData || !backupData.data || typeof backupData.data !== 'object') {
+        const msg = "Invalid backup file format. Missing 'data' object.";
+        toast({ variant: 'destructive', title: 'Restore Failed', description: msg });
+        return { success: false, message: msg };
+    }
+
+    toast({ title: "Restore In Progress", description: "This may take a moment. Please wait..." });
+
+    const collectionsInBackup = Object.keys(backupData.data);
+    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements'];
+
+    try {
+        const allCurrentDocs: { [key: string]: string[] } = {};
+        for (const collName of allKnownCollections) {
+          const querySnapshot = await getDocs(collection(db, collName));
+          allCurrentDocs[collName] = querySnapshot.docs.map(d => d.id);
+        }
+        
+        const batch = writeBatch(db);
+
+        // Delete any doc that is not in the backup
+        for (const collName of allKnownCollections) {
+          const backupIds = new Set((backupData.data[collName] || []).map((item: any) => item.id));
+          for (const docId of allCurrentDocs[collName]) {
+            if (!backupIds.has(docId)) {
+              batch.delete(doc(db, collName, docId));
+            }
+          }
+        }
+
+        // Set/overwrite documents from the backup
+        for (const collName of collectionsInBackup) {
+            const collectionData = backupData.data[collName];
+            if (Array.isArray(collectionData)) {
+                for (const item of collectionData) {
+                    if (item.id) {
+                        const { id, ...itemData } = item;
+                        Object.keys(itemData).forEach(key => {
+                            if (itemData[key] === undefined) {
+                                delete itemData[key];
+                            }
+                        });
+                        const docRef = doc(db, collName, id);
+                        batch.set(docRef, itemData);
+                    }
+                }
+            }
+        }
+        
+        await batch.commit();
+
+        return { success: true, message: "Restore successful." };
+
+    } catch (error: any) {
+        console.error("Error restoring from backup:", error);
+        toast({ variant: 'destructive', title: 'Restore Failed', description: `An error occurred during the restore process: ${error.message}` });
+        return { success: false, message: `Restore failed: ${error.message}` };
+    }
+  };
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -1164,6 +1232,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addDemoRequest,
     updateDemoRequestStatus,
     deleteDemoRequest,
+    
+    restoreFromBackup,
 
     // Tenant Portal
     cleanClientData,

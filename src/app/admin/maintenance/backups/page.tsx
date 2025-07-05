@@ -126,3 +126,277 @@ const providedBackupData = {
     ]
   }
 }
+export default function BackupsPage() {
+  const { backupScheduleSettings, updateBackupScheduleSettings, restoreFromBackup } = useAppContext();
+  const { toast } = useToast();
+  const [schedule, setSchedule] = useState<BackupScheduleSettings>({
+    isScheduleEnabled: false,
+    frequency: 'weekly',
+    weeklyDay: 1, // Monday
+    dayOfMonth: 1,
+    backupTime: '03:00',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [fileToRestore, setFileToRestore] = useState<any>(null);
+  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
+
+
+  useEffect(() => {
+    if (backupScheduleSettings) {
+      setSchedule(backupScheduleSettings);
+    }
+  }, [backupScheduleSettings]);
+
+  const handleDownloadBackup = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(providedBackupData, null, 2))}`;
+    const link = document.createElement('a');
+    link.href = jsonString;
+    link.download = `rentpilot-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    link.click();
+    toast({ title: "Backup Downloading", description: "Your data is being downloaded as a JSON file." });
+  };
+  
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/json') {
+        toast({ variant: 'destructive', title: 'Invalid File Type', description: 'Please upload a valid JSON backup file.' });
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const content = e.target?.result;
+            if (typeof content !== 'string') throw new Error("File content is not readable.");
+            const parsedData = JSON.parse(content);
+            
+            if (!parsedData.data || !parsedData.data.clients) {
+                throw new Error("Invalid backup file structure.");
+            }
+
+            setFileToRestore(parsedData);
+            setIsRestoreConfirmOpen(true);
+        } catch (error) {
+            console.error("Error parsing backup file:", error);
+            toast({ variant: 'destructive', title: 'File Error', description: `Could not read or parse the backup file. ${(error as Error).message}` });
+        }
+    };
+    reader.readAsText(file);
+
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRestoreConfirmed = async () => {
+    if (!fileToRestore) return;
+    setIsRestoreConfirmOpen(false);
+    setIsRestoring(true);
+
+    const result = await restoreFromBackup(fileToRestore);
+
+    if (result.success) {
+        toast({ title: 'Restore Complete', description: 'Your application data has been restored.' });
+    }
+    // Error toast is handled inside the context function
+    
+    setIsRestoring(false);
+    setFileToRestore(null);
+  };
+
+  const handleSaveSchedule = async () => {
+    setIsSaving(true);
+    await updateBackupScheduleSettings(schedule);
+    setIsSaving(false);
+  };
+  
+
+  return (
+    <>
+    <div className="container mx-auto py-2 space-y-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold font-headline flex items-center">
+          <DatabaseBackup className="mr-3 h-8 w-8 text-primary" />
+          Backup & Restore
+        </h1>
+        <p className="text-muted-foreground">Manage your application data backups and system restore points.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <HardDriveDownload className="w-5 h-5 text-primary" />
+                      Manual Backup
+                  </CardTitle>
+                  <CardDescription>
+                      Download a complete snapshot of your current application data as a JSON file.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <Button onClick={handleDownloadBackup} className="w-full">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Full Backup
+                  </Button>
+              </CardContent>
+          </Card>
+
+          <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <HardDriveUpload className="w-5 h-5 text-primary" />
+                      Restore from Backup
+                  </CardTitle>
+                  <CardDescription>
+                      Upload a JSON backup file to restore the application's data. This will overwrite all existing data.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                    <div className="space-y-1">
+                        <Label htmlFor="backup-file">Backup File (.json)</Label>
+                        <Input id="backup-file" type="file" accept=".json" onChange={handleFileSelect} ref={fileInputRef} disabled={isRestoring} />
+                    </div>
+                    {isRestoring && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Restoring data... This may take a moment. Please do not navigate away.
+                        </div>
+                    )}
+                </div>
+              </CardContent>
+          </Card>
+      </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UploadCloud className="w-5 h-5 text-primary" />
+            Automated Backups
+          </CardTitle>
+          <CardDescription>
+            Configure a schedule for automatic cloud backups. (Feature not yet implemented).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="schedule-enabled"
+              checked={schedule.isScheduleEnabled}
+              onCheckedChange={(checked) => setSchedule(p => ({...p, isScheduleEnabled: checked}))}
+            />
+            <Label htmlFor="schedule-enabled">Enable Automatic Backups</Label>
+          </div>
+
+          {schedule.isScheduleEnabled && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end p-4 border rounded-lg bg-muted/50">
+              <div className="space-y-2">
+                <Label htmlFor="frequency">Frequency</Label>
+                <Select
+                  value={schedule.frequency}
+                  onValueChange={(value) => setSchedule(p => ({...p, frequency: value as any}))}
+                >
+                  <SelectTrigger id="frequency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {schedule.frequency === 'weekly' && (
+                <div className="space-y-2">
+                  <Label htmlFor="weeklyDay">Day of the Week</Label>
+                  <Select
+                    value={String(schedule.weeklyDay)}
+                    onValueChange={(value) => setSchedule(p => ({...p, weeklyDay: Number(value)}))}
+                  >
+                    <SelectTrigger id="weeklyDay">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Monday</SelectItem>
+                      <SelectItem value="2">Tuesday</SelectItem>
+                      <SelectItem value="3">Wednesday</SelectItem>
+                      <SelectItem value="4">Thursday</SelectItem>
+                      <SelectItem value="5">Friday</SelectItem>
+                      <SelectItem value="6">Saturday</SelectItem>
+                      <SelectItem value="0">Sunday</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {schedule.frequency === 'monthly' && (
+                <div className="space-y-2">
+                  <Label htmlFor="dayOfMonth">Day of the Month</Label>
+                  <Select
+                     value={String(schedule.dayOfMonth)}
+                    onValueChange={(value) => setSchedule(p => ({...p, dayOfMonth: Number(value)}))}
+                  >
+                    <SelectTrigger id="dayOfMonth">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                        <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                      ))}
+                      <SelectItem value={99}>Last Day of Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="backupTime">Time of Backup</Label>
+                <Input
+                  id="backupTime"
+                  type="time"
+                  value={schedule.backupTime}
+                  onChange={(e) => setSchedule(p => ({...p, backupTime: e.target.value}))}
+                />
+              </div>
+            </div>
+          )}
+          <Alert>
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Developer Note</AlertTitle>
+              <AlertDescription>
+                This feature is for UI demonstration. The actual cloud function for automated backups is not yet implemented.
+              </AlertDescription>
+            </Alert>
+          <div className="flex justify-end">
+            <Button onClick={handleSaveSchedule} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save Schedule
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+    <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will <strong className="text-destructive">completely overwrite</strong> all current application data with the content from the backup file. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setFileToRestore(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRestoreConfirmed} className={cn(buttonVariants({ variant: "destructive" }))}>
+                    Yes, overwrite everything
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
+  );
+}

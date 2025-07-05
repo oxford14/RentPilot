@@ -163,6 +163,14 @@ export interface ChatSession {
   visitorUnread: boolean;
 }
 
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  sender: 'admin' | 'visitor';
+  text: string;
+  timestamp: string; // ISO string
+}
+
 export interface DemoRequest {
   id: string; // Firestore document ID
   requesterType: 'individual' | 'company';
@@ -349,6 +357,8 @@ export interface AppContextType {
   addDemoRequest: (request: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateDemoRequestStatus: (requestId: string, status: DemoRequest['status']) => Promise<void>;
   deleteDemoRequest: (requestId: string) => Promise<void>;
+  
+  restoreFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
 
   // Tenant Portal
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
