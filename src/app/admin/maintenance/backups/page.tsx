@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud, Save, Terminal, HardDriveUpload } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, UploadCloud, Save, Terminal, HardDriveUpload, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -22,10 +22,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
 import type { BackupScheduleSettings } from '@/lib/types';
+import { pushBackupToGoogleDrive } from '@/actions/backup-actions';
 
 const providedBackupData = {
   "backupType": "Full System Backup",
@@ -131,16 +130,17 @@ export default function BackupsPage() {
   const { toast } = useToast();
   const [schedule, setSchedule] = useState<BackupScheduleSettings>({
     isScheduleEnabled: false,
-    frequency: 'weekly',
+    frequency: 'daily',
     weeklyDay: 1, // Monday
     dayOfMonth: 1,
-    backupTime: '03:00',
+    backupTime: '02:00',
   });
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [fileToRestore, setFileToRestore] = useState<any>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
 
 
   useEffect(() => {
@@ -213,6 +213,34 @@ export default function BackupsPage() {
     await updateBackupScheduleSettings(schedule);
     setIsSaving(false);
   };
+
+  const handlePushBackup = async () => {
+    setIsPushing(true);
+    toast({ title: "Pushing backup to Google Drive...", description: "This may take a moment." });
+
+    const result = await pushBackupToGoogleDrive(providedBackupData);
+
+    if (result.success && result.fileUrl) {
+      toast({
+          title: "Backup Successful!",
+          description: "Your data has been pushed to Google Drive.",
+          action: (
+              <a href={result.fileUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  View File
+              </a>
+          ),
+      });
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Backup Failed",
+            description: result.error || "An unknown error occurred.",
+            duration: 9000,
+        });
+    }
+    setIsPushing(false);
+  };
   
 
   return (
@@ -226,15 +254,15 @@ export default function BackupsPage() {
         <p className="text-muted-foreground">Manage your application data backups and system restore points.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="shadow-lg">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                       <HardDriveDownload className="w-5 h-5 text-primary" />
-                      Manual Backup
+                      Manual Local Backup
                   </CardTitle>
                   <CardDescription>
-                      Download a complete snapshot of your current application data as a JSON file.
+                      Download a snapshot of your current data to your local machine.
                   </CardDescription>
               </CardHeader>
               <CardContent>
@@ -244,6 +272,25 @@ export default function BackupsPage() {
                   </Button>
               </CardContent>
           </Card>
+          
+          <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <UploadCloud className="w-5 h-5 text-primary" />
+                      Manual Cloud Backup
+                  </CardTitle>
+                  <CardDescription>
+                      Push a complete data snapshot to your configured Google Drive.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <Button onClick={handlePushBackup} disabled={isPushing} className="w-full">
+                      {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UploadCloud className="mr-2 h-4 w-4" />}
+                      Push to Google Drive
+                  </Button>
+              </CardContent>
+          </Card>
+
 
           <Card className="shadow-lg">
               <CardHeader>
@@ -252,7 +299,7 @@ export default function BackupsPage() {
                       Restore from Backup
                   </CardTitle>
                   <CardDescription>
-                      Upload a JSON backup file to restore the application's data. This will overwrite all existing data.
+                      Upload a JSON backup file to restore application data.
                   </CardDescription>
               </CardHeader>
               <CardContent>
@@ -264,7 +311,7 @@ export default function BackupsPage() {
                     {isRestoring && (
                         <div className="flex items-center text-sm text-muted-foreground">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Restoring data... This may take a moment. Please do not navigate away.
+                            Restoring data... Please do not navigate away.
                         </div>
                     )}
                 </div>
@@ -279,104 +326,25 @@ export default function BackupsPage() {
             Automated Backups
           </CardTitle>
           <CardDescription>
-            Configure a schedule for automatic cloud backups. (Feature not yet implemented).
+            Configure a schedule for automatic cloud backups to Google Drive.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <Alert>
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Developer Note</AlertTitle>
+              <AlertDescription>
+                The automated scheduling UI is for demonstration. The background function to execute these scheduled backups via your Google Apps Script is not yet implemented. Manual cloud backups are functional.
+              </AlertDescription>
+          </Alert>
           <div className="flex items-center space-x-2">
             <Switch
               id="schedule-enabled"
               checked={schedule.isScheduleEnabled}
               onCheckedChange={(checked) => setSchedule(p => ({...p, isScheduleEnabled: checked}))}
+              disabled
             />
-            <Label htmlFor="schedule-enabled">Enable Automatic Backups</Label>
-          </div>
-
-          {schedule.isScheduleEnabled && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end p-4 border rounded-lg bg-muted/50">
-              <div className="space-y-2">
-                <Label htmlFor="frequency">Frequency</Label>
-                <Select
-                  value={schedule.frequency}
-                  onValueChange={(value) => setSchedule(p => ({...p, frequency: value as any}))}
-                >
-                  <SelectTrigger id="frequency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {schedule.frequency === 'weekly' && (
-                <div className="space-y-2">
-                  <Label htmlFor="weeklyDay">Day of the Week</Label>
-                  <Select
-                    value={String(schedule.weeklyDay)}
-                    onValueChange={(value) => setSchedule(p => ({...p, weeklyDay: Number(value)}))}
-                  >
-                    <SelectTrigger id="weeklyDay">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Monday</SelectItem>
-                      <SelectItem value="2">Tuesday</SelectItem>
-                      <SelectItem value="3">Wednesday</SelectItem>
-                      <SelectItem value="4">Thursday</SelectItem>
-                      <SelectItem value="5">Friday</SelectItem>
-                      <SelectItem value="6">Saturday</SelectItem>
-                      <SelectItem value="0">Sunday</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {schedule.frequency === 'monthly' && (
-                <div className="space-y-2">
-                  <Label htmlFor="dayOfMonth">Day of the Month</Label>
-                  <Select
-                     value={String(schedule.dayOfMonth)}
-                    onValueChange={(value) => setSchedule(p => ({...p, dayOfMonth: Number(value)}))}
-                  >
-                    <SelectTrigger id="dayOfMonth">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                        <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                      ))}
-                      <SelectItem value={99}>Last Day of Month</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="backupTime">Time of Backup</Label>
-                <Input
-                  id="backupTime"
-                  type="time"
-                  value={schedule.backupTime}
-                  onChange={(e) => setSchedule(p => ({...p, backupTime: e.target.value}))}
-                />
-              </div>
-            </div>
-          )}
-          <Alert>
-              <Terminal className="h-4 w-4" />
-              <AlertTitle>Developer Note</AlertTitle>
-              <AlertDescription>
-                This feature is for UI demonstration. The actual cloud function for automated backups is not yet implemented.
-              </AlertDescription>
-            </Alert>
-          <div className="flex justify-end">
-            <Button onClick={handleSaveSchedule} disabled={isSaving}>
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Schedule
-            </Button>
+            <Label htmlFor="schedule-enabled" className="text-muted-foreground">Enable Automatic Backups (Coming Soon)</Label>
           </div>
         </CardContent>
       </Card>
