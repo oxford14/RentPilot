@@ -66,15 +66,20 @@ export function InPersonSigningDialog({ isOpen, onClose, tenant, template, contr
         const generate = async () => {
             setIsLoading(true);
             try {
+                let templateBodyWithLandlordSig = template.body;
+                if (landlordInfo?.signatureDataUrl) {
+                    const landlordSignatureBlock = `<img src="${landlordInfo.signatureDataUrl}" alt="Landlord Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" />`;
+                    templateBodyWithLandlordSig = templateBodyWithLandlordSig.replace(/\{\{\{landlord_signature_block\}\}\}/g, landlordSignatureBlock);
+                }
+
                 const result = await generateContract({
-                    templateBody: template.body,
+                    templateBody: templateBodyWithLandlordSig,
                     tenant_name: tenant.name,
                     monthly_rate: tenant.monthlyRentalRate,
                     security_deposit: tenant.securityDeposit || 0,
                     join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
                     landlord_name: landlordInfo?.name || user.username,
                     landlord_position: landlordInfo?.position,
-                    landlord_signature_data_url: landlordInfo?.signatureDataUrl,
                     todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
                     contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
                 });

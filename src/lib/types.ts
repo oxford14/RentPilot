@@ -293,7 +293,7 @@ export type AttemptDeleteTenantResult = {
   action: 'deleted' | 'inactivated' | 'not_found' | 'error';
 };
 
-interface LandlordInfo {
+export interface LandlordInfo {
   name: string;
   position: string;
   signatureDataUrl: string | null;

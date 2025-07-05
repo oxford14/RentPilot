@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, ContractTemplate, SignedContract, LandlordInfo } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1350,7 +1350,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, toast]);
 
-  const initiateContract = useCallback(async (tenantId: string, templateId: string, contractEndDate?: Date | null) => {
+  const initiateContract = useCallback(async (tenantId: string, templateId: string, contractEndDate?: Date | null, landlordInfo?: LandlordInfo) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1372,13 +1372,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      let templateBodyWithLandlordSig = template.body;
+      if (landlordInfo?.signatureDataUrl) {
+          const landlordSignatureBlock = `<img src="${landlordInfo.signatureDataUrl}" alt="Landlord Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" />`;
+          templateBodyWithLandlordSig = templateBodyWithLandlordSig.replace(/\{\{\{landlord_signature_block\}\}\}/g, landlordSignatureBlock);
+      }
+
       const { finalContract } = await generateContract({
-        templateBody: template.body,
+        templateBody: templateBodyWithLandlordSig,
         tenant_name: tenant.name,
         monthly_rate: tenant.monthlyRentalRate,
         security_deposit: tenant.securityDeposit || 0,
         join_date: new Date(tenant.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }),
-        landlord_name: authUser.username,
+        landlord_name: landlordInfo?.name || authUser.username,
+        landlord_position: landlordInfo?.position,
         todays_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
         contract_end_date: contractEndDate ? contractEndDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' }) : 'N/A',
       });
@@ -1473,7 +1480,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authIsAuthenticated, authUser, toast, rawTenantsState]);
 
-  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate?: Date | null) => {
+  const finalizeInPersonSignature = useCallback(async (tenant: Tenant, templateId: string, generatedBody: string, signatureDataUrl: string, contractEndDate: Date | null, landlordInfo?: LandlordInfo) => {
     if (!authIsAuthenticated || !authUser) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -1486,9 +1493,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const signedDate = new Date();
-      const signatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
+      const tenantSignatureBlock = `<img src="${signatureDataUrl}" alt="Signature" style="width: 200px; height: auto; border-bottom: 1px solid #000;" crossorigin="anonymous" /> <br/> <p style="font-size: 12px;">Signed In-Person on behalf of ${tenant.name}<br/>Witnessed by: ${authUser.username}<br/>Date: ${signedDate.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</p>`;
       
-      const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, signatureBlock);
+      const finalBody = generatedBody.replace(/\{\{\{tenant_signature_block\}\}\}/g, tenantSignatureBlock);
       
       const batch = writeBatch(db);
 
@@ -1500,6 +1507,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         status: 'signed',
         initiatedAt: signedDate.toISOString(),
         signedAt: signedDate.toISOString(),
+        landlordName: landlordInfo?.name,
+        landlordPosition: landlordInfo?.position,
       };
 
       const contractRef = doc(collection(db, 'signedContracts'));

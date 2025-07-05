@@ -21,7 +21,6 @@ const GenerateContractInputSchema = z.object({
   join_date: z.string().describe("The tenant's official join date in a readable format (e.g., 'July 1, 2024')."),
   landlord_name: z.string().describe("The name of the landlord or property manager."),
   landlord_position: z.string().optional().describe("The position or title of the landlord/representative."),
-  landlord_signature_data_url: z.string().optional().describe("A signature image for the landlord as a data URI."),
   todays_date: z.string().describe("The current date when the contract is generated (e.g., 'August 15, 2024')."),
   contract_end_date: z.string().optional().describe("The calculated end date of the contract (e.g., 'June 30, 2025')."),
 });
@@ -47,11 +46,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an assistant that generates a legal contract by filling in a template.
   
   Carefully replace the Handlebars placeholders in the following template with the provided data.
-  The placeholders '{{{tenant_signature_block}}}' and '{{{tenant_manual_input}}}' should NOT be replaced at this stage. They must remain in the final output.
-
-  If you see a '{{{landlord_name}}}' placeholder, replace it with the provided landlord's name.
-  If you see a '{{{landlord_position}}}' placeholder, replace it with the provided landlord's position.
-  If you see a '{{{landlord_signature_block}}}' placeholder and a 'landlord_signature_data_url' is provided, you MUST embed the signature image using the media helper. Otherwise, leave the placeholder as-is.
+  The placeholders '{{{tenant_signature_block}}}' and '{{{tenant_manual_input}}}' should NOT be replaced. They must remain in the final output.
 
   Template:
   {{{templateBody}}}
@@ -63,9 +58,6 @@ const prompt = ai.definePrompt({
   - Join Date: {{{join_date}}}
   - Landlord Name: {{{landlord_name}}}
   - Landlord Position: {{{landlord_position}}}
-  {{#if landlord_signature_data_url}}
-  - Landlord Signature: {{media url=landlord_signature_data_url}}
-  {{/if}}
   - Today's Date: {{{todays_date}}}
   - Contract End Date: {{{contract_end_date}}}
   `,
