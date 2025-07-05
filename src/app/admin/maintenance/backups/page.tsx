@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud, Save, Terminal } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, Upload, UploadCloud, Save, Terminal, HardDriveUpload } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -27,554 +27,102 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import type { BackupScheduleSettings } from '@/lib/types';
 
-export default function AdminBackupsPage() {
-  const {
-    clients,
-    rawTenants,
-    rawPayments,
-    rawExpenses,
-    rawManagedUsers,
-    rawSuperAdminUsers,
-    rawAdditionalDues,
-    rawBusinesses,
-    rawWeeklyIncomes,
-    restoreDataFromBackup,
-    backupScheduleSettings,
-    updateBackupScheduleSettings,
-  } = useAppContext();
-  const { toast } = useToast();
-  const [isSystemBackupLoading, setIsSystemBackupLoading] = useState(false);
-  const [isClientDataBackupLoading, setIsClientDataBackupLoading] = useState(false);
-  const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [isSystemCloudBackupLoading, setIsSystemCloudBackupLoading] = useState(false);
-  const [isClientCloudBackupLoading, setIsClientCloudBackupLoading] = useState(false);
-
-  const [isScheduleEnabled, setIsScheduleEnabled] = useState(false);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'bi-monthly'>('daily');
-  const [dayOfWeek, setDayOfWeek] = useState('0'); // Sunday
-  const [dayOfMonth, setDayOfMonth] = useState('1');
-  const [backupTime, setBackupTime] = useState('02:00');
-  
-  useEffect(() => {
-    if (backupScheduleSettings) {
-        setIsScheduleEnabled(backupScheduleSettings.isScheduleEnabled);
-        setFrequency(backupScheduleSettings.frequency || 'daily');
-        if (backupScheduleSettings.dayOfWeek !== undefined) {
-            setDayOfWeek(String(backupScheduleSettings.dayOfWeek));
-        }
-        if (backupScheduleSettings.dayOfMonth !== undefined) {
-            setDayOfMonth(String(backupScheduleSettings.dayOfMonth));
-        }
-        if (backupScheduleSettings.backupTime) {
-            setBackupTime(backupScheduleSettings.backupTime);
-        }
-    }
-  }, [backupScheduleSettings]);
-
-  const weekDays = [
-    { label: 'Sunday', value: '0' },
-    { label: 'Monday', value: '1' },
-    { label: 'Tuesday', value: '2' },
-    { label: 'Wednesday', value: '3' },
-    { label: 'Thursday', value: '4' },
-    { label: 'Friday', value: '5' },
-    { label: 'Saturday', value: '6' },
-  ];
-
-  const handleDownloadJson = (data: object, filename: string) => {
-    try {
-      const jsonString = JSON.stringify(data, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Backup Successful",
-        description: `${filename} has been downloaded.`,
-      });
-    } catch (error) {
-      console.error("Failed to generate backup:", error);
-      toast({
-        variant: "destructive",
-        title: "Backup Failed",
-        description: "Could not generate the backup file.",
-      });
-    }
-  };
-
-  const handleSystemBackup = () => {
-    setIsSystemBackupLoading(true);
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-    const systemData = {
-      backupType: 'Full System Backup',
-      timestamp: new Date().toISOString(),
-      data: {
-        clients,
-        superAdminUsers: rawSuperAdminUsers,
-        managedUsers: rawManagedUsers,
-        tenants: rawTenants,
-        payments: rawPayments,
-        expenses: rawExpenses,
-        additionalDues: rawAdditionalDues,
-        businesses: rawBusinesses,
-        weeklyIncomes: rawWeeklyIncomes
-      },
-    };
-    handleDownloadJson(systemData, `rentpilot_full-system-backup_${timestamp}.json`);
-    setIsSystemBackupLoading(false);
-  };
-  
-  const handleClientDataBackup = () => {
-    setIsClientDataBackupLoading(true);
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-    const clientData = {
-      backupType: 'All Client Data Backup',
-      timestamp: new Date().toISOString(),
-      data: {
-        clients,
-        managedUsers: rawManagedUsers,
-        tenants: rawTenants,
-        payments: rawPayments,
-        expenses: rawExpenses,
-        additionalDues: rawAdditionalDues,
-        businesses: rawBusinesses,
-        weeklyIncomes: rawWeeklyIncomes
-      },
-    };
-    handleDownloadJson(clientData, `rentpilot_all-client-data-backup_${timestamp}.json`);
-    setIsClientDataBackupLoading(false);
-  };
-
-  const handleUploadToDrive = async (data: object, filename: string, setLoading: (isLoading: boolean) => void) => {
-    setLoading(true);
-
-    const formData = new FormData();
-    formData.append("file", JSON.stringify(data, null, 2));
-    formData.append("filename", filename);
-    formData.append("mimeType", "application/json");
-
-    try {
-      const response = await fetch("https://script.google.com/macros/s/AKfycbxIchCAjfTDrP4ir9JeYSzigEQkEWVLMXNaiFkw_kydkzeJWlmAx60haJ8f1ttYP5nM/exec", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Network response was not ok, status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.fileUrl) {
-         toast({
-          title: "Cloud Backup Successful",
-          description: "Your data has been backed up to Google Drive.",
-          action: (
-            <Link href={result.fileUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-              View File
-            </Link>
-          ),
-         });
-      } else {
-         throw new Error(result.error || 'The script did not return a file URL.');
-      }
-    } catch (err: any) {
-      console.error("Cloud backup failed:", err);
-      toast({
-        variant: "destructive",
-        title: "Cloud Backup Failed",
-        description: err.message || "An unknown error occurred during upload.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleSystemBackupToDrive = () => {
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-    const systemData = {
-      appCode: "RP-SYSTEM",
-      backupType: 'Full System Backup',
-      timestamp: new Date().toISOString(),
-      data: {
-        clients,
-        superAdminUsers: rawSuperAdminUsers,
-        managedUsers: rawManagedUsers,
-        tenants: rawTenants,
-        payments: rawPayments,
-        expenses: rawExpenses,
-        additionalDues: rawAdditionalDues,
-        businesses: rawBusinesses,
-        weeklyIncomes: rawWeeklyIncomes
-      },
-    };
-    handleUploadToDrive(systemData, `rentpilot_full-system-backup_${timestamp}.json`, setIsSystemCloudBackupLoading);
-  };
-  
-  const handleClientDataBackupToDrive = () => {
-    const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm-ss');
-    const clientData = {
-      appCode: "RP-CLIENT",
-      backupType: 'All Client Data Backup',
-      timestamp: new Date().toISOString(),
-      data: {
-        clients,
-        managedUsers: rawManagedUsers,
-        tenants: rawTenants,
-        payments: rawPayments,
-        expenses: rawExpenses,
-        additionalDues: rawAdditionalDues,
-        businesses: rawBusinesses,
-        weeklyIncomes: rawWeeklyIncomes
-      },
-    };
-    handleUploadToDrive(clientData, `rentpilot_all-client-data-backup_${timestamp}.json`, setIsClientCloudBackupLoading);
-  };
-  
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type === 'application/json') {
-        setRestoreFile(file);
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid File Type',
-          description: 'Please select a valid .json backup file.',
-        });
-        setRestoreFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    }
-  };
-
-  const handleRestore = async () => {
-    if (!restoreFile) {
-      toast({
-        variant: 'destructive',
-        title: 'No File Selected',
-        description: 'Please select a backup file to restore.',
-      });
-      return;
-    }
-
-    setIsRestoring(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result;
-        if (typeof text !== 'string') {
-          throw new Error('Failed to read file content.');
-        }
-        const backupData = JSON.parse(text);
-        const result = await restoreDataFromBackup(backupData);
-
-        if (result.success) {
-          setRestoreFile(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        }
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Restore Failed',
-          description: error.message || 'The selected file is not a valid JSON backup.',
-        });
-      } finally {
-        setIsRestoring(false);
-      }
-    };
-    reader.onerror = () => {
-      toast({
-        variant: 'destructive',
-        title: 'File Read Error',
-        description: 'Could not read the selected file.',
-      });
-      setIsRestoring(false);
-    };
-    reader.readAsText(restoreFile);
-  };
-
-  const handleSaveSchedule = () => {
-    const settingsToSave: BackupScheduleSettings = {
-        isScheduleEnabled,
-        frequency,
-        backupTime,
-    };
-    if (frequency === 'weekly') {
-        settingsToSave.dayOfWeek = Number(dayOfWeek);
-    }
-    if (frequency === 'monthly') {
-        settingsToSave.dayOfMonth = Number(dayOfMonth);
-    }
-    updateBackupScheduleSettings(settingsToSave);
-  };
-
-  return (
-    <div className="container mx-auto py-2 space-y-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline flex items-center">
-          <DatabaseBackup className="mr-3 h-8 w-8 text-primary" />
-          Data Backup & Restore
-        </h1>
-        <p className="text-muted-foreground">
-          Create and download local backups or upload to your configured cloud storage.
-        </p>
-      </div>
-
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Local Backup</CardTitle>
-          <CardDescription>
-            Download a JSON file containing a snapshot of your data. Keep these files in a safe place.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
-            <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                 <HardDriveDownload className="h-5 w-5" />
-                 Full System Backup
-              </h3>
-              <p className="text-muted-foreground text-sm mt-1">
-                This backup includes all data: clients, tenants, payments, expenses, and all user accounts (super admin and client users).
-              </p>
-            </div>
-            <Button 
-              onClick={handleSystemBackup} 
-              disabled={isSystemBackupLoading}
-              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
-            >
-              {isSystemBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {isSystemBackupLoading ? 'Generating...' : 'Download Full Backup'}
-            </Button>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
-             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                All Client Data Backup
-              </h3>
-              <p className="text-muted-foreground text-sm mt-1">
-                This backup includes all client-related data: clients, tenants, payments, expenses, and client user accounts. It excludes super admin accounts.
-              </p>
-            </div>
-            <Button 
-              onClick={handleClientDataBackup} 
-              disabled={isClientDataBackupLoading}
-              variant="secondary"
-              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
-            >
-              {isClientDataBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              {isClientDataBackupLoading ? 'Generating...' : 'Download Client Data'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Cloud Backup to Google Drive</CardTitle>
-          <CardDescription>
-            Upload a backup directly to your configured Google Drive via a Google Apps Script. This provides an off-site copy of your data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
-            <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                 <UploadCloud className="h-5 w-5 text-primary" />
-                 Full System Backup to Drive
-              </h3>
-              <p className="text-muted-foreground text-sm mt-1">
-                Backs up all data, including clients, all user types, tenants, payments, and expenses to your Google Drive.
-              </p>
-            </div>
-            <Button 
-              onClick={handleSystemBackupToDrive} 
-              disabled={isSystemCloudBackupLoading}
-              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
-            >
-              {isSystemCloudBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-              {isSystemCloudBackupLoading ? 'Backing Up...' : 'Backup System to Drive'}
-            </Button>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-between p-4 border rounded-lg bg-muted/30">
-             <div>
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <UploadCloud className="h-5 w-5 text-primary" />
-                Client Data Backup to Drive
-              </h3>
-              <p className="text-muted-foreground text-sm mt-1">
-                Backs up all client-related data. It excludes super admin accounts.
-              </p>
-            </div>
-            <Button 
-              onClick={handleClientDataBackupToDrive} 
-              disabled={isClientCloudBackupLoading}
-              variant="secondary"
-              className="mt-4 md:mt-0 md:ml-4 w-full md:w-auto"
-            >
-              {isClientCloudBackupLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-              {isClientCloudBackupLoading ? 'Backing Up...' : 'Backup Client Data to Drive'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Automated Cloud Backup Schedule</CardTitle>
-          <CardDescription>
-            Configure the schedule for automatic backups to your Google Drive.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Alert>
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Backend Setup Required</AlertTitle>
-            <AlertDescription>
-              This UI configures the desired backup schedule. A backend process, like a Firebase Cloud Function, must be deployed separately to read these settings and trigger the backup.
-            </AlertDescription>
-          </Alert>
-
-          <div className="flex items-center space-x-2 pt-4">
-            <Switch id="schedule-enabled" checked={isScheduleEnabled} onCheckedChange={setIsScheduleEnabled} />
-            <Label htmlFor="schedule-enabled">Enable Automated Backups</Label>
-          </div>
-
-          {isScheduleEnabled && (
-            <div className="space-y-4 pt-4 border-t">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="frequency-select">Frequency</Label>
-                  <Select value={frequency} onValueChange={(v) => setFrequency(v as 'daily' | 'weekly' | 'monthly' | 'bi-monthly')}>
-                    <SelectTrigger id="frequency-select">
-                      <SelectValue placeholder="Select frequency..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">Daily</SelectItem>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="bi-monthly">Bi-monthly (15th &amp; Last Day)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {frequency === 'weekly' && (
-                  <div className="space-y-2">
-                      <Label htmlFor="day-of-week-select">Day of the Week</Label>
-                      <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-                          <SelectTrigger id="day-of-week-select">
-                              <SelectValue placeholder="Select day..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {weekDays.map(day => <SelectItem key={day.value} value={day.value}>{day.label}</SelectItem>)}
-                          </SelectContent>
-                      </Select>
-                  </div>
-                )}
-
-                {frequency === 'monthly' && (
-                  <div className="space-y-2">
-                      <Label htmlFor="day-of-month-select">Day of the Month</Label>
-                      <Select value={dayOfMonth} onValueChange={setDayOfMonth}>
-                          <SelectTrigger id="day-of-month-select">
-                              <SelectValue placeholder="Select day..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                            ))}
-                          </SelectContent>
-                      </Select>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="backup-time">Backup Time (Asia/Manila)</Label>
-                  <Input id="backup-time" type="time" value={backupTime} onChange={e => setBackupTime(e.target.value)} />
-                </div>
-              </div>
-              
-              <div className="flex justify-end pt-4">
-                  <Button onClick={handleSaveSchedule}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Schedule
-                  </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-
-      <Card className="shadow-lg border-destructive/50">
-        <CardHeader>
-          <CardTitle>Restore from Backup</CardTitle>
-          <CardDescription>
-            Upload a JSON backup file to restore your system data. This action is irreversible and will overwrite existing data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="backup-file">Backup File (.json)</Label>
-            <Input 
-              id="backup-file" 
-              type="file" 
-              accept=".json"
-              onChange={handleFileSelect}
-              ref={fileInputRef}
-              disabled={isRestoring}
-              className="file:text-primary file:font-semibold"
-            />
-          </div>
-          <Button
-            onClick={() => setIsRestoreConfirmOpen(true)}
-            disabled={!restoreFile || isRestoring}
-            variant="destructive"
-          >
-            {isRestoring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-            {isRestoring ? 'Restoring...' : 'Restore from Backup'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently ERASE all current data (clients, users, tenants, payments, etc.) and replace it with the data from the backup file: <strong className="text-foreground">{restoreFile?.name}</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => {
-                setIsRestoreConfirmOpen(false);
-                handleRestore();
-              }} 
-              className={cn(buttonVariants({ variant: "destructive" }))}>
-                Yes, Overwrite and Restore
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
+const providedBackupData = {
+  "backupType": "Full System Backup",
+  "timestamp": "2025-07-04T15:43:04.592Z",
+  "data": {
+    "clients": [
+      { "id": "5MyScSNM6oUs3SlPqC0f", "subscriptionStatus": "active", "subscriptionRate": 100, "name": "D' First Hub", "subscriptionPlanName": "Individual", "subscriptionEndDate": "2025-08-31T05:00:00.000Z", "logoUrl": "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2F3f86dfa8-5d01-44bd-8c37-49ba1d744394-cropped.png?alt=media&token=ff1ae7fa-2df1-4ece-a397-4224eb731aaf", "status": "Active" },
+      { "id": "RUkVtERL4yYUwV6PEypO", "subscriptionEndDate": "2025-06-30T05:00:00.000Z", "name": "Semin Solutions", "logoUrl": "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2F21a8c638-a543-49ee-a97f-22e95acf6d5e-cropped.png?alt=media&token=199913c5-59b4-47a0-99c5-b0d154ed9637", "subscriptionStatus": "active" },
+      { "id": "c3z1koTiyIqD6aAgpIfs", "logoUrl": "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2F3933e2b3-200a-41b0-beb9-a8ab8d2ee234-cropped.png?alt=media&token=02a8c638-ae25-4318-b431-b079ba420602", "status": "Active", "subscriptionStatus": "active", "subscriptionEndDate": "2025-08-31T05:00:00.000Z", "name": "Demo Client", "subscriptionPlanName": "Company", "subscriptionRate": 500 },
+      { "id": "uvovEi3kvjbJHn5HPVoF", "subscriptionRate": 0, "subscriptionStatus": "active", "status": "Active", "name": "i-VirtuaTech", "logoUrl": "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/client_logos%2Fb40a1e7e-29f4-4027-b923-8308ff92d199-cropped.png?alt=media&token=10feab4d-3992-4404-be42-7adff32967e7", "subscriptionEndDate": "2025-07-31T05:00:00.000Z", "subscriptionPlanName": "Individual" }
+    ],
+    "superAdminUsers": [
+      { "id": "5QkyZyRPN0NQITIo7mz9", "password": "$2a$10$QO0pD6bRqXE6X8EvZ85tZugqLvpbv1Klexv9E/n80ecWSLxkyTFGO", "username": "hiro" },
+      { "id": "lWcRgO3mjaEcpbqvhuvh", "password": "$2a$10$GV7Ff79wm.l35dlE4ckleuMtIx.RYt8F1T7rUhk0YTY..fgWN8mT6", "username": "oxfordadmin" },
+      { "id": "w9F4bvuQAK0pJ5b6ZouS", "lastActive": "2025-06-24T03:52:45.036Z", "password": "$2a$10$LN.tgyTUc7ZgM2fdnxew5ORA9PC4wV5Bd09bVf0ajsdcDPAhhLAjq", "username": "cjadeadmin" }
+    ],
+    "managedUsers": [
+      { "id": "Lj3M38HJvPd32BFKmypF", "clientId": "c3z1koTiyIqD6aAgpIfs", "password": "$2a$10$geMRi6/4TcAA11C2XoSA0OMQeCvIpXTh32zw4BHi53Vb5da6pgX2m", "username": "demo", "role": "admin", "email": "demo_client@gmail.com" },
+      { "id": "TJbqQpK8TvsBNCuQWdsP", "email": "semin@seminsolutions.com", "password": "$2a$10$MH1EEBEKCuRXb7ztGAuPXOx9n4Sv7s5xIE/Lfo9IyTm2OxFMzHSX6", "username": "seminadmin", "role": "admin", "clientId": "RUkVtERL4yYUwV6PEypO" },
+      { "id": "Xa71bK9m52uBQiCaepjx", "email": "nfuerzas@gmail.com", "password": "hackmenot", "username": "nfuerzas", "role": "admin", "clientId": "uvovEi3kvjbJHn5HPVoF" },
+      { "id": "Z5UoqJgjOhuYWxiGVAlq", "role": "admin", "username": "adminjelie", "email": "jeliemaytog10.14@gmail.com", "password": "$2a$10$SZcUUdnDYlwF7lBoMYuLve5xhZH8EDLs.wV5IfpizzqLS7BiJkpiC", "clientId": "uvovEi3kvjbJHn5HPVoF" },
+      { "id": "wwtAQp0THlmJxaO7Y5n6", "username": "adminlalai", "email": "lalai5@gmail.com", "clientId": "5MyScSNM6oUs3SlPqC0f", "role": "admin", "password": "$2a$10$LEt9REirGENgi.ZdCRHu2.p8tCGUV2IxCIfrfiHxBJFjRl53GPGLe" },
+      { "id": "xJuX9ATeEI0dN1OiE3hJ", "clientId": "uvovEi3kvjbJHn5HPVoF", "email": "neilf@gmail.com", "role": "user", "username": "neilf", "password": "$2a$10$2XxzQxXoAMJOxklSltotd.go/oCLYSTarxSAZsib/ckQGpztLYbfe" },
+      { "id": "y145lxqCCkLBN2L8XYgm", "username": "joel", "email": "joelestrebor@gmail.com", "role": "user", "clientId": "5MyScSNM6oUs3SlPqC0f", "password": "$2a$10$CItlCg.c/jhC4J7JWC8KYucLypCZYLIzoJHTZmCRU5GO8z23qpbZC" }
+    ],
+    "tenants": [
+      { "id": "22wYEtenx6HVD6Nn9joq", "monthlyRentalRate": 4000, "status": "active", "joinDate": "2025-07-05T00:00:00.000Z", "email": "cincojenelyn01@gmail.com", "name": "Herle Mae Sumiguin", "hasAccount": false, "clientId": "5MyScSNM6oUs3SlPqC0f", "phone": "09667464257" },
+      { "id": "4Qo9V6JTmJAHv9MEX1rp", "phone": "09667464257", "name": "Ruvelyn Dalogdog", "status": "active", "joinDate": "2025-07-05T00:00:00.000Z", "hasAccount": false, "monthlyRentalRate": 4000, "clientId": "5MyScSNM6oUs3SlPqC0f", "email": "cincojenelyn01@gmail.com" },
+      { "id": "4thdMrmYYHIWTocZjUd0", "phone": "09667464257", "securityDeposit": 0, "monthlyRentalRate": 1950, "clientId": "5MyScSNM6oUs3SlPqC0f", "joinDate": "2025-07-05T00:00:00.000Z", "status": "active", "email": "cincojenelyn01@gmail.com", "hasAccount": false, "name": "Nerissa Aguiles" },
+      { "id": "60g4rGa2JbYXLlBgXnTO", "joinDate": "2025-07-05T00:00:00.000Z", "temporaryPassword": true, "invitationTokenExpires": null, "password": "$2a$10$cnnHe8KZb49mJDvwKuNZb.5LfkC/47ig9bb/RdohYiiqzljTpaP3e", "hasAccount": true, "username": "tenant130779", "monthlyRentalRate": 4000, "email": "cincojenelyn01@gmail.com", "clientId": "5MyScSNM6oUs3SlPqC0f", "phone": "09667464257", "status": "active", "invitationToken": null, "name": "Glydel Dalay" },
+      { "id": "6MMsuWBIRMxFPdUheS1N", "status": "active", "clientId": "5MyScSNM6oUs3SlPqC0f", "joinDate": "2025-07-05T00:00:00.000Z", "phone": "09667464257", "monthlyRentalRate": 4000, "email": "cincojenelyn01@gmail.com", "name": "Daisy Batawi", "hasAccount": false },
+      { "id": "7klR0HoerGqpOgTvnG1Y", "name": "Mary Jane Luao", "email": "cincojenelyn01@gmail.com", "status": "active", "hasAccount": false, "monthlyRentalRate": 4000, "phone": "09667464257", "joinDate": "2025-07-05T00:00:00.000Z", "clientId": "5MyScSNM6oUs3SlPqC0f" },
+      { "id": "CCUwRFRZl1dADbe636DL", "securityDeposit": 6000, "phone": "123123123", "temporaryPassword": false, "monthlyRentalRate": 3000, "status": "active", "email": "tenant2@gmail.com", "clientId": "c3z1koTiyIqD6aAgpIfs", "hasAccount": true, "username": "tenant446902", "joinDate": "2025-07-01T00:00:00.000Z", "password": "$2a$10$zOC4.LLWKUmUpS47iwhXF.Xr263kFFouU5zY0iE9yag0YewFVC/xG", "invitationToken": null, "invitationTokenExpires": null, "activeContractId": "7npCIlyOKDrRnw0cqKyL", "name": "Tenant 2" },
+      { "id": "Da0z1nWy9kNFESNkR7Op", "monthlyRentalRate": 4000, "name": "Abner Fuerzas", "status": "active", "clientId": "uvovEi3kvjbJHn5HPVoF", "phone": "09111111111", "hasAccount": false, "joinDate": "2025-05-24T00:00:00.000Z", "email": "abner@gmail.com" },
+      { "id": "EV2HeqoJjmAzhVJo5aIi", "status": "active", "monthlyRentalRate": 4000, "name": "Novy Joy Sofia", "joinDate": "2025-07-05T00:00:00.000Z", "hasAccount": false, "clientId": "5MyScSNM6oUs3SlPqC0f", "email": "cincojenelyn01@gmail.com", "phone": "09667464257" },
+      { "id": "EtqbnHCzvdi0IRjO5Xh9", "contractUrl": "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/contracts%2FEtqbnHCzvdi0IRjO5Xh9%2F872807c9-5128-407d-ad72-a068cc205523-MedLinq.pdf?alt=media&token=3241107e-cde5-4349-b9b1-6304bb632385", "monthlyRentalRate": 5000, "email": "tenant5@gmail.com", "name": "Tenant 5", "securityDeposit": 5000, "activeContractId": null, "status": "active", "rent_history": [{ "rate": 5000, "startDate": "2025-07-06T00:00:00.000Z", "endDate": null }], "phone": "12312312", "contractEndDate": "2026-07-06T00:00:00.000Z", "hasAccount": false, "joinDate": "2025-07-06T00:00:00.000Z", "clientId": "c3z1koTiyIqD6aAgpIfs", "monthlyDueDay": null },
+      { "id": "NgyJJuatv8CXW1ixri5p", "email": "cincojenelyn01@gmail.com", "joinDate": "2025-06-30T00:00:00.000Z", "status": "active", "phone": "09667464257", "securityDeposit": 0, "monthlyRentalRate": 4000, "clientId": "5MyScSNM6oUs3SlPqC0f", "hasAccount": false, "name": "Ethyl Paran" },
+      { "id": "QhMTQtIjLe83TCYRhOni", "securityDeposit": 5000, "monthlyDueDay": null, "phone": "4234234", "contractEndDate": "2027-07-07T00:00:00.000Z", "activeContractId": null, "contractUrl": null, "clientId": "c3z1koTiyIqD6aAgpIfs", "rent_history": [{ "rate": 6000, "endDate": null, "startDate": "2025-07-07T00:00:00.000Z" }], "monthlyRentalRate": 6000, "hasAccount": false, "joinDate": "2025-07-07T00:00:00.000Z", "name": "Tenant 6", "email": "tenant6@gmail.com", "status": "active" },
+      { "id": "XoO0TUOAdLLQOWD2GXje", "joinDate": "2025-06-23T00:00:00.000Z", "hasAccount": false, "name": "Lance Andrei", "phone": "1234567890", "status": "active", "monthlyRentalRate": 3000, "clientId": "uvovEi3kvjbJHn5HPVoF", "email": "oxfordgalawan@gmail.com", "invitationTokenExpires": 1750854569432, "invitationToken": "b58c1d83-ba65-411e-bce7-778cd7ba7015" },
+      { "id": "YQZZmlbumd7pFi91JmAQ", "contractUrl": null, "phone": "123123123", "securityDeposit": 5000, "monthlyRentalRate": 5000, "clientId": "c3z1koTiyIqD6aAgpIfs", "joinDate": "2025-07-01T00:00:00.000Z", "status": "active", "email": "tenant1@gmail.com", "activeContractId": null, "hasAccount": false, "name": "Tenant 1" },
+      { "id": "YTnufuMFrWSQ7aFRvk6f", "joinDate": "2025-07-05T00:00:00.000Z", "phone": "09667464257", "monthlyRentalRate": 4000, "hasAccount": false, "status": "active", "name": "Charis Mae Tero Dumala", "clientId": "5MyScSNM6oUs3SlPqC0f", "email": "cincojenelyn01@gmail.com" },
+      { "id": "b9FFqUicLt7Rb7N8WcWV", "hasAccount": false, "joinDate": "2025-07-05T00:00:00.000Z", "monthlyRentalRate": 4000, "clientId": "5MyScSNM6oUs3SlPqC0f", "status": "active", "phone": "09667464257", "name": "Flora Mae Dumala", "email": "cincojenelyn01@gmail.com" },
+      { "id": "djbS6xgm7g4FJX5N9IUA", "phone": "09667464257", "email": "cincojenelyn01@gmail.com", "hasAccount": false, "clientId": "5MyScSNM6oUs3SlPqC0f", "monthlyRentalRate": 4000, "status": "active", "joinDate": "2025-07-05T00:00:00.000Z", "name": "Anna Pandayan" },
+      { "id": "gFnmYTbI7wL0wnbr17vA", "email": "tenant4@gmail.com", "rent_history": [{ "endDate": "2025-05-09T00:00:00.000Z", "startDate": "2025-04-01T00:00:00.000Z", "rate": 5000 }, { "rate": 4000, "endDate": null, "startDate": "2025-05-10T00:00:00.000Z" }], "phone": "1231231254", "joinDate": "2025-04-01T00:00:00.000Z", "monthlyRentalRate": 4000, "status": "active", "contractUrl": null, "contractEndDate": "2027-04-02T05:00:00.000Z", "securityDeposit": 8000, "monthlyDueDay": 4, "hasAccount": false, "clientId": "c3z1koTiyIqD6aAgpIfs", "activeContractId": "UQ8yBssdwtl3ZkUzgeca", "name": "Tenant 4" },
+      { "id": "kUe8Dwtfl2eGIu0gSvUY", "monthlyRentalRate": 4000, "joinDate": "2025-07-05T00:00:00.000Z", "name": "Shaddrack Alemar Manalo Banugon", "status": "active", "clientId": "5MyScSNM6oUs3SlPqC0f", "phone": "09667464257", "email": "cincojenelyn01@gmail.com", "hasAccount": false },
+      { "id": "kdNL1Fc7U9BRcp8TAjI4", "clientId": "uvovEi3kvjbJHn5HPVoF", "email": "jelie1014@gmail.com", "monthlyRentalRate": 5000, "status": "active", "hasAccount": false, "joinDate": "2025-05-25T00:00:00.000Z", "phone": "09111111111", "name": "Mayang Fuerzas" },
+      { "id": "mruQU4RmibcZAzUuUEwu", "joinDate": "2025-05-24T00:00:00.000Z", "name": "Ronel Salazar", "clientId": "uvovEi3kvjbJHn5HPVoF", "status": "active", "monthlyRentalRate": 6000, "hasAccount": false, "email": "ron@gmail.com", "phone": "1234567890" },
+      { "id": "muEgv9kiBPrHWmTyZsFs", "email": "jhonful@gmail.com", "status": "active", "clientId": "uvovEi3kvjbJHn5HPVoF", "name": "Jhon Full", "monthlyRentalRate": 7000, "joinDate": "2025-05-24T00:00:00.000Z", "phone": "09111111111", "hasAccount": false },
+      { "id": "pCUI0e074piGLNkXJfeL", "joinDate": "2025-07-05T00:00:00.000Z", "email": "cincojenelyn01@gmail.com", "password": "$2a$10$kQGr8mNNOGx/gk47E6OJge2Zt4cwlAPR.Nh7lBcCSAfFkK8SIvcPC", "clientId": "5MyScSNM6oUs3SlPqC0f", "username": "tenant856895", "invitationToken": null, "phone": "09667464257", "temporaryPassword": true, "name": "Amy Cris Daluyon", "status": "active", "monthlyRentalRate": 4000, "hasAccount": true, "invitationTokenExpires": null },
+      { "id": "qcdQ10vYko0YwhTLVzlv", "status": "active", "contractUrl": null, "rentAdjustmentDate": "2025-07-01", "contractEndDate": "2026-01-01T00:00:00.000Z", "activeContractId": "V8znauwxOxas6os4PXtD", "email": "tenant3@gmail.com", "phone": "21234234243", "joinDate": "2025-01-01T00:00:00.000Z", "clientId": "c3z1koTiyIqD6aAgpIfs", "monthlyRentalRate": 4000, "hasAccount": false, "name": "Tenant 3", "securityDeposit": 5000, "rent_history": [{ "startDate": "2025-01-01T00:00:00.000Z", "rate": 5000, "endDate": "2025-06-30T00:00:00.000Z" }, { "startDate": "2025-07-01T00:00:00.000Z", "rate": 4000, "endDate": null }] }
+    ],
+    "payments": [
+      { "id": "3ecmVHUYdqvzZWm5cFOe", "date": "2025-07-01T19:03:56.371Z", "paymentMethod": "Cash", "clientId": "c3z1koTiyIqD6aAgpIfs", "amount": 4000, "discountDescription": "", "discountApplied": 0, "tenantId": "CCUwRFRZl1dADbe636DL" },
+      { "id": "BSO8OOnd7UfZvtX6dDfu", "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "CCUwRFRZl1dADbe636DL", "discountDescription": "", "checkNumber": "654654", "amount": 200, "date": "2025-07-02T04:53:28.343Z", "discountApplied": 0, "paymentMethod": "Check" },
+      { "id": "DB54khZs8W0JHBg04EQz", "clientId": "c3z1koTiyIqD6aAgpIfs", "amount": 10000, "date": "2025-07-04T11:07:58.017Z", "tenantId": "gFnmYTbI7wL0wnbr17vA", "paymentMethod": "Security Deposit" },
+      { "id": "F6kQyCKwyhyDbGrAmZme", "amount": 6000, "clientId": "c3z1koTiyIqD6aAgpIfs", "date": "2025-07-01T00:00:00.000Z", "paymentMethod": "Security Deposit", "tenantId": "CCUwRFRZl1dADbe636DL" },
+      { "id": "L25ATAvkaagWvMJzKj7W", "discountApplied": 0, "date": "2025-07-01T19:00:03.429Z", "paymentMethod": "From Credit", "discountDescription": "Auto-applied from ₱1000.00 credit towards new Electricity Bill charge.", "amount": 1000, "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "YQZZmlbumd7pFi91JmAQ" },
+      { "id": "NAoAM0S6toAfzHjpEsGC", "tenantId": "gFnmYTbI7wL0wnbr17vA", "date": "2025-04-01T00:00:00.000Z", "paymentMethod": "Security Deposit", "amount": 10000, "clientId": "c3z1koTiyIqD6aAgpIfs" },
+      { "id": "QcYKoJtlh10Lh6r1F1cd", "amount": 5000, "date": "2025-07-04T11:16:10.440Z", "tenantId": "EtqbnHCzvdi0IRjO5Xh9", "clientId": "c3z1koTiyIqD6aAgpIfs", "paymentMethod": "Security Deposit" },
+      { "id": "ScvYcCpe6JipzZK3aQMQ", "tenantId": "CCUwRFRZl1dADbe636DL", "clientId": "c3z1koTiyIqD6aAgpIfs", "date": "2025-07-01T19:05:00.224Z", "discountApplied": 0, "discountDescription": "", "amount": 1000, "paymentMethod": "Bank Transfer" },
+      { "id": "TOnj5CrUsEJQD5uI9toq", "tenantId": "YQZZmlbumd7pFi91JmAQ", "amount": 5000, "clientId": "c3z1koTiyIqD6aAgpIfs", "date": "2025-07-01T00:00:00.000Z", "paymentMethod": "Security Deposit" },
+      { "id": "USozG59LCukpfK514Iyu", "paymentMethod": "Security Deposit", "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "gFnmYTbI7wL0wnbr17vA", "amount": -2000, "date": "2025-07-04T11:26:17.040Z" },
+      { "id": "WwExTFTTg1gy28dYFTsy", "amount": 1000, "paymentMethod": "From Deposit", "date": "2025-07-04T11:07:29.331Z", "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "gFnmYTbI7wL0wnbr17vA" },
+      { "id": "YzOUjyj89WoteukjdqeQ", "tenantId": "YQZZmlbumd7pFi91JmAQ", "paymentMethod": "Cash", "discountApplied": 0, "clientId": "c3z1koTiyIqD6aAgpIfs", "amount": 5000, "discountDescription": "", "date": "2025-07-01T18:59:27.272Z" },
+      { "id": "cVr9tHiUbHtQU5Faf3AT", "tenantId": "gFnmYTbI7wL0wnbr17vA", "amount": 5000, "clientId": "c3z1koTiyIqD6aAgpIfs", "paymentMethod": "Security Deposit", "date": "2025-07-04T11:45:00.426Z" },
+      { "id": "hTD2ECeiFTd5kvWK1JUW", "paymentMethod": "Security Deposit", "tenantId": "QhMTQtIjLe83TCYRhOni", "amount": -5000, "date": "2025-07-04T11:44:23.288Z", "clientId": "c3z1koTiyIqD6aAgpIfs" },
+      { "id": "ixl1cPXg2SCXlcdN57Qf", "discountDescription": "", "amount": 6000, "clientId": "uvovEi3kvjbJHn5HPVoF", "date": "2025-06-24T08:03:51.966Z", "tenantId": "kdNL1Fc7U9BRcp8TAjI4", "discountApplied": 0, "paymentMethod": "Cash" },
+      { "id": "j7zXFsfqFdPtSS4LwdCm", "paymentMethod": "Security Deposit", "tenantId": "qcdQ10vYko0YwhTLVzlv", "amount": 5000, "clientId": "c3z1koTiyIqD6aAgpIfs", "date": "2025-01-01T00:00:00.000Z" },
+      { "id": "mMMebSMUynnDGoyAejJc", "clientId": "c3z1koTiyIqD6aAgpIfs", "date": "2025-07-04T13:37:52.532Z", "amount": 5000, "tenantId": "EtqbnHCzvdi0IRjO5Xh9", "paymentMethod": "Cash", "discountDescription": "", "checkNumber": "", "discountApplied": 0 },
+      { "id": "nzXivgle3AafdkZ7bqeI", "date": "2025-07-04T11:42:21.689Z", "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "QhMTQtIjLe83TCYRhOni", "paymentMethod": "Security Deposit", "amount": 10000 },
+      { "id": "qCKYzV0QUE7dqxpaAxCp", "clientId": "c3z1koTiyIqD6aAgpIfs", "checkNumber": "123123", "date": "2025-07-02T04:54:50.647Z", "discountApplied": 0, "paymentMethod": "Check", "discountDescription": "", "amount": 1500, "tenantId": "YQZZmlbumd7pFi91JmAQ" },
+      { "id": "vtU615QZYoW2Rgiz66I1", "amount": 15000, "clientId": "c3z1koTiyIqD6aAgpIfs", "checkNumber": "23423423", "tenantId": "qcdQ10vYko0YwhTLVzlv", "discountDescription": "", "discountApplied": 0, "date": "2025-07-04T10:08:09.940Z", "paymentMethod": "Check" },
+      { "id": "wvOJlDjr1yPsh32PklvN", "tenantId": "XoO0TUOAdLLQOWD2GXje", "amount": 3000, "date": "2025-06-24T09:11:40.010Z", "clientId": "uvovEi3kvjbJHn5HPVoF", "paymentMethod": "Cash", "discountDescription": "", "discountApplied": 0 }
+    ],
+    "expenses": [],
+    "additionalDues": [
+      { "id": "E0z2T6SrfRSelIxzM9WI", "amount": 1000, "dueDate": "2025-07-01T19:03:06.779Z", "tenantId": "YQZZmlbumd7pFi91JmAQ", "type": "Electricity Bill", "clientId": "c3z1koTiyIqD6aAgpIfs", "notes": "", "createdAt": "2025-07-01T19:03:16.225Z", "status": "unpaid" },
+      { "id": "Fsrno6WrHMQIBdiJVkti", "type": "Electricity Bill", "dueDate": "2025-07-01T18:59:48.881Z", "status": "unpaid", "createdAt": "2025-07-01T19:00:03.429Z", "notes": "", "clientId": "c3z1koTiyIqD6aAgpIfs", "tenantId": "YQZZmlbumd7pFi91JmAQ", "amount": 1500 },
+      { "id": "Mb69eAPcqVv7rBtKh3sh", "tenantId": "CCUwRFRZl1dADbe636DL", "status": "unpaid", "notes": "", "clientId": "c3z1koTiyIqD6aAgpIfs", "dueDate": "2025-07-02T04:53:19.215Z", "createdAt": "2025-07-02T04:53:26.217Z", "type": "Water Bill", "amount": 200 },
+      { "id": "rcyH7oVWq1yl2GKWYMEQ", "dueDate": "2025-07-01T19:03:26.319Z", "notes": "", "type": "Electricity Bill", "createdAt": "2025-07-01T19:03:33.892Z", "status": "unpaid", "tenantId": "CCUwRFRZl1dADbe636DL", "clientId": "c3z1koTiyIqD6aAgpIfs", "amount": 2000 }
+    ],
+    "businesses": [
+      { "id": "5oCK99CJbQHIdHgCDO9g", "dayOfMonth": 25, "breakdownConfig": [], "name": "Car Rental", "clientId": "5MyScSNM6oUs3SlPqC0f", "trackingFrequency": "monthly" },
+      { "id": "McQpt7wHSz2XyEd268my", "trackingFrequency": "weekly", "clientId": "5MyScSNM6oUs3SlPqC0f", "breakdownConfig": [{ "value": 60, "type": "percentage", "name": "ROI", "id": "ab70753f-9f6d-4343-890b-52cc90cbe71e" }, { "type": "fixed", "value": 4000, "id": "41a7e98b-ab17-4ee3-8c66-3f89c32c501b", "name": "Weekly Expenses" }, { "name": "Tithes", "type": "percentage", "value": 10, "id": "f07ed053-7932-43d2-b838-dbb82bd5ad4c" }, { "id": "d36b45e0-8b5c-4c53-8038-729764faaf10", "type": "percentage", "name": "Savings", "value": 20 }, { "value": 0, "type": "manual_input", "name": "Daily Expenses", "id": "7b011734-5927-4a7f-9514-3290ed14fad1" }], "weeklyDay": 5, "name": "Cinco's Select" },
+      { "id": "ryFeeYRFyTF7vJ0FuZXe", "clientId": "5MyScSNM6oUs3SlPqC0f", "breakdownConfig": [{ "id": "71fceecc-c63c-498b-b627-3ca360968c93", "name": "ROI", "type": "percentage", "value": 20 }, { "name": "Monthly Expenses ", "type": "manual_input", "id": "0ad180e7-b66b-4526-808d-eb3f0b69d7fc", "value": 0 }, { "id": "974847dd-d338-4479-8be1-063ce175a96e", "name": "Tithes", "type": "percentage", "value": 10 }, { "type": "percentage", "id": "ac26b3b7-7124-407e-b722-ecbd706d1ff0", "name": "Savings", "value": 20 }], "trackingFrequency": "bi-monthly", "name": "D' First Coworking Space" },
+      { "id": "yI8Sueh1pO4hrnmUawTB", "trackingFrequency": "monthly", "dayOfMonth": 31, "breakdownConfig": [{ "id": "40be46aa-a2a7-4e8e-98db-b92ff0ed252b", "type": "fixed", "value": 10, "name": "Tithes" }], "name": "Piso Wifi and House Wifi", "clientId": "5MyScSNM6oUs3SlPqC0f" }
+    ],
+    "weeklyIncomes": [
+      { "id": "0vLIEEckz6cRaF4rKUwB", "businessId": "McQpt7wHSz2XyEd268my", "income": 50000, "weekOf": "2025-05-22T16:00:00.000Z", "clientId": "5MyScSNM6oUs3SlPqC0f", "breakdown": { "Weekly Expenses": 4000, "Tithes": 2100, "Savings": 3780, "ROI": 25000, "Daily Expenses": 0 }, "remainingMoney": 15120 },
+      { "id": "2XgoegyL3720ZDO4hOjb", "clientId": "5MyScSNM6oUs3SlPqC0f", "breakdown": { "ROI": 25200, "Tithes": 1280, "Weekly Expenses": 4000, "Savings": 2304, "Daily Expenses": 0 }, "remainingMoney": 9216, "businessId": "McQpt7wHSz2XyEd268my", "weekOf": "2025-06-05T16:00:00.000Z", "income": 42000 },
+      { "id": "4s3QLuXaeruPuwHfbDbQ", "remainingMoney": 4100, "income": 4100, "breakdown": {}, "businessId": "yI8Sueh1pO4hrnmUawTB", "clientId": "5MyScSNM6oUs3SlPqC0f", "weekOf": "2025-06-29T16:00:00.000Z" },
+      { "id": "AJlkRrWbh3LpTao5giiY", "breakdown": { "Daily Expenses": 0, "Weekly Expenses": 4000, "Tithes": 1350, "Savings": 2430, "ROI": 17500 }, "weekOf": "2025-05-08T16:00:00.000Z", "clientId": "5MyScSNM6oUs3SlPqC0f", "remainingMoney": 9720, "businessId": "McQpt7wHSz2XyEd268my", "income": 35000 },
+      { "id": "JBqInVkkcl01kQMdYAYm", "weekOf": "2025-06-25T09:20:15.302Z", "remainingMoney": 1800, "clientId": "5MyScSNM6oUs3SlPqC0f", "income": 1800, "businessId": "5oCK99CJbQHIdHgCDO9g", "breakdown": {} },
+      { "id": "MDVVkgcMoV08DqNPdWFA", "remainingMoney": 6048, "breakdown": { "Weekly Expenses": 4000, "Daily Expenses": 0, "ROI": 18600, "Tithes": 840, "Savings": 1512 }, "income": 31000, "clientId": "5MyScSNM6oUs3SlPqC0f", "businessId": "McQpt7wHSz2XyEd268my", "weekOf": "2025-06-26T16:00:00.000Z" },
+      { "id": "WpVwsFd8u6xSuZKOw9rV", "breakdown": { "ROI": 3900, "Monthly Expenses ": 9800, "Tithes": 580, "Savings": 1044 }, "remainingMoney": 4176, "income": 19500, "businessId": "ryFeeYRFyTF7vJ0FuZXe", "weekOf": "2025-07-04T14:34:01.938Z", "clientId": "5MyScSNM6oUs3SlPqC0f" },
+      { "id": "l1GfldUDyRTTrH1BSt3Q", "breakdown": { "ROI": 18600, "Savings": 1512, "Weekly Expenses": 4000, "Tithes": 840, "Daily Expenses": 0 }, "remainingMoney": 6048, "clientId": "5MyScSNM6oUs3SlPqC0f", "businessId": "McQpt7wHSz2XyEd268my", "income": 31000, "weekOf": "2025-07-04T14:18:26.712Z" },
+      { "id": "zRCrEOTMnVKAAiTKv2Y6", "breakdown": { "Tithes": 1680, "Daily Expenses": 0, "Weekly Expenses": 4000, "ROI": 31200, "Savings": 3024 }, "weekOf": "2025-05-29T16:00:00.000Z", "remainingMoney": 12096, "businessId": "McQpt7wHSz2XyEd268my", "clientId": "5MyScSNM6oUs3SlPqC0f", "income": 52000 }
+    ]
+  }
 }
