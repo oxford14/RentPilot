@@ -53,6 +53,7 @@ export interface Tenant {
   hasAccount?: boolean; // To track if tenant has created a login
   invitationToken?: string; // DEPRECATED
   invitationTokenExpires?: number; // DEPRECATED
+  rentAdjustmentDate?: string;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
