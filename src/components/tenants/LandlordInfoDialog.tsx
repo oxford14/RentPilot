@@ -20,9 +20,10 @@ import SignatureCanvas from 'react-signature-canvas';
 import { useToast } from '@/hooks/use-toast';
 import { Eraser, PenLine } from 'lucide-react';
 
+// Base schema with optional fields
 const landlordInfoSchema = z.object({
-  landlordName: z.string().min(2, "Name is required."),
-  landlordPosition: z.string().min(2, "Position is required."),
+  landlordName: z.string().optional(),
+  landlordPosition: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof landlordInfoSchema>;
@@ -49,11 +50,25 @@ export function LandlordInfoDialog({ isOpen, onClose, onSubmit, requiredFields }
   const sigPad = useRef<SignatureCanvas | null>(null);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(landlordInfoSchema.refine(data => requiredFields.name ? data.landlordName.length > 0 : true, {
-        path: ['landlordName']
-    }).refine(data => requiredFields.position ? data.landlordPosition.length > 0 : true, {
-        path: ['landlordPosition']
-    })),
+    resolver: zodResolver(
+      // Use superRefine to add conditional validation based on requiredFields prop
+      landlordInfoSchema.superRefine((data, ctx) => {
+        if (requiredFields.name && (!data.landlordName || data.landlordName.length < 2)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['landlordName'],
+            message: 'Name is required and must be at least 2 characters.',
+          });
+        }
+        if (requiredFields.position && (!data.landlordPosition || data.landlordPosition.length < 2)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['landlordPosition'],
+            message: 'Position is required and must be at least 2 characters.',
+          });
+        }
+      })
+    ),
     defaultValues: {
       landlordName: '',
       landlordPosition: '',
@@ -69,8 +84,8 @@ export function LandlordInfoDialog({ isOpen, onClose, onSubmit, requiredFields }
     const signatureDataUrl = requiredFields.signature ? sigPad.current!.toDataURL('image/png') : null;
 
     onSubmit({
-      name: data.landlordName,
-      position: data.landlordPosition,
+      name: data.landlordName || '',
+      position: data.landlordPosition || '',
       signatureDataUrl: signatureDataUrl,
     });
   };
