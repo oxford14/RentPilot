@@ -1,4 +1,5 @@
 
+
 export type ClientUserRole = 'admin' | 'user';
 export type UserRole = ClientUserRole | 'tenant';
 
