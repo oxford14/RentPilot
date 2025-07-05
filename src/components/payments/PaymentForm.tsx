@@ -508,8 +508,15 @@ export function PaymentForm({ isOpen, onClose, defaultTenantId, payment }: Payme
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={(date) => {
-                            field.onChange(date);
+                          onSelect={(selectedDate) => {
+                            if (selectedDate) {
+                              const now = new Date();
+                              const newDateWithTime = new Date(selectedDate);
+                              newDateWithTime.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+                              field.onChange(newDateWithTime);
+                            } else {
+                              field.onChange(undefined);
+                            }
                             setIsCalendarOpen(false);
                           }}
                           disabled={(date) =>
