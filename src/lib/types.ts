@@ -47,7 +47,6 @@ export interface Tenant {
   status: 'active' | 'inactive';
   joinDate: string; // ISO string
   monthlyDueDay?: number;
-  clientId?: string; // Firestore document ID of the client, or undefined/null for global tenants
   username?: string; // NEW
   password?: string; // For tenant login
   temporaryPassword?: boolean; // NEW: flag for forced password change
@@ -311,6 +310,7 @@ export interface AppContextType {
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   uploadSignedContract: (tenantId: string, file: File, contractEndDate: string) => Promise<void>;
+  renewSignedContract: (tenantId: string, file: File, newContractEndDate: string) => Promise<void>;
   deleteSignedContract: (tenantId: string) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;

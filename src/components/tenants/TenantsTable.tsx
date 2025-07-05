@@ -32,6 +32,7 @@ import {
 import { ReminderDialog } from './ReminderDialog';
 import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
 import { UploadContractDialog } from './UploadContractDialog';
+import { RenewContractDialog } from './RenewContractDialog';
 
 
 interface TenantsTableProps {
@@ -50,6 +51,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [credentials, setCredentials] = useState<{username: string, password?: string} | null>(null);
   const [isUploadContractOpen, setIsUploadContractOpen] = useState(false);
   const [tenantForUpload, setTenantForUpload] = useState<Tenant | null>(null);
+  const [isRenewContractOpen, setIsRenewContractOpen] = useState(false);
+  const [tenantForRenew, setTenantForRenew] = useState<Tenant | null>(null);
+
 
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -134,6 +138,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const handleOpenUploadContract = (tenant: Tenant) => {
     setTenantForUpload(tenant);
     setIsUploadContractOpen(true);
+  };
+
+  const handleOpenRenewContract = (tenant: Tenant) => {
+    setTenantForRenew(tenant);
+    setIsRenewContractOpen(true);
   };
 
   const handleOpenDeleteContract = (tenant: Tenant) => {
@@ -239,6 +248,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                       </DropdownMenuItem>
                       {tenant.signedContractUrl && (
                         <>
+                           <DropdownMenuItem onClick={() => handleOpenRenewContract(tenant)}>
+                                <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
+                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                               <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
                                   <FileViewIcon className="mr-2 h-4 w-4" /> View Signed Contract
@@ -342,6 +354,14 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             isOpen={isUploadContractOpen}
             onClose={() => setIsUploadContractOpen(false)}
             tenant={tenantForUpload}
+        />
+      )}
+
+      {isRenewContractOpen && (
+        <RenewContractDialog
+            isOpen={isRenewContractOpen}
+            onClose={() => setIsRenewContractOpen(false)}
+            tenant={tenantForRenew}
         />
       )}
     </>

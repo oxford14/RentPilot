@@ -446,6 +446,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const renewSignedContract = async (tenantId: string, file: File, newContractEndDate: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+
+    const tenant = rawTenantsState.find(t => t.id === tenantId);
+    if (!tenant) {
+      toast({ variant: "destructive", title: "Error", description: "Tenant not found." });
+      return;
+    }
+    
+    // Delete old file if it exists
+    if (tenant.signedContractUrl) {
+        try {
+            const oldStorageRef = ref(storage, tenant.signedContractUrl);
+            await deleteObject(oldStorageRef);
+        } catch (error: any) {
+            // If the old file doesn't exist, that's okay. We just log a warning and continue.
+            if (error.code !== 'storage/object-not-found') {
+                console.error("Could not delete old contract file, proceeding with upload anyway:", error);
+            }
+        }
+    }
+    
+    // Upload new file and update tenant doc
+    await uploadSignedContract(tenantId, file, newContractEndDate);
+    toast({ title: "Contract Renewed", description: "The contract has been successfully renewed and updated." });
+  };
+
+
   const deleteSignedContract = async (tenantId: string) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized" });
@@ -1252,6 +1283,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     forceChangeTenantPassword,
     resetTenantPassword,
     uploadSignedContract,
+    renewSignedContract,
     deleteSignedContract,
 
     addPayment,
