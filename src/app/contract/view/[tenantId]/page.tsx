@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import html2canvas from 'html2canvas';
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
-  | { type: 'uploaded', data: string } // data will be the proxy URL
+  | { type: 'uploaded', data: string } // data will be the direct firebase storage URL
   | null;
 
 export default function ContractViewerPage() {
@@ -73,8 +74,7 @@ export default function ContractViewerPage() {
                 setError("Digitally signed contract record could not be found.");
             }
         } else if (tenant.contractUrl) {
-            const proxyUrl = `/api/contract-proxy?url=${encodeURIComponent(tenant.contractUrl)}`;
-            setContractSource({ type: 'uploaded', data: proxyUrl });
+            setContractSource({ type: 'uploaded', data: tenant.contractUrl });
         } else {
             setContractSource(null);
         }
@@ -188,13 +188,18 @@ export default function ContractViewerPage() {
                            <div ref={contractContentRef} className="p-6 bg-white text-black whitespace-pre-wrap prose prose-sm" dangerouslySetInnerHTML={{ __html: contractSource.data.contractBody.replace(/\n/g, '<br />') }} />
                         </ScrollArea>
                     ) : contractSource?.type === 'uploaded' ? (
-                        <div className="h-[calc(100vh-20rem)] border rounded-md bg-muted/30">
-                            <iframe 
-                                src={contractSource.data}
-                                title="Contract PDF Viewer"
-                                className="w-full h-full"
-                                style={{ border: 'none' }}
-                            />
+                        <div className="h-[calc(100vh-20rem)] border rounded-md bg-muted/30 flex flex-col items-center justify-center text-center p-4">
+                            <FileWarning className="mx-auto h-16 w-16 mb-4 text-gray-400" />
+                            <h3 className="text-xl font-semibold mb-2">PDF Preview Not Available</h3>
+                            <p className="text-muted-foreground mb-6">
+                                Click the button below to open the contract in a new tab.
+                            </p>
+                            <Button asChild>
+                                <Link href={contractSource.data} target="_blank" rel="noopener noreferrer">
+                                    <FileDown className="mr-2 h-4 w-4" />
+                                    Download / View PDF
+                                </Link>
+                            </Button>
                         </div>
                     ) : null}
                 </CardContent>
