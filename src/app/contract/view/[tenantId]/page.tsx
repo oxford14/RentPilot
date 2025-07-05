@@ -1,15 +1,19 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, FileWarning, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, FileWarning, AlertTriangle, FileText, FileDown } from 'lucide-react';
 import type { Tenant, SignedContract } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 type ContractSource = 
   | { type: 'signed', data: SignedContract }
@@ -20,22 +24,21 @@ export default function ContractViewerPage() {
     const params = useParams();
     const { user, isLoading: isAuthLoading } = useAuth();
     const { tenants, signedContracts } = useAppContext();
+    const { toast } = useToast();
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [contractSource, setContractSource] = useState<ContractSource>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const contractContentRef = useRef<HTMLDivElement>(null);
 
     const tenantId = params.tenantId as string;
 
     useEffect(() => {
-        // Guard against running before essential data is loaded.
         if (isAuthLoading || !user) {
             return;
         }
 
-        // The context provides filtered tenants. If it's empty, we either
-        // have no tenants for this user, or they haven't loaded yet.
-        // We set loading to false to show either the content or the "not found" message.
         if (tenants.length === 0 && !isAuthLoading) {
             setIsLoading(false);
         }
@@ -43,7 +46,6 @@ export default function ContractViewerPage() {
         const tenant = tenants.find(t => t.id === tenantId);
 
         if (!tenant) {
-            // Only set an error if tenants are loaded but the specific one isn't found.
             if (tenants.length > 0) {
                  setError("Tenant not found for the provided ID.");
             }
@@ -51,10 +53,8 @@ export default function ContractViewerPage() {
             return;
         }
 
-        // Reset error if tenant is found on a subsequent run
         setError(null);
 
-        // Authorization Check
         const isSuperAdmin = user.isSuperAdmin;
         const isOwnerOrAdmin = user.clientId === tenant.clientId;
         const isTheTenant = user.tenantId === tenant.id;
@@ -65,12 +65,11 @@ export default function ContractViewerPage() {
              return;
         }
 
-        // Determine contract source
         if (tenant.activeContractId) {
             const contract = signedContracts.find(c => c.id === tenant.activeContractId);
             if (contract) {
                 setContractSource({ type: 'signed', data: contract });
-            } else if (signedContracts.length > 0) { // Only show error if contracts are loaded but not found
+            } else if (signedContracts.length > 0) {
                 setError("Digitally signed contract record could not be found.");
             }
         } else if (tenant.contractUrl) {
@@ -83,6 +82,45 @@ export default function ContractViewerPage() {
         setIsLoading(false);
 
     }, [isAuthLoading, user, tenantId, tenants, signedContracts]);
+
+    const handleDownloadPdf = async () => {
+        const input = contractContentRef.current;
+        if (!input) {
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not find contract content to export.' });
+          return;
+        }
+    
+        setIsExporting(true);
+        toast({ title: 'Generating PDF...', description: 'Please wait, this may take a moment.' });
+        
+        try {
+          const canvas = await html2canvas(input, { 
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#ffffff'
+          });
+    
+          const imgData = canvas.toDataURL('image/png');
+          const pdfWidth = canvas.width;
+          const pdfHeight = canvas.height;
+    
+          const pdf = new jsPDF({
+            orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
+            unit: 'px',
+            format: [pdfWidth, pdfHeight]
+          });
+    
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          const tenantName = tenantForTitle?.name.replace(/\s+/g, '_') || 'tenant';
+          pdf.save(`contract_${tenantName}.pdf`);
+          
+        } catch (error) {
+          console.error("PDF generation failed:", error);
+          toast({ variant: 'destructive', title: 'PDF Export Failed', description: 'An error occurred while generating the PDF.' });
+        } finally {
+          setIsExporting(false);
+        }
+      };
 
     if (isLoading) {
         return (
@@ -127,17 +165,27 @@ export default function ContractViewerPage() {
         <div className="container mx-auto py-2">
              <Card className="shadow-xl">
                 <CardHeader>
-                    <CardTitle>Contract for {tenantForTitle?.name || '...'}</CardTitle>
-                    <CardDescription>
-                        {contractSource?.type === 'signed' && contractSource.data.signedAt
-                            ? `Digitally signed on ${new Date(contractSource.data.signedAt).toLocaleDateString()}`
-                            : 'Uploaded PDF Document'}
-                    </CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Contract for {tenantForTitle?.name || '...'}</CardTitle>
+                            <CardDescription>
+                                {contractSource?.type === 'signed' && contractSource.data.signedAt
+                                    ? `Digitally signed on ${new Date(contractSource.data.signedAt).toLocaleDateString()}`
+                                    : 'Uploaded PDF Document'}
+                            </CardDescription>
+                        </div>
+                        {contractSource?.type === 'signed' && (
+                            <Button onClick={handleDownloadPdf} disabled={isExporting}>
+                                {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                                Download PDF
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {contractSource?.type === 'signed' ? (
-                        <ScrollArea className="h-[calc(100vh-20rem)] border rounded-md p-4 bg-muted/30">
-                           <div className="whitespace-pre-wrap prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: contractSource.data.contractBody.replace(/\n/g, '<br />') }} />
+                        <ScrollArea className="h-[calc(100vh-20rem)] border rounded-md bg-muted/30">
+                           <div ref={contractContentRef} className="p-6 bg-white text-black whitespace-pre-wrap prose prose-sm" dangerouslySetInnerHTML={{ __html: contractSource.data.contractBody.replace(/\n/g, '<br />') }} />
                         </ScrollArea>
                     ) : contractSource?.type === 'uploaded' ? (
                         <div className="h-[calc(100vh-20rem)] border rounded-md bg-muted/30">
