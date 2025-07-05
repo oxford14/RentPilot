@@ -62,33 +62,29 @@ export default function MonitoringPage() {
       const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
 
       if (balanceToday > 0) {
-        // Tenant has a balance. Check if past, today, or upcoming.
-        if (anniversaryThisMonth < today) {
-          // Due date passed this month. They are "Past Due".
-          newPastDue.push({ tenant, balance: balanceToday });
-        } else if (anniversaryThisMonth.getTime() === today.getTime()) {
-          // Due date is today. They are "Due Today".
+        // Tenant has a positive balance, so they are either Due Today or Past Due.
+        if (anniversaryThisMonth.getTime() === today.getTime()) {
           newDueToday.push({ tenant, balance: balanceToday });
-        } else { // anniversaryThisMonth > today
-          // Due date is in the future, but they have a balance from a previous cycle.
-          // Check if it's within the upcoming window.
-          const daysUntilDue = Math.round((anniversaryThisMonth.getTime() - today.getTime()) / (1000 * 3600 * 24));
-          if (daysUntilDue >= 0 && anniversaryThisMonth < upcomingLimit) {
-            newUpcoming.push({ tenant, balance: balanceToday, daysUntilDue });
-          }
+        } else {
+          // If balance is positive and due date isn't today, they are Past Due.
+          // This covers due dates earlier this month and from previous months.
+          newPastDue.push({ tenant, balance: balanceToday });
         }
-      } else {
-        // Tenant is paid up (balance <= 0). Check for *next* due date for "Upcoming".
+      } else { // balance <= 0
+        // Tenant is paid up. Check for upcoming dues.
         let nextDueDate;
         if (anniversaryThisMonth > today) {
+          // Their due date for this month hasn't passed yet.
           nextDueDate = anniversaryThisMonth;
         } else {
-          // anniversary was today or in the past this month, find next month's anniversary.
+          // Their due date for this month has passed or is today. Find next month's due date.
           const nextMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
           nextDueDate = getAnniversaryForMonth(tenant, nextMonthDate);
         }
 
         const daysUntilDue = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        
+        // Is the next due date within the upcoming window?
         if (daysUntilDue >= 0 && nextDueDate < upcomingLimit) {
           // For paid-up tenants, the "balance" to show in Upcoming is their next rental amount.
           newUpcoming.push({ tenant, balance: tenant.monthlyRentalRate, daysUntilDue });
