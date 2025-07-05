@@ -132,10 +132,10 @@ export default function BackupsPage() {
   const { toast } = useToast();
   const [schedule, setSchedule] = useState<BackupScheduleSettings>({
     isScheduleEnabled: false,
-    frequency: 'weekly',
+    frequency: 'daily',
     weeklyDay: 1, // Monday
     dayOfMonth: 1,
-    backupTime: '03:00',
+    backupTime: '02:00',
   });
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
