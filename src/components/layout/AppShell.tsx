@@ -563,27 +563,36 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && !isTrueAdminView ? (
+              {(() => {
+                if (isTrueAdminView) {
+                  return null; 
+                }
+                if (activeClientForDisplay?.logoUrl) {
+                  return (
+                    <Image
+                      src={activeClientForDisplay.logoUrl}
+                      alt={`${activeClientForDisplay.name} Logo`}
+                      width={160}
+                      height={45}
+                      className="h-12 w-auto object-contain rounded"
+                      data-ai-hint="client logo small"
+                      unoptimized
+                    />
+                  );
+                }
+                // Global view
+                return (
                   <Image
-                    src={activeClientForDisplay.logoUrl}
-                    alt={`${activeClientForDisplay.name} Logo`}
-                    width={160} 
+                    src={MAIN_APP_LOGO_URL}
+                    alt="RentPilot app logo"
+                    width={160}
                     height={45}
-                    className="h-12 w-auto object-contain rounded" 
-                    data-ai-hint="client logo small"
-                    unoptimized
-                  />
-              ) : !isTrueAdminView ? (
-                  <Image
-                    src={MAIN_APP_FAVICON_URL} 
-                    alt="RentPilot app icon"
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 object-contain rounded"
+                    className="h-12 w-auto object-contain"
                     data-ai-hint="app logo small"
                     unoptimized
                   />
-              ) : null}
+                );
+              })()}
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
                  {loggedInClient && !isTrueAdminView && !viewingClient && ` - ${loggedInClient.name}`}
