@@ -1,82 +1,74 @@
-const CACHE_NAME = 'rentpilot-v1';
-const OFFLINE_URL = '/offline';
+const CACHE_NAME = 'rentpilot-cache-v1';
+const urlsToCache = [
+  '/',
+  '/offline',
+  '/manifest.json'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Pre-cache the offline page
-      return cache.add(OFFLINE_URL);
-    })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Opened cache');
+        // Add all URLs to cache, but don't fail the install if one of them fails
+        // This is safer as some URLs might not be available during install
+        const cachePromises = urlsToCache.map(urlToCache => {
+            return cache.add(urlToCache).catch(reason => {
+                console.log(`Failed to cache ${urlToCache}: ${reason}`);
+            });
+        });
+        return Promise.all(cachePromises);
+      })
   );
   self.skipWaiting();
 });
 
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+      return;
+  }
+  
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // Cache hit - return response
+        if (response) {
+          // Fetch the latest version from the network in the background
+          const fetchPromise = fetch(event.request).then(networkResponse => {
+            if (networkResponse) {
+                const responseToCache = networkResponse.clone();
+                caches.open(CACHE_NAME).then(cache => {
+                    cache.put(event.request, responseToCache);
+                });
+            }
+            return networkResponse;
+          }).catch(() => {
+             // Network failed, do nothing, we already served from cache
+          });
+          return response;
+        }
+
+        // Not in cache, go to network
+        return fetch(event.request).catch(() => {
+          // If fetch fails (e.g., user is offline), return the offline page.
+          return caches.match('/offline');
+        });
+      })
+  );
+});
+
 self.addEventListener('activate', (event) => {
-  // Clean up old caches
+  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
       );
     })
   );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  // Only handle navigation requests
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        try {
-          // First, try to use the navigation preload response if it's supported.
-          const preloadResponse = await event.preloadResponse;
-          if (preloadResponse) {
-            return preloadResponse;
-          }
-
-          // Always try the network first for navigation.
-          const networkResponse = await fetch(event.request);
-          return networkResponse;
-        } catch (error) {
-          // catch is only triggered if an exception is thrown, which is likely
-          // a network error.
-          // If fetch() returns a valid HTTP response with a 4xx or 5xx status,
-          // the catch() will NOT be called.
-          console.log('Fetch failed; returning offline page instead.', error);
-
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(OFFLINE_URL);
-          return cachedResponse;
-        }
-      })()
-    );
-  }
-
-  // For non-navigation requests, like static assets, use a cache-first strategy
-  if (event.request.destination === 'script' || event.request.destination === 'style' || event.request.destination === 'image') {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        // Return the cached response if found
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        // If not in cache, fetch it from the network, cache it, and return it
-        return fetch(event.request).then((networkResponse) => {
-          // Don't cache opaque responses (e.g., from a CDN without CORS)
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
-          return networkResponse;
-        });
-      })
-    );
-  }
+  return self.clients.claim();
 });
