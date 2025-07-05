@@ -416,7 +416,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const uploadSignedContract = async (tenantId: string, file: File) => {
+  const uploadSignedContract = async (tenantId: string, file: File, contractEndDate: string) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
@@ -435,7 +435,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, {
-        signedContractUrl: downloadURL
+        signedContractUrl: downloadURL,
+        contractEndDate: contractEndDate,
       });
       
       toast({ title: "Upload Complete", description: "The signed contract has been saved." });
@@ -472,7 +473,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const tenantRef = doc(db, 'tenants', tenantId);
         await updateDoc(tenantRef, {
-            signedContractUrl: deleteField()
+            signedContractUrl: deleteField(),
+            contractEndDate: deleteField()
         });
         toast({ title: "Contract Deleted", description: "The signed contract has been successfully deleted." });
     } catch (error: any) {

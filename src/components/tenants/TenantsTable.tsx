@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -182,11 +183,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Rent (₱)</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Join Date</TableHead>
+              <TableHead className="hidden lg:table-cell text-center">Contract End</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -198,9 +199,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                     <div className="flex items-center gap-2">
                         <span>{tenant.name}</span>
                     </div>
+                     <span className="text-xs text-muted-foreground">{tenant.email}</span>
                   </div>
                 </TableCell>
-                <TableCell>{tenant.email}</TableCell>
                 <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
                 <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
                 <TableCell className="text-center">
@@ -210,6 +211,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                   </Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
+                <TableCell className="hidden lg:table-cell text-center">{tenant.contractEndDate ? format(new Date(tenant.contractEndDate), "PP") : '-'}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

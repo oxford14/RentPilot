@@ -1,15 +1,19 @@
 
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud, CalendarClock, ArrowRight } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
+import { addMonths, addYears, format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface UploadContractDialogProps {
   isOpen: boolean;
@@ -20,8 +24,26 @@ interface UploadContractDialogProps {
 export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContractDialogProps) {
   const { uploadSignedContract } = useAppContext();
   const { toast } = useToast();
+  
+  const [step, setStep] = useState<'duration' | 'upload'>('duration');
+  const [duration, setDuration] = useState<number>(1);
+  const [unit, setUnit] = useState<'years' | 'months'>('years');
+  const [calculatedEndDate, setCalculatedEndDate] = useState<Date | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (tenant?.joinDate) {
+        const joinDate = new Date(tenant.joinDate);
+        let endDate;
+        if (unit === 'months') {
+            endDate = addMonths(joinDate, duration || 0);
+        } else {
+            endDate = addYears(joinDate, duration || 0);
+        }
+        setCalculatedEndDate(endDate);
+    }
+  }, [duration, unit, tenant]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -36,20 +58,23 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !tenant) {
-      toast({ variant: "destructive", title: "Error", description: "No file selected or tenant not found." });
+    if (!selectedFile || !tenant || !calculatedEndDate) {
+      toast({ variant: "destructive", title: "Error", description: "Missing required information to upload contract." });
       return;
     }
 
     setIsLoading(true);
-    await uploadSignedContract(tenant.id, selectedFile);
+    await uploadSignedContract(tenant.id, selectedFile, calculatedEndDate.toISOString());
     setIsLoading(false);
     onClose();
   };
   
-  // Reset state when dialog closes
   const handleOpenChange = (open: boolean) => {
     if (!open) {
+      // Reset state when dialog is closed
+      setStep('duration');
+      setDuration(1);
+      setUnit('years');
       setSelectedFile(null);
       setIsLoading(false);
       onClose();
@@ -59,32 +84,84 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Upload Signed Contract</DialogTitle>
-          <DialogDescription>
-            Upload the signed PDF contract for {tenant?.name}. This will replace any existing contract file.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="contract-file">Contract (PDF only)</Label>
-            <Input id="contract-file" type="file" accept="application/pdf" onChange={handleFileChange} />
-          </div>
-          {selectedFile && (
-            <div className="text-sm text-muted-foreground">
-              Selected file: {selectedFile.name}
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
-          <Button onClick={handleUpload} disabled={!selectedFile || isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-            {isLoading ? 'Uploading...' : 'Upload'}
-          </Button>
-        </DialogFooter>
+        {step === 'duration' && (
+            <>
+                <DialogHeader>
+                    <DialogTitle>Set Contract Duration</DialogTitle>
+                    <DialogDescription>
+                        Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({tenant?.joinDate ? format(new Date(tenant.joinDate), 'PP') : ''}).
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="duration-number">Duration</Label>
+                        <Input 
+                            id="duration-number" 
+                            type="number" 
+                            value={duration} 
+                            onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)}
+                            min="1"
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="duration-unit">Unit</Label>
+                        <Select value={unit} onValueChange={(value: 'years' | 'months') => setUnit(value)}>
+                            <SelectTrigger id="duration-unit">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="years">Years</SelectItem>
+                                <SelectItem value="months">Months</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                {calculatedEndDate && (
+                    <div className="p-3 bg-muted rounded-md flex items-center justify-between text-sm">
+                        <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Calculated Contract End Date:</span>
+                        <span className="font-semibold">{format(calculatedEndDate, 'PPP')}</span>
+                    </div>
+                )}
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={() => setStep('upload')} disabled={!duration || duration <= 0}>
+                        Next <ArrowRight className="ml-2 h-4 w-4"/>
+                    </Button>
+                </DialogFooter>
+            </>
+        )}
+        {step === 'upload' && (
+             <>
+                <DialogHeader>
+                    <DialogTitle>Upload Signed Contract</DialogTitle>
+                    <DialogDescription>
+                        Please upload the signed PDF contract for {tenant?.name}.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                     <div className="p-3 bg-muted rounded-md flex items-center justify-between text-sm">
+                        <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Contract End Date:</span>
+                        <span className="font-semibold">{calculatedEndDate ? format(calculatedEndDate, 'PPP') : 'N/A'}</span>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="contract-file">Contract (PDF only)</Label>
+                        <Input id="contract-file" type="file" accept="application/pdf" onChange={handleFileChange} />
+                    </div>
+                    {selectedFile && (
+                        <div className="text-sm text-muted-foreground">
+                        Selected file: {selectedFile.name}
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setStep('duration')}>Back</Button>
+                    <Button onClick={handleUpload} disabled={!selectedFile || isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        {isLoading ? 'Uploading...' : 'Upload & Save'}
+                    </Button>
+                </DialogFooter>
+            </>
+        )}
       </DialogContent>
     </Dialog>
   );

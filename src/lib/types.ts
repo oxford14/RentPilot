@@ -54,6 +54,7 @@ export interface Tenant {
   hasAccount?: boolean; // To track if tenant has created a login
   rentAdjustmentDate?: string;
   signedContractUrl?: string;
+  contractEndDate?: string;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -309,7 +310,7 @@ export interface AppContextType {
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  uploadSignedContract: (tenantId: string, file: File) => Promise<void>;
+  uploadSignedContract: (tenantId: string, file: File, contractEndDate: string) => Promise<void>;
   deleteSignedContract: (tenantId: string) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
