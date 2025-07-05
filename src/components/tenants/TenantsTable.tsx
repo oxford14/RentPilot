@@ -179,12 +179,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                     <div className="flex items-center gap-2">
                         <span>{tenant.name}</span>
                     </div>
-                    {tenant.contractEndDate && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <Clock className="h-3 w-3"/>
-                        Ends: {format(new Date(tenant.contractEndDate), "PP")}
-                      </span>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell>{tenant.email}</TableCell>
