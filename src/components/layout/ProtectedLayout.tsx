@@ -16,6 +16,26 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        if (registrations.length > 0) {
+          console.log('Unregistering existing service workers...');
+          for (const registration of registrations) {
+            registration.unregister();
+            console.log('Service worker unregistered:', registration.scope);
+          }
+           toast({
+              title: "App Updated",
+              description: "Cleared old cache to apply updates. Please refresh if issues persist.",
+            });
+        }
+      }).catch(error => {
+        console.error('Error unregistering service worker:', error);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     if (isLoading) {
       return;
     }
