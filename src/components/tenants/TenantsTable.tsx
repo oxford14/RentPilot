@@ -187,7 +187,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               <TableHead className="text-right">Rent (₱)</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Join Date</TableHead>
-              <TableHead className="hidden lg:table-cell text-center">Contract End</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -200,6 +199,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         <span>{tenant.name}</span>
                     </div>
                      <span className="text-xs text-muted-foreground">{tenant.email}</span>
+                     {tenant.signedContractUrl && (
+                        <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                            <FileViewIcon className="h-3 w-3 text-primary" />
+                            <span>Contract ends: {tenant.contractEndDate ? formatUtcDate(tenant.contractEndDate) : 'N/A'}</span>
+                        </div>
+                     )}
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
@@ -211,7 +216,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                   </Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
-                <TableCell className="hidden lg:table-cell text-center">{tenant.contractEndDate ? format(new Date(tenant.contractEndDate), "PP") : '-'}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
