@@ -17,18 +17,18 @@ export async function pushBackupToGoogleDrive(backupData: any): Promise<{ succes
         const base64Content = Buffer.from(fileContent).toString('base64');
         const mimeType = 'application/json';
 
-        const formData = new URLSearchParams();
-        formData.append('file', base64Content);
-        formData.append('filename', filename);
-        formData.append('mimeType', mimeType);
-        formData.append('isBase64', 'true');
+        const payload = {
+            file: base64Content,
+            filename: filename,
+            mimeType: mimeType,
+        };
 
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: formData.toString(),
+            body: JSON.stringify(payload),
         });
         
         const contentType = response.headers.get("content-type");
