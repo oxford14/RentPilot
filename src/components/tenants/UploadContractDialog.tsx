@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Loader2, UploadCloud, CalendarClock, ArrowRight } from 'lucide-react';
+import { Loader2, UploadCloud, CalendarClock, ArrowRight, Calendar } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { addMonths, addYears, format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -117,9 +117,15 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                     </div>
                 </div>
                 {calculatedEndDate && (
-                    <div className="p-3 bg-muted rounded-md flex items-center justify-between text-sm">
-                        <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Calculated Contract End Date:</span>
-                        <span className="font-semibold">{format(calculatedEndDate, 'PPP')}</span>
+                    <div className="p-3 bg-muted rounded-md space-y-2 text-sm">
+                         <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground flex items-center gap-2"><Calendar className="h-4 w-4"/>Start Date (from Join Date):</span>
+                            <span className="font-semibold">{tenant?.joinDate ? format(new Date(tenant.joinDate), 'PP') : 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Calculated Contract End Date:</span>
+                            <span className="font-semibold">{format(calculatedEndDate, 'PPP')}</span>
+                        </div>
                     </div>
                 )}
                 <DialogFooter>
