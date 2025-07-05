@@ -415,6 +415,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const uploadSignedContract = async (tenantId: string, file: File) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    if (!file) {
+      toast({ variant: "destructive", title: "No File Selected" });
+      return;
+    }
+
+    const storageRef = ref(storage, `signed_contracts/${tenantId}/${file.name}`);
+    
+    try {
+      toast({ title: "Uploading...", description: "Your contract is being uploaded." });
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const tenantRef = doc(db, 'tenants', tenantId);
+      await updateDoc(tenantRef, {
+        signedContractUrl: downloadURL
+      });
+      
+      toast({ title: "Upload Complete", description: "The signed contract has been saved." });
+    } catch (error: any) {
+      console.error("Error uploading contract:", error);
+      toast({ variant: "destructive", title: "Upload Failed", description: error.message });
+    }
+  };
+
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
@@ -1183,6 +1212,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     generateTenantAccount,
     forceChangeTenantPassword,
     resetTenantPassword,
+    uploadSignedContract,
 
     addPayment,
     updatePayment,
