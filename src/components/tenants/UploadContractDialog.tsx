@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
 import { Loader2, UploadCloud, CalendarClock, ArrowRight, Calendar } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
-import { addMonths, addYears, format } from 'date-fns';
+import { addMonths, addYears, format, addMinutes } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,15 @@ interface UploadContractDialogProps {
   onClose: () => void;
   tenant: Tenant | null;
 }
+
+// Helper to format a date object as a UTC date string to avoid timezone shifts in display
+const formatUtcDateAsPPP = (date: Date | null): string => {
+    if (!date) return 'N/A';
+    // Adjust for the local timezone offset to display the correct UTC date
+    const adjustedDate = addMinutes(date, date.getTimezoneOffset());
+    return format(adjustedDate, 'PPP');
+};
+
 
 export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContractDialogProps) {
   const { uploadSignedContract } = useAppContext();
@@ -79,6 +88,8 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
       onClose();
     }
   };
+  
+  const tenantJoinDate = tenant?.joinDate ? new Date(tenant.joinDate) : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -88,7 +99,7 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                 <DialogHeader>
                     <DialogTitle>Set Contract Duration</DialogTitle>
                     <DialogDescription>
-                        Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({tenant?.joinDate ? format(new Date(tenant.joinDate), 'PPP') : ''}).
+                        Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({formatUtcDateAsPPP(tenantJoinDate)}).
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
@@ -119,11 +130,11 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                     <div className="p-3 bg-muted rounded-md space-y-2 text-sm">
                          <div className="flex items-center justify-between">
                             <span className="text-muted-foreground flex items-center gap-2"><Calendar className="h-4 w-4"/>Start Date (from Join Date):</span>
-                            <span className="font-semibold">{tenant?.joinDate ? format(new Date(tenant.joinDate), 'PPP') : 'N/A'}</span>
+                            <span className="font-semibold">{formatUtcDateAsPPP(tenantJoinDate)}</span>
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Calculated Contract End Date:</span>
-                            <span className="font-semibold">{format(calculatedEndDate, 'PPP')}</span>
+                            <span className="font-semibold">{formatUtcDateAsPPP(calculatedEndDate)}</span>
                         </div>
                     </div>
                 )}
@@ -146,7 +157,7 @@ export function UploadContractDialog({ isOpen, onClose, tenant }: UploadContract
                 <div className="space-y-4 py-4">
                      <div className="p-3 bg-muted rounded-md flex items-center justify-between text-sm">
                         <span className="font-medium flex items-center gap-2"><CalendarClock className="h-4 w-4"/>Contract End Date:</span>
-                        <span className="font-semibold">{calculatedEndDate ? format(calculatedEndDate, 'PPP') : 'N/A'}</span>
+                        <span className="font-semibold">{formatUtcDateAsPPP(calculatedEndDate)}</span>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="contract-file">Contract (PDF only)</Label>
