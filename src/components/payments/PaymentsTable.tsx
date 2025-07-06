@@ -216,14 +216,14 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => onEdit(payment)}
-                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}
+                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}
                             >
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => onDelete(payment)} 
                               className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}
+                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}
                             >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
