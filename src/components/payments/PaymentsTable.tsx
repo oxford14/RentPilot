@@ -205,7 +205,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                     <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}>
                               <span className="sr-only">Open menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
