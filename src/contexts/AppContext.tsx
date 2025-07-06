@@ -724,7 +724,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     try {
-      await addDoc(collection(db, 'additionalDues'), newDueData);
+      const batch = writeBatch(db);
+      
+      // Add the new due to the batch
+      const dueRef = doc(collection(db, 'additionalDues'));
+      batch.set(dueRef, newDueData);
+      
+      // If credit was applied, add a corresponding payment to the batch
+      if (creditToApply > 0) {
+        const paymentRef = doc(collection(db, 'payments'));
+        const paymentData: Omit<Payment, 'id'> = {
+          tenantId: tenantId,
+          date: newDueData.dueDate, // Match the due date for clarity
+          amount: creditToApply,
+          paymentMethod: 'From Credit',
+          discountDescription: `Auto-applied from credit towards new ${type} charge.`,
+          discountApplied: 0,
+          clientId: determinedClientId,
+        };
+        batch.set(paymentRef, paymentData);
+      }
+      
+      await batch.commit();
       
       let toastDescription = `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added.`;
       if (creditToApply > 0) {
