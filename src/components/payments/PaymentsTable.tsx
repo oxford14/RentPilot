@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
+import type { Payment, Tenant, PaymentMethod, PaymentAllocation } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { CreditCard, Landmark, DollarSign, HelpCircle, Search, ListX, PercentCircle, MinusCircle, Wallet, MoreHorizontal, Edit, Trash2, Send, BadgeDollarSign, ShieldCheck, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ import { isTenantCurrentlyDueForRent } from '@/lib/utils';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { PaymentBreakdownDialog } from './PaymentBreakdownDialog';
+import { useToast } from '@/hooks/use-toast';
 
 const PaymentMethodIcon = ({ method }: { method?: PaymentMethod }) => {
   if (!method) return <MinusCircle className="h-4 w-4 text-muted-foreground" />;
@@ -46,8 +48,11 @@ interface PaymentsTableProps {
 }
 
 export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all', showActions = true }: PaymentsTableProps) {
-  const { payments: allPaymentsFromContext, tenants: allTenantsFromContext, additionalDues } = useAppContext();
+  const { payments: allPaymentsFromContext, tenants: allTenantsFromContext, additionalDues, calculatePaymentAllocation } = useAppContext();
+  const { toast } = useToast();
   const [clientToday, setClientToday] = useState<Date | null>(null);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [breakdownData, setBreakdownData] = useState<PaymentAllocation | null>(null);
 
   useEffect(() => {
     setClientToday(startOfDay(new Date()));
@@ -125,6 +130,16 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
     );
   }
 
+  const handleViewBreakdown = async (paymentId: string) => {
+    const allocation = await calculatePaymentAllocation(paymentId);
+    if (allocation) {
+      setBreakdownData(allocation);
+      setIsBreakdownOpen(true);
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not calculate payment breakdown.' });
+    }
+  };
+
   const getReferenceText = (payment: Payment) => {
     if (payment.paymentMethod === 'Check' && payment.checkNumber) {
         return `Check #: ${payment.checkNumber}`;
@@ -136,80 +151,90 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
   };
 
   return (
-    <TooltipProvider>
-      <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Amount Paid (₱)</TableHead>
-              <TableHead className="text-center">Method</TableHead>
-              <TableHead>Reference</TableHead>
-              {showActions && <TableHead className="text-right">Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAndSortedPayments.map((payment) => (
-              <TableRow 
-                key={payment.id} 
-                className={cn(
-                  "hover:bg-muted/50 transition-colors",
-                  { 'bg-destructive/10 hover:bg-destructive/20': isSelectedTenantCurrentlyDue }
-                )}
-              >
-                <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
-                    <PaymentMethodIcon method={payment.paymentMethod} />
-                    {payment.paymentMethod || 'N/A'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground max-w-[200px]">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="truncate flex items-center gap-1">
-                          {getReferenceText(payment)}
-                          {payment.discountApplied && payment.discountApplied > 0 && (
-                              <PercentCircle className="h-3 w-3 text-primary" />
-                          )}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        {payment.discountApplied && payment.discountApplied > 0 && (
-                            <p className="font-semibold">Discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})} applied.</p>
-                        )}
-                        {getReferenceText(payment) !== '-' && (
-                            <p>{getReferenceText(payment)}</p>
-                        )}
-                    </TooltipContent>
-                  </Tooltip>
-                </TableCell>
-                {showActions && (
-                  <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(payment)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                )}
+    <>
+      <TooltipProvider>
+        <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Amount Paid (₱)</TableHead>
+                <TableHead className="text-center">Method</TableHead>
+                <TableHead>Reference</TableHead>
+                {showActions && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </TooltipProvider>
+            </TableHeader>
+            <TableBody>
+              {filteredAndSortedPayments.map((payment) => (
+                <TableRow 
+                  key={payment.id} 
+                  className={cn(
+                    "hover:bg-muted/50 transition-colors",
+                    { 'bg-destructive/10 hover:bg-destructive/20': isSelectedTenantCurrentlyDue }
+                  )}
+                >
+                  <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
+                      <PaymentMethodIcon method={payment.paymentMethod} />
+                      {payment.paymentMethod || 'N/A'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="truncate flex items-center gap-1">
+                            {getReferenceText(payment)}
+                            {payment.discountApplied && payment.discountApplied > 0 && (
+                                <PercentCircle className="h-3 w-3 text-primary" />
+                            )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                          {payment.discountApplied && payment.discountApplied > 0 && (
+                              <p className="font-semibold">Discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})} applied.</p>
+                          )}
+                          {getReferenceText(payment) !== '-' && (
+                              <p>{getReferenceText(payment)}</p>
+                          )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  {showActions && (
+                    <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'Security Deposit'}>
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewBreakdown(payment.id)}>
+                              <FileText className="mr-2 h-4 w-4" /> View Breakdown
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onEdit(payment)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </TooltipProvider>
+      <PaymentBreakdownDialog
+          isOpen={isBreakdownOpen}
+          onClose={() => setIsBreakdownOpen(false)}
+          allocation={breakdownData}
+      />
+    </>
   );
 }

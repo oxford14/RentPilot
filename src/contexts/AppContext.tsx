@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1288,6 +1288,72 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const calculatePaymentAllocation = useCallback(async (paymentId: string): Promise<PaymentAllocation | null> => {
+      const payment = rawPaymentsState.find(p => p.id === paymentId);
+      if (!payment) return null;
+
+      const tenant = rawTenantsState.find(t => t.id === payment.tenantId);
+      if (!tenant) return null;
+
+      // We want the state of dues *just before* this payment was made.
+      const paymentDate = new Date(payment.date);
+      const boundaryDate = new Date(paymentDate.getTime() - 1); // A moment before payment
+
+      // Get all payments for this tenant strictly *before* the current one.
+      const paymentsBefore = rawPaymentsState.filter(p =>
+          p.tenantId === tenant.id && new Date(p.date).getTime() < paymentDate.getTime()
+      );
+
+      // Get all dues for this tenant. We will filter them inside the balance calculation.
+      const allTenantDues = rawAdditionalDuesState.filter(d => d.tenantId === tenant.id);
+      
+      const breakdownBefore = calculateTenantBalanceBreakdown(tenant, paymentsBefore, allTenantDues, boundaryDate);
+      
+      let outstandingCharges = [
+          ...breakdownBefore.rentDueDetails.map(r => ({
+              type: 'Rent' as const,
+              amount: r.rate,
+              date: new Date(r.month),
+              original: r
+          })),
+          ...breakdownBefore.unpaidDues.map(d => ({
+              type: 'Due' as const,
+              amount: d.amount,
+              date: new Date(d.dueDate),
+              original: d
+          }))
+      ].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      let amountToAllocate = payment.amount;
+      const paidRent: AllocatedRentPayment[] = [];
+      const paidDues: AllocatedDuePayment[] = [];
+
+      for (const charge of outstandingCharges) {
+          if (amountToAllocate <= 0) break;
+          
+          const amountPaid = Math.min(amountToAllocate, charge.amount);
+          
+          if (charge.type === 'Rent') {
+              paidRent.push({ month: charge.original.month, amount: amountPaid });
+          } else if (charge.type === 'Due') {
+              paidDues.push({
+                  due: charge.original,
+                  amountPaid: amountPaid,
+                  status: amountPaid >= charge.original.amount ? 'Paid' : 'Partially Paid'
+              });
+          }
+          
+          amountToAllocate -= amountPaid;
+      }
+
+      return {
+          payment,
+          paidRent,
+          paidDues,
+          unallocatedAmount: amountToAllocate,
+      };
+  }, [rawPaymentsState, rawTenantsState, rawAdditionalDuesState]);
+
 
   const contextValue: AppContextType = {
     tenants,
@@ -1330,6 +1396,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updatePayment,
     deletePayment,
     applySecurityDeposit,
+    calculatePaymentAllocation,
     
     addClient,
     updateClient,

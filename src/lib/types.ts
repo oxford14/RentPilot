@@ -258,6 +258,24 @@ export interface BalanceBreakdown {
   total: number; // The final, net balance
 }
 
+export interface AllocatedRentPayment {
+  month: string;
+  amount: number;
+}
+
+export interface AllocatedDuePayment {
+  due: AdditionalDue;
+  amountPaid: number;
+  status: 'Paid' | 'Partially Paid';
+}
+
+export interface PaymentAllocation {
+  payment: Payment;
+  paidRent: AllocatedRentPayment[];
+  paidDues: AllocatedDuePayment[];
+  unallocatedAmount: number; // Credit created by this payment
+}
+
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -318,6 +336,7 @@ export interface AppContextType {
   updatePayment: (payment: Payment) => Promise<void>;
   deletePayment: (paymentId: string) => Promise<void>;
   applySecurityDeposit: (tenantId: string, amountToApply: number) => Promise<void>;
+  calculatePaymentAllocation: (paymentId: string) => Promise<PaymentAllocation | null>;
   
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
