@@ -214,12 +214,7 @@ export async function serverChangeTenantPassword(
 
 // Login Verification Action
 export async function serverVerifyCredentials(usernameInput: string, passwordInput: string): Promise<User | null> {
-    // 1. Check primary hardcoded super admin
-    if (usernameInput === 'admin' && passwordInput === 'password123') {
-        return { username: usernameInput, isSuperAdmin: true };
-    }
-
-    // 2. Check additional super admin users by username
+    // 1. Check super admin users by username
     const superAdminQuery = query(collection(db, 'superAdminUsers'), where('username', '==', usernameInput));
     const superAdminSnapshot = await getDocs(superAdminQuery);
 
@@ -231,7 +226,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         }
     }
     
-    // 3. Check managed client users by username
+    // 2. Check managed client users by username
     const managedUserQuery = query(collection(db, 'managedUsers'), where('username', '==', usernameInput));
     const managedUserSnapshot = await getDocs(managedUserQuery);
     if (!managedUserSnapshot.empty) {
@@ -249,7 +244,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         }
     }
 
-    // 4. Check tenants by username
+    // 3. Check tenants by username
     const tenantQuery = query(collection(db, 'tenants'), where('username', '==', usernameInput));
     const tenantSnapshot = await getDocs(tenantQuery);
     if (!tenantSnapshot.empty) {

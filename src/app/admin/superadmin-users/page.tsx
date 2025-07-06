@@ -121,8 +121,8 @@ export default function SuperAdminUsersPage() {
           ) : (
             <div className="p-8 text-center text-muted-foreground">
               <ShieldCheck className="mx-auto h-12 w-12 mb-4 text-gray-400" />
-              <p className="text-xl">No Additional Super Admins Found</p>
-              <p>The primary 'admin' account is for initial setup. Create additional super admin accounts here.</p>
+              <p className="text-xl">No Super Admins Found</p>
+              <p>Please add a super admin account to manage the system. The first super admin account will have full privileges.</p>
             </div>
           )}
         </CardContent>
