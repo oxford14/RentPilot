@@ -205,7 +205,7 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                     <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0" disabled={payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
                               <span className="sr-only">Open menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
@@ -214,10 +214,17 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                             <DropdownMenuItem onClick={() => handleViewBreakdown(payment.id)}>
                               <FileText className="mr-2 h-4 w-4" /> View Breakdown
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onEdit(payment)}>
+                            <DropdownMenuItem 
+                              onClick={() => onEdit(payment)}
+                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}
+                            >
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onDelete(payment)} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                            <DropdownMenuItem 
+                              onClick={() => onDelete(payment)} 
+                              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                              disabled={payment.paymentMethod === 'From Credit' || payment.paymentMethod === 'From Deposit' || payment.paymentMethod === 'Security Deposit'}
+                            >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
