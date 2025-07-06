@@ -160,30 +160,29 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                 <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                 <TableCell className="text-center">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
-                                <PaymentMethodIcon method={payment.paymentMethod} />
-                                {payment.paymentMethod || 'N/A'}
-                            </Badge>
-                        </TooltipTrigger>
-                        {payment.discountApplied && payment.discountApplied > 0 && (
-                            <TooltipContent>
-                                <p>Includes a discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
+                  <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
+                    <PaymentMethodIcon method={payment.paymentMethod} />
+                    {payment.paymentMethod || 'N/A'}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-[200px]">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="truncate">{getReferenceText(payment)}</div>
+                      <div className="truncate flex items-center gap-1">
+                          {getReferenceText(payment)}
+                          {payment.discountApplied && payment.discountApplied > 0 && (
+                              <PercentCircle className="h-3 w-3 text-primary" />
+                          )}
+                      </div>
                     </TooltipTrigger>
-                    {getReferenceText(payment).length > 30 && (
-                        <TooltipContent>
+                    <TooltipContent>
+                        {payment.discountApplied && payment.discountApplied > 0 && (
+                            <p className="font-semibold">Discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})} applied.</p>
+                        )}
+                        {getReferenceText(payment) !== '-' && (
                             <p>{getReferenceText(payment)}</p>
-                        </TooltipContent>
-                    )}
+                        )}
+                    </TooltipContent>
                   </Tooltip>
                 </TableCell>
                 {showActions && (
