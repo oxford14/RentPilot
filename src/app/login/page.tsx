@@ -114,11 +114,6 @@ function LoginBox() {
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || authLoading}>
                 <LogIn className="mr-2 h-4 w-4" /> Sign In
               </Button>
-              <div className="flex justify-end w-full text-sm">
-                <Link href="/forgot-password" className="text-primary hover:underline">
-                  Forgot Password?
-                </Link>
-              </div>
                <div className="mt-4 text-center text-xs text-muted-foreground w-full">
                 <p>By signing in, you agree to our</p>
                 <div className="flex items-center justify-center gap-2 mt-1">
