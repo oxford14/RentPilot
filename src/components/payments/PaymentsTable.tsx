@@ -125,6 +125,16 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
     );
   }
 
+  const getReferenceText = (payment: Payment) => {
+    if (payment.paymentMethod === 'Check' && payment.checkNumber) {
+        return `Check #: ${payment.checkNumber}`;
+    }
+    if (payment.discountDescription) {
+        return payment.discountDescription;
+    }
+    return '-';
+  };
+
   return (
     <TooltipProvider>
       <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
@@ -157,38 +167,24 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                           {payment.paymentMethod || 'N/A'}
                         </Badge>
                       </TooltipTrigger>
-                       {payment.discountDescription?.startsWith('Auto-applied from credit') && (
+                       {payment.discountApplied && payment.discountApplied > 0 && (
                           <TooltipContent>
-                            <p>{payment.discountDescription}</p>
+                            <p>Includes a discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                           </TooltipContent>
                         )}
                    </Tooltip>
                 </TableCell>
-                <TableCell>
-                  {payment.paymentMethod === 'Check' && payment.checkNumber && (
-                    <div className="text-xs">
-                        <span className="font-semibold">Check #: </span>
-                        <span className="text-muted-foreground">{payment.checkNumber}</span>
-                    </div>
-                  )}
-                  {payment.discountApplied && payment.discountApplied > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="text-xs cursor-help">
-                              <span className="font-semibold text-orange-600">Discount: </span>
-                              <span className="text-muted-foreground">₱{payment.discountApplied.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                        </TooltipTrigger>
-                        {payment.discountDescription && (
-                            <TooltipContent>
-                                <p>{payment.discountDescription}</p>
-                            </TooltipContent>
-                        )}
-                      </Tooltip>
-                  )}
-                  {(!payment.checkNumber || payment.paymentMethod !== 'Check') && (!payment.discountApplied || payment.discountApplied <= 0) && (
-                      <span className="text-xs text-muted-foreground">-</span>
-                  )}
+                <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                  <Tooltip>
+                    <TooltipTrigger>
+                        <span>{getReferenceText(payment)}</span>
+                    </TooltipTrigger>
+                    {getReferenceText(payment).length > 30 && (
+                        <TooltipContent>
+                            <p>{getReferenceText(payment)}</p>
+                        </TooltipContent>
+                    )}
+                  </Tooltip>
                 </TableCell>
                 {showActions && (
                   <TableCell className="text-right">
