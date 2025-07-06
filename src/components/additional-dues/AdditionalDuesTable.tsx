@@ -17,7 +17,7 @@ import { MoreHorizontal, Edit, Trash2, CheckCircle, Clock, FileWarning, ListChec
 import type { AdditionalDue } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,8 +29,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { calculateTenantBalance } from '@/lib/utils';
-import { cn } from '@/lib/utils';
 
 interface AdditionalDuesTableProps {
   tenantId: string;
@@ -40,16 +38,9 @@ interface AdditionalDuesTableProps {
 }
 
 export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus }: AdditionalDuesTableProps) {
-  const { additionalDues, tenants, payments } = useAppContext();
+  const { additionalDues } = useAppContext();
   const { toast } = useToast();
   const [dueToDelete, setDueToDelete] = useState<AdditionalDue | null>(null);
-  
-  const tenantBalance = useMemo(() => {
-    const tenant = tenants.find(t => t.id === tenantId);
-    if (!tenant) return 0;
-    const today = startOfDay(new Date());
-    return calculateTenantBalance(tenant, payments, additionalDues, today);
-  }, [tenantId, tenants, payments, additionalDues]);
 
   const filteredDues = useMemo(() => {
     return additionalDues
@@ -95,10 +86,7 @@ export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredDues.map((due) => {
-              const isEffectivelyPaid = due.status === 'paid' || (due.status === 'unpaid' && tenantBalance <= 0);
-
-              return (
+            {filteredDues.map((due) => (
               <TableRow key={due.id} className="hover:bg-muted/50 transition-colors">
                 <TableCell>{format(new Date(due.dueDate), "PP")}</TableCell>
                 <TableCell className="font-medium">{due.type}</TableCell>
@@ -112,29 +100,28 @@ export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus
                 </TableCell>
                 <TableCell className="text-right">{due.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                 <TableCell className="text-center">
-                  {due.status === 'paid' ? (
-                    <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Paid
-                    </Badge>
-                  ) : tenantBalance <= 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400 cursor-help">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Paid
-                        </Badge>
-                      </TooltipTrigger>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        {due.status === 'paid' ? (
+                          <Badge variant="default" className="bg-green-500/20 text-green-700 border-green-400">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Paid
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="bg-yellow-500/20 text-yellow-700 border-yellow-400">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Unpaid
+                          </Badge>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    {(due.creditApplied ?? 0) > 0 && (
                       <TooltipContent>
-                        <p>Paid using the tenant's credit balance.</p>
+                        <p>₱{due.creditApplied?.toLocaleString(undefined, {minimumFractionDigits: 2})} was paid from tenant credit.</p>
                       </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Badge variant="destructive" className="bg-yellow-500/20 text-yellow-700 border-yellow-400">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Unpaid
-                    </Badge>
-                  )}
+                    )}
+                  </Tooltip>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -146,7 +133,7 @@ export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      {!isEffectivelyPaid && (
+                      {due.status === 'unpaid' && (
                         <DropdownMenuItem onClick={() => handleMarkAsPaid(due)}>
                             <CheckCircle className="mr-2 h-4 w-4" /> Mark as Paid
                         </DropdownMenuItem>
@@ -161,7 +148,7 @@ export function AdditionalDuesTable({ tenantId, onEdit, onDelete, onUpdateStatus
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            )})}
+            ))}
           </TableBody>
         </Table>
       </div>

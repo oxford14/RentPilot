@@ -1,5 +1,4 @@
 
-
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Tenant, Payment, AdditionalDue, BalanceBreakdown } from '@/lib/types';
@@ -14,16 +13,11 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const joinDate = new Date(tenant.joinDate);
   const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 
-  // --- Step 1: Calculate total credits first, regardless of join date ---
-  const totalCreditsFromPayments = allPayments
+  // --- Step 1: Calculate total credits ---
+  // Credit comes *only* from payments (and discounts). creditApplied on dues is for tracking, not for calculation.
+  const totalCredits = allPayments
     .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
     .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
-
-  const totalCreditsFromDues = allDues
-    .filter(d => d.tenantId === tenant.id && new Date(d.dueDate) < boundaryDate)
-    .reduce((sum, d) => sum + (d.creditApplied || 0), 0);
-    
-  const totalCredits = totalCreditsFromPayments + totalCreditsFromDues;
 
   // --- Step 2: Generate all liabilities (charges) chronologically ---
   const allCharges: { date: Date; type: string; amount: number; original: any }[] = [];
