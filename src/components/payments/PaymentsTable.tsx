@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Payment, Tenant, PaymentMethod } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
@@ -174,10 +174,10 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                         )}
                    </Tooltip>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                <TableCell className="text-xs text-muted-foreground max-w-[200px]">
                   <Tooltip>
-                    <TooltipTrigger>
-                        <span>{getReferenceText(payment)}</span>
+                    <TooltipTrigger asChild>
+                      <div className="truncate">{getReferenceText(payment)}</div>
                     </TooltipTrigger>
                     {getReferenceText(payment).length > 30 && (
                         <TooltipContent>
