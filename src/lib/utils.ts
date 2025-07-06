@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { Tenant, Payment, AdditionalDue, BalanceBreakdown } from '@/lib/types';
+import { addDays } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -110,7 +111,7 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   return {
     rentDue: finalRentDue,
     rentDueDetails: unpaidRentDetails,
-    unpaidDues: unpaidDues.map(due => ({...due, amount: due.amount - (due.creditApplied || 0)})).filter(due => due.amount > 0),
+    unpaidDues,
     creditBalance: 0,
     total: totalBalance,
   };
