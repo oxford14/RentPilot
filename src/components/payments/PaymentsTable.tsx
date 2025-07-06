@@ -160,19 +160,19 @@ export function PaymentsTable({ tenantId, onEdit, onDelete, filterPeriod = 'all'
                 <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                 <TableCell className="text-center">
-                   <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
-                          <PaymentMethodIcon method={payment.paymentMethod} />
-                          {payment.paymentMethod || 'N/A'}
-                        </Badge>
-                      </TooltipTrigger>
-                       {payment.discountApplied && payment.discountApplied > 0 && (
-                          <TooltipContent>
-                            <p>Includes a discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-                          </TooltipContent>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Badge variant="outline" className="flex items-center justify-center gap-1 py-1 px-2 text-xs">
+                                <PaymentMethodIcon method={payment.paymentMethod} />
+                                {payment.paymentMethod || 'N/A'}
+                            </Badge>
+                        </TooltipTrigger>
+                        {payment.discountApplied && payment.discountApplied > 0 && (
+                            <TooltipContent>
+                                <p>Includes a discount of ₱{payment.discountApplied.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                            </TooltipContent>
                         )}
-                   </Tooltip>
+                    </Tooltip>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground max-w-[200px]">
                   <Tooltip>
