@@ -15,9 +15,14 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 
   // --- Step 1: Calculate total credits ---
-  // Credit comes *only* from payments (and discounts). creditApplied on dues is for tracking, not for calculation.
+  // Credit comes *only* from actual payments. We exclude internal transfers like "From Credit".
   const totalCredits = allPayments
-    .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
+    .filter(p => 
+        p.tenantId === tenant.id && 
+        new Date(p.date) < boundaryDate && 
+        p.paymentMethod !== 'Security Deposit' &&
+        p.paymentMethod !== 'From Credit'
+    )
     .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
 
   // --- Step 2: Generate all liabilities (charges) chronologically ---
