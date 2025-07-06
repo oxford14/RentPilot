@@ -1,4 +1,8 @@
+// This page has been removed.
+// Users are redirected to the login page.
+import { redirect } from 'next/navigation';
+
 export default function ForgotPasswordPage() {
-    // This page has been removed. Returning null to prevent rendering.
-    return null;
+  redirect('/login');
+  return null;
 }

@@ -32,7 +32,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const publicRoutes = ['/login', '/forgot-password', '/terms', '/privacy-policy'];
+    const publicRoutes = ['/login', '/terms', '/privacy-policy'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     const isForcePasswordChangeRoute = pathname.startsWith('/force-password-change');
 
@@ -108,7 +108,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
      );
   }
 
-  const isAuthRoute = ['/login', '/forgot-password', '/terms', '/privacy-policy', '/force-password-change'].some(route => pathname.startsWith(route));
+  const isAuthRoute = ['/login', '/terms', '/privacy-policy', '/force-password-change'].some(route => pathname.startsWith(route));
   if (isAuthRoute) {
     return <>{children}</>;
   }
