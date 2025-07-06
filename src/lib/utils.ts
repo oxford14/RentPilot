@@ -15,9 +15,15 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 
   // --- Step 1: Calculate total credits first, regardless of join date ---
-  const totalCredits = allPayments
+  const totalCreditsFromPayments = allPayments
     .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit')
     .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
+
+  const totalCreditsFromDues = allDues
+    .filter(d => d.tenantId === tenant.id && new Date(d.dueDate) < boundaryDate)
+    .reduce((sum, d) => sum + (d.creditApplied || 0), 0);
+    
+  const totalCredits = totalCreditsFromPayments + totalCreditsFromDues;
 
   // --- Step 2: Generate all liabilities (charges) chronologically ---
   const allCharges: { date: Date; type: string; amount: number; original: any }[] = [];
@@ -110,7 +116,7 @@ export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Pay
   return {
     rentDue: finalRentDue,
     rentDueDetails: unpaidRentDetails,
-    unpaidDues: unpaidDues,
+    unpaidDues: unpaidDues.map(due => ({...due, amount: due.amount - (due.creditApplied || 0)})).filter(due => due.amount > 0),
     creditBalance: 0,
     total: totalBalance,
   };

@@ -622,7 +622,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               throw new Error("Amount to apply must be positive.");
             }
 
-            const newDepositAmount = currentDeposit - currentDeposit;
+            const newDepositAmount = currentDeposit - amountToApply;
             transaction.update(tenantRef, { securityDeposit: newDepositAmount });
 
             const newPaymentRef = doc(collection(db, "payments"));
@@ -696,7 +696,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addAdditionalDue = async (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt'>) => {
+  const addAdditionalDue = async (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt' | 'creditApplied'>) => {
     if (!authIsAuthenticated) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
@@ -711,44 +711,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const today = startOfDay(new Date());
     const balanceBefore = calculateTenantBalance(tenant, rawPaymentsState, rawAdditionalDuesState, today);
     const determinedClientId: string | undefined = getScopedClientId();
-    const batch = writeBatch(db);
 
-    const newDueRef = doc(collection(db, 'additionalDues'));
-    const fullDueData = {
+    const creditAmount = balanceBefore < 0 ? Math.abs(balanceBefore) : 0;
+    const creditToApply = Math.min(creditAmount, newDueAmount);
+    
+    const newDueData: Omit<AdditionalDue, 'id'> = {
       ...dueData,
-      status: 'unpaid' as const,
+      status: (newDueAmount - creditToApply) <= 0 ? 'paid' : 'unpaid',
       createdAt: new Date().toISOString(),
+      creditApplied: creditToApply > 0 ? creditToApply : 0,
       ...(determinedClientId && { clientId: determinedClientId }),
     };
-    batch.set(newDueRef, fullDueData);
-    
-    const creditAmount = balanceBefore < 0 ? Math.abs(balanceBefore) : 0;
-    const amountToPayFromCredit = Math.min(creditAmount, newDueAmount);
 
-    if (amountToPayFromCredit > 0) {
-      const creditPaymentRef = doc(collection(db, 'payments'));
-      const creditPaymentData: Omit<Payment, 'id'> = {
-        tenantId: tenant.id,
-        date: new Date().toISOString(),
-        amount: amountToPayFromCredit,
-        paymentMethod: 'From Credit',
-        discountApplied: 0,
-        discountDescription: `Auto-applied from ₱${creditAmount.toFixed(2)} credit towards new ${type} charge.`,
-        clientId: determinedClientId,
-      };
-      batch.set(creditPaymentRef, creditPaymentData);
-    }
-    
     try {
-      await batch.commit();
+      await addDoc(collection(db, 'additionalDues'), newDueData);
       
       let toastDescription = `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added.`;
-      if (amountToPayFromCredit > 0) {
-        toastDescription += ` ₱${amountToPayFromCredit.toFixed(2)} of it was automatically paid from the tenant's credit.`;
+      if (creditToApply > 0) {
+        toastDescription += ` ₱${creditToApply.toFixed(2)} of it was automatically paid from the tenant's credit.`;
       }
       toast({ title: 'Due Added', description: toastDescription });
     } catch (error: any) {
-      console.error('Error in batch write:', error);
+      console.error('Error adding due:', error);
       toast({ variant: 'destructive', title: 'Firestore Error', description: `Failed to process due: ${error.message}` });
     }
   };

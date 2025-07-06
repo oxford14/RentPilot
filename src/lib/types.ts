@@ -123,6 +123,7 @@ export interface AdditionalDue {
   dueDate: string; // ISO string
   status: 'paid' | 'unpaid';
   createdAt: string; // ISO string
+  creditApplied?: number;
 }
 
 
@@ -334,7 +335,7 @@ export interface AppContextType {
   updateExpense: (expense: Expense) => Promise<void>; 
   deleteExpense: (expenseId: string) => Promise<void>; 
   
-  addAdditionalDue: (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt'>) => Promise<void>;
+  addAdditionalDue: (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt' | 'creditApplied'>) => Promise<void>;
   updateAdditionalDue: (updatedDue: AdditionalDue) => Promise<void>;
   deleteAdditionalDue: (dueId: string) => Promise<void>;
 
