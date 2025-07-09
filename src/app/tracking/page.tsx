@@ -29,10 +29,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BusinessConfigForm } from '@/components/tracking/BusinessConfigForm';
 import { ManualInputDialog } from '@/components/tracking/ManualInputDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function TrackingPage() {
-  const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome, deleteWeeklyIncome } = useAppContext();
+  const { businesses, weeklyIncomes, addBusiness, updateBusiness, deleteBusiness, addWeeklyIncome, deleteWeeklyIncome, clients, viewingAsClientId } = useAppContext();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const router = useRouter();
 
   const [isBusinessFormOpen, setIsBusinessFormOpen] = useState(false);
   const [newBusinessName, setNewBusinessName] = useState('');
@@ -64,6 +68,18 @@ export default function TrackingPage() {
     business: Business;
   } | null>(null);
 
+  const currentClient = useMemo(() => {
+    const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+    if (!currentContextClientId) return null;
+    return clients.find(c => c.id === currentContextClientId);
+  }, [clients, user, viewingAsClientId]);
+
+  useEffect(() => {
+    if (currentClient && currentClient.name === 'i-VirtuaTech') {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'This feature is not available for this client.' });
+      router.push('/');
+    }
+  }, [currentClient, router, toast]);
 
   const selectedBusiness = useMemo(() => {
     if (!selectedBusinessId) return null;
@@ -260,6 +276,10 @@ export default function TrackingPage() {
 
     return false;
   };
+
+  if (currentClient && currentClient.name === 'i-VirtuaTech') {
+    return null; // Don't render content if redirection is about to happen
+  }
 
   return (
     <div className="container mx-auto py-2 space-y-6">
