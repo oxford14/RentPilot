@@ -379,7 +379,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         }
 
         // Add Tracking to the bottom of the list only for specific clients.
-        if (activeClientForDisplay && (activeClientForDisplay.name === "D' First Hub" || activeClientForDisplay.name === "i-VirtuaTech")) {
+        const isIVirtuaTechAndCanSeeTracking = activeClientForDisplay?.name === "i-VirtuaTech" && (authUser?.isSuperAdmin || authUser?.role === 'admin');
+        if (activeClientForDisplay && (activeClientForDisplay.name === "D' First Hub" || isIVirtuaTechAndCanSeeTracking)) {
             const trackingItem: AppSidebarNavItem = {
                 isGroup: false,
                 href: '/tracking',

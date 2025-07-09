@@ -70,6 +70,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const isClientAdmin = user?.role === 'admin';
     const isTenant = user?.role === 'tenant';
     const isHubAdmin = user?.role === 'hub-admin';
+    const isRegularUser = user?.role === 'user';
 
     const hubAdminForbiddenRoutes = ['/users', '/announcements', '/payments', '/additional-dues', '/reports'];
     const pathIsAdmin = pathname.startsWith('/admin');
@@ -77,6 +78,12 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
 
+    if ((isHubAdmin || isRegularUser) && pathname.startsWith('/tracking')) {
+        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+        router.push('/');
+        return;
+    }
+    
     if (isHubAdmin && hubAdminForbiddenRoutes.some(p => pathname.startsWith(p))) {
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
         router.push('/');
