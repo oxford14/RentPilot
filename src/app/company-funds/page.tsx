@@ -32,6 +32,8 @@ import {
 import type { CompanyFundsExpense } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface MonthlyFundsData {
   month: string;
@@ -57,6 +59,7 @@ export default function CompanyFundsPage() {
   const [editingExpense, setEditingExpense] = useState<CompanyFundsExpense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<CompanyFundsExpense | null>(null);
   const [availableCompanyFunds, setAvailableCompanyFunds] = useState<number | null>(null);
+  const [filterMonth, setFilterMonth] = useState<string>('all');
   
   const client = useMemo(() => {
     const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
@@ -155,6 +158,23 @@ export default function CompanyFundsPage() {
     return finalData.reverse(); // Show most recent first
   }, [payments, expenses, companyFundsExpenses, client]);
 
+  const expenseMonths = useMemo(() => {
+    const months = new Set<string>();
+    companyFundsExpenses.forEach(expense => {
+      months.add(format(new Date(expense.date), 'yyyy-MM'));
+    });
+    return Array.from(months).sort().reverse();
+  }, [companyFundsExpenses]);
+
+  const filteredCompanyExpenses = useMemo(() => {
+    const sortedExpenses = [...companyFundsExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (filterMonth === 'all') {
+      return sortedExpenses;
+    }
+    return sortedExpenses.filter(expense => format(new Date(expense.date), 'yyyy-MM') === filterMonth);
+  }, [companyFundsExpenses, filterMonth]);
+
+
   const handleOpenForm = (expense?: CompanyFundsExpense) => {
     setEditingExpense(expense || null);
     setIsFormOpen(true);
@@ -252,15 +272,33 @@ export default function CompanyFundsPage() {
       
       <Card>
         <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <CardTitle>Company Fund Expenses</CardTitle>
-                <CardDescription>All expenses paid from the company fund.</CardDescription>
+                <CardDescription>Expenses paid from the company fund.</CardDescription>
               </div>
-              <Button onClick={() => handleOpenForm()}>
-                  <PlusCircle className="mr-2 h-4 w-4"/>
-                  Add Expense
-              </Button>
+              <div className="flex w-full sm:w-auto items-center gap-2">
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter by month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    {expenseMonths.map(month => {
+                      const [year, monthNum] = month.split('-').map(Number);
+                      return (
+                        <SelectItem key={month} value={month}>
+                          {format(new Date(year, monthNum - 1), 'MMMM yyyy')}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => handleOpenForm()}>
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Add Expense
+                </Button>
+              </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -274,8 +312,8 @@ export default function CompanyFundsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {companyFundsExpenses.length > 0 ? (
-                companyFundsExpenses.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((expense) => (
+              {filteredCompanyExpenses.length > 0 ? (
+                filteredCompanyExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell>{format(new Date(expense.date), 'PP')}</TableCell>
                     <TableCell>{expense.description}</TableCell>
@@ -292,7 +330,7 @@ export default function CompanyFundsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center h-24">No company fund expenses recorded yet.</TableCell>
+                  <TableCell colSpan={4} className="text-center h-24">No company fund expenses recorded for this period.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -320,3 +358,4 @@ export default function CompanyFundsPage() {
     </div>
   );
 }
+
