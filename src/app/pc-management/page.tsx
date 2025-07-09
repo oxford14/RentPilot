@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Monitor, Server, User, Trash2, AlertTriangle } from 'lucide-react';
+import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +57,12 @@ export default function PcManagementPage() {
       };
     });
   }, [client?.pcCount, tenants]);
+  
+  const { occupiedCount, vacantCount } = useMemo(() => {
+    const occupied = pcs.filter(pc => !!pc.tenant).length;
+    const vacant = pcs.length - occupied;
+    return { occupiedCount: occupied, vacantCount: vacant };
+  }, [pcs]);
 
   const availableTenants = useMemo(() => {
     return tenants.filter(t => t.status === 'active' && !t.pcNumber);
@@ -117,6 +123,26 @@ export default function PcManagementPage() {
             PC Management
           </h1>
           <p className="text-muted-foreground">Configure and manage PC assignments for your tenants.</p>
+        </div>
+        <div className="flex items-center gap-4">
+            <Card className="p-4 shadow-md">
+                <div className="flex items-center gap-3">
+                    <UserCheck className="h-6 w-6 text-green-500"/>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Occupied</p>
+                        <p className="text-2xl font-bold">{occupiedCount}</p>
+                    </div>
+                </div>
+            </Card>
+            <Card className="p-4 shadow-md">
+                <div className="flex items-center gap-3">
+                    <Server className="h-6 w-6 text-gray-400"/>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Vacant</p>
+                        <p className="text-2xl font-bold">{vacantCount}</p>
+                    </div>
+                </div>
+            </Card>
         </div>
       </div>
 
