@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -111,7 +111,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 ];
 
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media";
-const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a632f6b78299";
+const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a631f6b78299";
 
 // Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
@@ -388,11 +388,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 label: 'Company Funds',
                 icon: PiggyBank,
             };
+            const partnerEarningsItem: AppSidebarNavItem = {
+                isGroup: false,
+                href: '/partner-earnings',
+                label: 'Partner Earnings',
+                icon: Handshake,
+            };
             const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
              if (expensesIndex !== -1) {
-                baseNavItems.splice(expensesIndex + 1, 0, companyFundsItem);
+                baseNavItems.splice(expensesIndex + 1, 0, companyFundsItem, partnerEarningsItem);
             } else {
-                baseNavItems.push(companyFundsItem);
+                baseNavItems.push(companyFundsItem, partnerEarningsItem);
             }
         }
 
@@ -767,7 +773,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && 'p-6')}>
+          <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && !pathname.startsWith('/partner-earnings') && 'p-6')}>
             {subscriptionExpired && !['/subscription', '/profile', '/settings'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">

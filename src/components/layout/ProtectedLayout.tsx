@@ -76,6 +76,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const hubAdminForbiddenRoutes = ['/users', '/announcements', '/payments', '/additional-dues', '/reports'];
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsCompanyFunds = pathname.startsWith('/company-funds');
+    const pathIsPartnerEarnings = pathname.startsWith('/partner-earnings');
     const pathIsClientAdminOnly = ['/users', '/announcements'].includes(pathname);
     const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
@@ -86,8 +87,8 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
         return;
     }
     
-    if (pathIsCompanyFunds && !isSuperAdmin && !isClientAdmin) {
-       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access Company Funds." });
+    if ((pathIsCompanyFunds || pathIsPartnerEarnings) && !isSuperAdmin && !isClientAdmin) {
+       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
        router.push('/');
        return;
     }
