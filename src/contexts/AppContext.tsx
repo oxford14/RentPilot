@@ -1354,6 +1354,59 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
   }, [rawPaymentsState, rawTenantsState, rawAdditionalDuesState]);
 
+  const updateClientPcCount = async (clientId: string, count: number) => {
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== clientId) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'clients', clientId), { pcCount: count });
+      toast({ title: "Success", description: "Number of PCs has been updated." });
+    } catch (e: any) {
+      console.error("Error updating PC count:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const assignTenantToPc = async (tenantId: string, pcNumber: number) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      const batch = writeBatch(db);
+      
+      // Unassign any tenant currently at that PC number
+      const currentOccupant = rawTenantsState.find(t => t.pcNumber === pcNumber);
+      if (currentOccupant) {
+        batch.update(doc(db, 'tenants', currentOccupant.id), { pcNumber: deleteField() });
+      }
+
+      // Assign the new tenant
+      batch.update(doc(db, 'tenants', tenantId), { pcNumber: pcNumber });
+      
+      await batch.commit();
+
+      toast({ title: "Success", description: `Tenant assigned to PC ${pcNumber}.` });
+    } catch (e: any) {
+      console.error("Error assigning tenant to PC:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const unassignTenantFromPc = async (tenantId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'tenants', tenantId), { pcNumber: deleteField() });
+      toast({ title: "Success", description: "Tenant has been unassigned." });
+    } catch (e: any) {
+      console.error("Error unassigning tenant from PC:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
 
   const contextValue: AppContextType = {
     tenants,
@@ -1391,6 +1444,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     uploadSignedContract,
     renewSignedContract,
     deleteSignedContract,
+    updateClientPcCount,
+    assignTenantToPc,
+    unassignTenantFromPc,
 
     addPayment,
     updatePayment,

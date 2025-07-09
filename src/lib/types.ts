@@ -54,6 +54,7 @@ export interface Tenant {
   rentAdjustmentDate?: string;
   signedContractUrl?: string;
   contractEndDate?: string;
+  pcNumber?: number;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -78,6 +79,7 @@ export interface Client {
   subscriptionEndDate?: string; // ISO string
   subscriptionPlanName?: string;
   subscriptionRate?: number;
+  pcCount?: number;
 }
 
 export type ExpenseCategory = 
@@ -331,6 +333,9 @@ export interface AppContextType {
   uploadSignedContract: (tenantId: string, file: File, contractEndDate: string) => Promise<void>;
   renewSignedContract: (tenantId: string, file: File, newContractEndDate: string) => Promise<void>;
   deleteSignedContract: (tenantId: string) => Promise<void>;
+  updateClientPcCount: (clientId: string, count: number) => Promise<void>;
+  assignTenantToPc: (tenantId: string, pcNumber: number) => Promise<void>;
+  unassignTenantFromPc: (tenantId: string) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;

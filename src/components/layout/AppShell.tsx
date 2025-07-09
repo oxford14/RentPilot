@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -339,7 +339,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         
         baseNavItems = [...appNavItems].filter(item => {
           if (isIVirtuaTechHubAdmin) {
-            if (['/payments', '/additional-dues', '/users'].includes(item.href)) {
+            if (['/users', '/announcements', '/payments', '/additional-dues', '/reports'].includes(item.href)) {
               return false;
             }
             if (item.isGroup && item.label === 'Reports') {
@@ -361,6 +361,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           }
           return true;
         });
+
+        // Add PC Management for i-VirtuaTech
+        if (activeClientForDisplay?.name === 'i-VirtuaTech') {
+            const pcManagementItem: AppSidebarNavItem = {
+                isGroup: false,
+                href: '/pc-management',
+                label: 'PC Management',
+                icon: Monitor,
+            };
+            const tenantsIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+            if (tenantsIndex !== -1) {
+                baseNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
+            } else {
+                baseNavItems.push(pcManagementItem); // Fallback
+            }
+        }
 
         // Add Tracking to the bottom of the list only for specific clients.
         if (activeClientForDisplay && (activeClientForDisplay.name === "D' First Hub" || activeClientForDisplay.name === "i-VirtuaTech")) {
