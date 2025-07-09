@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -35,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { startOfMonth, endOfMonth } from 'date-fns';
 
 
 const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -51,6 +51,23 @@ export default function PaymentsPage() {
   const [isApplyDepositOpen, setIsApplyDepositOpen] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'this_week' | 'this_month' | 'last_month'>('all');
   const [tenantBalanceInfo, setTenantBalanceInfo] = useState<{tenant: Tenant, breakdown: BalanceBreakdown} | null>(null);
+  const [totalCollectedThisMonth, setTotalCollectedThisMonth] = useState(0);
+
+  useEffect(() => {
+    const today = new Date();
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+
+    const total = payments
+      .filter(p => {
+        if (p.paymentMethod === 'Security Deposit') return false;
+        const paymentDate = new Date(p.date);
+        return paymentDate >= monthStart && paymentDate <= monthEnd;
+      })
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    setTotalCollectedThisMonth(total);
+  }, [payments]);
 
 
   const handleOpenForm = (payment?: Payment, tenant?: Tenant, breakdown?: BalanceBreakdown) => {
@@ -114,9 +131,15 @@ export default function PaymentsPage() {
               <CardTitle className="text-2xl font-bold font-headline">Payment Tracking</CardTitle>
               <CardDescription>Select a tenant to view their payments or record a new one.</CardDescription>
             </div>
-            <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
-              <PlusCircle className="mr-2 h-5 w-5" /> Record New Payment
-            </Button>
+            <div className="flex w-full sm:w-auto flex-col-reverse sm:flex-row items-stretch sm:items-center gap-4">
+               <div className="p-3 border rounded-lg bg-muted/50 text-right shrink-0">
+                  <p className="text-sm text-muted-foreground">Collected this month</p>
+                  <p className="text-xl font-bold text-primary">₱{totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-5 w-5" /> Record New Payment
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </Card>
