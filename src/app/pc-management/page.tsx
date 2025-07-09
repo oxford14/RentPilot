@@ -16,13 +16,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function PcManagementPage() {
-  const { clients, tenants, updateClientPcCount, assignTenantToPc, unassignTenantFromPc, updateClientPcIssue } = useAppContext();
+  const { clients, tenants, updateClientPcCount, assignTenantToPc, unassignTenantFromPc, updateClientPcIssue, viewingAsClientId } = useAppContext();
   const { user } = useAuth();
 
   const client = useMemo(() => {
-    if (!user?.clientId) return null;
-    return clients.find(c => c.id === user.clientId);
-  }, [clients, user]);
+    const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+    if (!currentContextClientId) return null;
+    return clients.find(c => c.id === currentContextClientId);
+  }, [clients, user, viewingAsClientId]);
 
   const [pcCountInput, setPcCountInput] = useState('');
   
