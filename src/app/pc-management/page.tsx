@@ -140,7 +140,11 @@ export default function PcManagementPage() {
                   {availableTenants.map(t => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                   ))}
-                  {availableTenants.length === 0 && !pc.tenant && <SelectItem value="" disabled>No available tenants</SelectItem>}
+                  {availableTenants.length === 0 && !pc.tenant && (
+                    <div className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm text-muted-foreground">
+                        No available tenants
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
               {pc.tenant && (
