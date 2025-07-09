@@ -1,6 +1,6 @@
 
 
-export type ClientUserRole = 'admin' | 'user';
+export type ClientUserRole = 'admin' | 'user' | 'hub-admin';
 export type UserRole = ClientUserRole | 'tenant';
 
 export interface User { // For AuthContext user

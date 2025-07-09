@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Edit2, Trash2, ShieldCheck, UserCircle2 } from 'lucide-react';
+import { UsersRound, UserPlus, Edit2, Trash2, ShieldCheck, UserCircle2, UserCog } from 'lucide-react';
 import { ManagedUserForm } from '@/components/admin/ManagedUserForm';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -40,7 +40,7 @@ export default function ClientUserManagementPage() {
   }, [authUser, clients]);
 
   useEffect(() => {
-    if (authUser && (authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin')) {
+    if (authUser && (authUser.isSuperAdmin || !currentClient || !['admin', 'hub-admin'].includes(authUser.role || ''))) {
         toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page."})
         router.push('/');
     }
@@ -77,17 +77,19 @@ export default function ClientUserManagementPage() {
 
   const getRoleIcon = (role?: string) => {
     if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
+    if (role === 'hub-admin') return <UserCog className="h-4 w-4 text-primary mr-1" />;
     return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
   };
 
   const formatRoleName = (role?: string) => {
+    if (role === 'hub-admin') return 'Hub Admin';
     if (role && typeof role === 'string' && role.length > 0) {
       return role.charAt(0).toUpperCase() + role.slice(1);
     }
     return 'N/A';
   };
 
-  if (!authUser || authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin') {
+  if (!authUser || authUser.isSuperAdmin || !currentClient || !['admin', 'hub-admin'].includes(authUser.role || '')) {
     return <div className="container mx-auto py-2"><p>Loading or unauthorized...</p></div>;
   }
 

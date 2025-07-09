@@ -231,7 +231,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     let relevant: Announcement[] = [];
     if (authUser.isSuperAdmin) {
         // Super admins do not see announcements in their bell. They manage them from their page.
-    } else if (authUser.role === 'admin' || authUser.role === 'user') {
+    } else if (authUser.role === 'admin' || authUser.role === 'user' || authUser.role === 'hub-admin') {
         // Client admins only see global announcements, not targeted ones.
         relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin' && !a.recipientId);
     } else if (authUser.role === 'tenant' && authUser.clientId && authUser.tenantId) {
@@ -335,11 +335,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       if(isTenantSection) {
         baseNavItems = [...tenantNavItems];
       } else {
+        const isIVirtuaTechHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.name === 'i-VirtuaTech';
+        
         baseNavItems = [...appNavItems].filter(item => {
+          if (isIVirtuaTechHubAdmin) {
+            if (['/payments', '/additional-dues'].includes(item.href)) {
+              return false;
+            }
+            if (item.isGroup && item.label === 'Reports') {
+              return false;
+            }
+          }
+
           const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
 
           if (item.clientAdminOnly) {
-            const isActuallyClientAdmin = authUser?.role === 'admin' && !authUser.isSuperAdmin;
+            const isActuallyClientAdmin = (authUser?.role === 'admin' || authUser?.role === 'hub-admin') && !authUser.isSuperAdmin;
             return isActuallyClientAdmin || isSuperAdminViewingAsClient;
           }
           if (item.clientOnly) {
@@ -418,7 +429,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
     if (loggedInClient && !authUser?.isSuperAdmin) {
         if(authUser?.role === 'tenant') return `${authUser.username} (Tenant at ${loggedInClient.name})`;
-      const roleLabel = authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User';
+      const roleLabel = authUser.role === 'hub-admin' ? 'Hub Admin' : (authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User');
       return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
     }
     return authUser?.username || 'My Account';

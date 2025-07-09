@@ -16,13 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
-const clientUserRoles: ClientUserRole[] = ['admin', 'user'];
-
 const managedUserFormSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().optional(),
-  role: z.enum(clientUserRoles as [ClientUserRole, ...ClientUserRole[]], {
+  role: z.enum(['admin', 'user', 'hub-admin'] as [ClientUserRole, ...ClientUserRole[]], {
     required_error: "User role is required.",
   }),
   canApplyDiscount: z.boolean().optional(),
@@ -67,6 +65,12 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
     }
   }, [user, isOpen, form]);
 
+  useEffect(() => {
+    if (watchedRole === 'admin' || watchedRole === 'hub-admin') {
+        form.setValue('canApplyDiscount', true);
+    }
+  }, [watchedRole, form]);
+
   const onSubmit = (data: ManagedUserFormValues) => {
     try {
       if (!user && (!data.password || data.password.length < 6)) {
@@ -91,7 +95,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
         }
       }
       
-      const canApplyDiscountValue = data.role === 'admin' ? true : (data.canApplyDiscount || false);
+      const canApplyDiscountValue = data.canApplyDiscount || false;
 
       const userDataPayload: Omit<ManagedUser, 'id'> & Partial<Pick<ManagedUser, 'id'>> = {
         username: data.username,
@@ -119,6 +123,11 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
       console.error("Form submission error:", error);
     }
   };
+
+  const availableRoles: ClientUserRole[] = ['admin', 'user'];
+  if (targetClientName === 'i-VirtuaTech') {
+      availableRoles.push('hub-admin');
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -193,9 +202,9 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clientUserRoles.map(roleValue => (
+                      {availableRoles.map(roleValue => (
                         <SelectItem key={roleValue} value={roleValue}>
-                          {roleValue.charAt(0).toUpperCase() + roleValue.slice(1)}
+                          {roleValue === 'hub-admin' ? 'Hub Admin' : roleValue.charAt(0).toUpperCase() + roleValue.slice(1)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -220,6 +229,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          disabled={watchedRole === 'admin' || watchedRole === 'hub-admin'}
                         />
                       </FormControl>
                     </FormItem>
