@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -16,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { PiggyBank, PlusCircle, TrendingUp, TrendingDown, MinusCircle, Edit, Trash2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, getYear, getMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, getYear, getMonth, addMonths } from 'date-fns';
 import { CompanyFundsExpenseForm } from '@/components/company-funds/CompanyFundsExpenseForm';
 import {
   AlertDialog,
