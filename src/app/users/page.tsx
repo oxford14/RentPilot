@@ -40,7 +40,7 @@ export default function ClientUserManagementPage() {
   }, [authUser, clients]);
 
   useEffect(() => {
-    if (authUser && (authUser.isSuperAdmin || !currentClient || !['admin', 'hub-admin'].includes(authUser.role || ''))) {
+    if (authUser && (authUser.isSuperAdmin || !currentClient || !['admin'].includes(authUser.role || ''))) {
         toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page."})
         router.push('/');
     }
@@ -89,7 +89,7 @@ export default function ClientUserManagementPage() {
     return 'N/A';
   };
 
-  if (!authUser || authUser.isSuperAdmin || !currentClient || !['admin', 'hub-admin'].includes(authUser.role || '')) {
+  if (!authUser || authUser.isSuperAdmin || !currentClient || !['admin'].includes(authUser.role || '')) {
     return <div className="container mx-auto py-2"><p>Loading or unauthorized...</p></div>;
   }
 

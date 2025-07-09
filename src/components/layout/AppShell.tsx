@@ -339,7 +339,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         
         baseNavItems = [...appNavItems].filter(item => {
           if (isIVirtuaTechHubAdmin) {
-            if (['/payments', '/additional-dues'].includes(item.href)) {
+            if (['/payments', '/additional-dues', '/users'].includes(item.href)) {
               return false;
             }
             if (item.isGroup && item.label === 'Reports') {
@@ -350,7 +350,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
 
           if (item.clientAdminOnly) {
-            const isActuallyClientAdmin = (authUser?.role === 'admin' || authUser?.role === 'hub-admin') && !authUser.isSuperAdmin;
+            const isActuallyClientAdmin = (authUser?.role === 'admin') && !authUser.isSuperAdmin;
             return isActuallyClientAdmin || isSuperAdminViewingAsClient;
           }
           if (item.clientOnly) {
@@ -713,7 +713,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && (
                   <DropdownMenuItem asChild>
                     <a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                      <FileText className="mr-2 h-4 w-4" />
+                      <FileViewIcon className="mr-2 h-4 w-4" />
                       <span>View My Contract</span>
                     </a>
                   </DropdownMenuItem>
