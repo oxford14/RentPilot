@@ -362,8 +362,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           return true;
         });
 
-        // Add PC Management for i-VirtuaTech
-        if (activeClientForDisplay?.name === 'i-VirtuaTech') {
+        // Add PC Management for specific clients
+        const pcManagementClients = ['i-VirtuaTech', "D' First Hub"];
+        if (activeClientForDisplay && pcManagementClients.includes(activeClientForDisplay.name)) {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false,
                 href: '/pc-management',

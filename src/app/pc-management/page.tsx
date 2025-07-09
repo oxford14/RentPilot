@@ -98,7 +98,8 @@ export default function PcManagementPage() {
     );
   }
 
-  if (client.name !== 'i-VirtuaTech') {
+  const allowedClients = ['i-VirtuaTech', "D' First Hub"];
+  if (!allowedClients.includes(client.name)) {
       return (
           <div className="container mx-auto py-2">
               <Card>
@@ -106,7 +107,7 @@ export default function PcManagementPage() {
                       <CardTitle>Access Denied</CardTitle>
                   </CardHeader>
                   <CardContent>
-                      <p>This feature is only available for the i-VirtuaTech client.</p>
+                      <p>This feature is only available for specific clients.</p>
                   </CardContent>
               </Card>
           </div>
