@@ -22,6 +22,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '../ui/switch';
+import { Separator } from '../ui/separator';
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
@@ -30,6 +31,8 @@ const clientFormSchema = z.object({
   subscriptionEndDate: z.date().optional(),
   subscriptionPlanName: z.string().optional(),
   subscriptionRate: z.coerce.number().optional(),
+  companyFundsStartingBalance: z.coerce.number().optional(),
+  companyFundsStartDate: z.string().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -103,6 +106,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
       subscriptionPlanName: client?.subscriptionPlanName || '',
       subscriptionRate: client?.subscriptionRate || 0,
+      companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
+      companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
     },
   });
 
@@ -115,6 +120,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
         subscriptionPlanName: client?.subscriptionPlanName || '',
         subscriptionRate: client?.subscriptionRate || 0,
+        companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
+        companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
       });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
@@ -169,13 +176,18 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
 
   const onSubmit = async (data: ClientFormValues) => {
     setIsSubmitting(true);
-    const clientPayload = {
+    const clientPayload: Partial<Client> = {
       name: data.name,
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
       subscriptionPlanName: data.subscriptionPlanName,
       subscriptionRate: data.subscriptionRate,
     };
+    
+    if (client && client.name === 'i-VirtuaTech') {
+      clientPayload.companyFundsStartingBalance = data.companyFundsStartingBalance;
+      clientPayload.companyFundsStartDate = data.companyFundsStartDate ? new Date(data.companyFundsStartDate).toISOString() : undefined;
+    }
 
     try {
       if (client) { // Editing existing client
@@ -348,6 +360,46 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   </div>
                 </div>
               )}
+              
+              {client && client.name === 'i-VirtuaTech' && (
+                <>
+                <Separator />
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                  <h3 className="font-semibold text-foreground">Company Funds Settings (i-VirtuaTech Only)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name="companyFundsStartingBalance"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Starting Balance (₱)</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} />
+                            </FormControl>
+                            <FormDescription className="text-xs">The initial amount in the company fund.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="companyFundsStartDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tracking Start Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} />
+                            </FormControl>
+                             <FormDescription className="text-xs">Date when 10% fund calculation begins.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  </div>
+                </div>
+                </>
+              )}
+
 
               <DialogFooter className="pt-4">
                 <DialogClose asChild>

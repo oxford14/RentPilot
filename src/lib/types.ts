@@ -81,6 +81,8 @@ export interface Client {
   subscriptionRate?: number;
   pcCount?: number;
   pcIssues?: Record<number, string>;
+  companyFundsStartingBalance?: number;
+  companyFundsStartDate?: string;
 }
 
 export type ExpenseCategory = 

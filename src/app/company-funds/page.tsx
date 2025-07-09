@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -13,9 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { PiggyBank, PlusCircle, TrendingUp, TrendingDown, MinusCircle, Edit, Trash2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, getYear, getMonth, addMonths } from 'date-fns';
+import { PiggyBank, PlusCircle, TrendingUp, TrendingDown, MinusCircle, Edit, Trash2, Banknote, Wallet } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { CompanyFundsExpenseForm } from '@/components/company-funds/CompanyFundsExpenseForm';
 import {
   AlertDialog,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { CompanyFundsExpense } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface MonthlyFundsData {
   month: string;
@@ -46,20 +49,32 @@ interface MonthlyFundsData {
 const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function CompanyFundsPage() {
-  const { payments, expenses, companyFundsExpenses, deleteCompanyFundsExpense } = useAppContext();
+  const { payments, expenses, companyFundsExpenses, deleteCompanyFundsExpense, clients, viewingAsClientId } = useAppContext();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<CompanyFundsExpense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<CompanyFundsExpense | null>(null);
+  const [availableCompanyFunds, setAvailableCompanyFunds] = useState<number | null>(null);
+  
+  const client = useMemo(() => {
+    const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+    if (!currentContextClientId) return null;
+    return clients.find(c => c.id === currentContextClientId);
+  }, [clients, user, viewingAsClientId]);
 
   const monthlyFundsData = useMemo(() => {
     const dataByMonth: { [key: string]: Partial<MonthlyFundsData> } = {};
 
     const processDate = (date: Date) => format(date, 'yyyy-MM');
 
+    const companyFundsStartDate = client?.companyFundsStartDate ? new Date(client.companyFundsStartDate) : new Date('2025-06-01T00:00:00.000Z');
+
     payments.forEach(p => {
-      const monthKey = processDate(new Date(p.date));
+      const paymentDate = new Date(p.date);
+      if (paymentDate < companyFundsStartDate) return;
+      const monthKey = processDate(paymentDate);
       dataByMonth[monthKey] = {
         ...dataByMonth[monthKey],
         income: (dataByMonth[monthKey]?.income || 0) + p.amount,
@@ -67,7 +82,9 @@ export default function CompanyFundsPage() {
     });
 
     expenses.forEach(e => {
-      const monthKey = processDate(new Date(e.date));
+      const expenseDate = new Date(e.date);
+      if (expenseDate < companyFundsStartDate) return;
+      const monthKey = processDate(expenseDate);
       dataByMonth[monthKey] = {
         ...dataByMonth[monthKey],
         mainExpenses: (dataByMonth[monthKey]?.mainExpenses || 0) + e.amount,
@@ -75,18 +92,16 @@ export default function CompanyFundsPage() {
     });
 
     companyFundsExpenses.forEach(e => {
-        const monthKey = processDate(new Date(e.date));
+        const expenseDate = new Date(e.date);
+        if (expenseDate < companyFundsStartDate) return;
+        const monthKey = processDate(expenseDate);
         dataByMonth[monthKey] = {
             ...dataByMonth[monthKey],
             fundsOut: (dataByMonth[monthKey]?.fundsOut || 0) + e.amount,
         };
     });
 
-    const sortedMonths = Object.keys(dataByMonth).sort();
-    if (sortedMonths.length === 0) return [];
-    
-    const firstMonthDate = new Date(sortedMonths[0]);
-    let loopDate = startOfMonth(subMonths(firstMonthDate, 1));
+    let loopDate = new Date(companyFundsStartDate);
     const endDate = endOfMonth(new Date());
 
     while(loopDate <= endDate) {
@@ -98,8 +113,10 @@ export default function CompanyFundsPage() {
     }
 
     const finalSortedMonths = Object.keys(dataByMonth).sort();
-
-    let openingBalance = 0;
+    if (finalSortedMonths.length === 0) return [];
+    
+    const startingBalance = client?.companyFundsStartingBalance || 0;
+    let openingBalance = startingBalance;
     const finalData: MonthlyFundsData[] = finalSortedMonths.map(monthKey => {
       const monthData = dataByMonth[monthKey];
       const income = monthData?.income || 0;
@@ -128,9 +145,15 @@ export default function CompanyFundsPage() {
       openingBalance = closingBalance;
       return result;
     });
+    
+    if (finalData.length > 0) {
+        setAvailableCompanyFunds(finalData[finalData.length - 1].closingBalance);
+    } else {
+        setAvailableCompanyFunds(startingBalance);
+    }
 
     return finalData.reverse(); // Show most recent first
-  }, [payments, expenses, companyFundsExpenses]);
+  }, [payments, expenses, companyFundsExpenses, client]);
 
   const handleOpenForm = (expense?: CompanyFundsExpense) => {
     setEditingExpense(expense || null);
@@ -145,28 +168,60 @@ export default function CompanyFundsPage() {
     }
   };
 
+  if (!client || client.name !== 'i-VirtuaTech') {
+    return (
+      <div className="container mx-auto py-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>This feature is exclusively for the i-VirtuaTech client.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-2 space-y-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline flex items-center">
-          <PiggyBank className="mr-3 h-8 w-8 text-primary" />
-          Company Funds
-        </h1>
-        <p className="text-muted-foreground">Monthly breakdown of company fund contributions and expenses.</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2">
+        <div>
+            <h1 className="text-3xl font-bold font-headline flex items-center">
+            <PiggyBank className="mr-3 h-8 w-8 text-primary" />
+            Company Funds
+            </h1>
+            <p className="text-muted-foreground">Monthly breakdown of company fund contributions and expenses.</p>
+        </div>
       </div>
+      
+       <Card className="shadow-xl bg-gradient-to-r from-primary/80 to-primary text-primary-foreground">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Wallet className="h-6 w-6" />
+            Available Company Funds
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {availableCompanyFunds !== null ? (
+            <p className="text-4xl font-bold tracking-tight">{formatCurrency(availableCompanyFunds)}</p>
+          ) : (
+            <Skeleton className="h-10 w-48 bg-white/30" />
+          )}
+          <p className="text-xs opacity-80 mt-1">This is the current running total of your company funds.</p>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
           <CardTitle>Monthly Funds Summary</CardTitle>
-          <CardDescription>10% of monthly net income is allocated to the company fund.</CardDescription>
+          <CardDescription>10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'June 2025'}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Month</TableHead>
-                <TableHead className="text-right">Total Income</TableHead>
-                <TableHead className="text-right">Main Expenses</TableHead>
+                <TableHead className="text-right">Opening Balance</TableHead>
                 <TableHead className="text-right">Net Income</TableHead>
                 <TableHead className="text-right">Funds In (10%)</TableHead>
                 <TableHead className="text-right">Funds Out</TableHead>
@@ -174,17 +229,22 @@ export default function CompanyFundsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {monthlyFundsData.map((row) => (
-                <TableRow key={row.month}>
-                  <TableCell className="font-medium">{row.month}</TableCell>
-                  <TableCell className="text-right text-green-600">{formatCurrency(row.income)}</TableCell>
-                  <TableCell className="text-right text-red-600">{formatCurrency(row.mainExpenses)}</TableCell>
-                  <TableCell className={cn("text-right font-semibold", row.netIncome >= 0 ? "text-green-700" : "text-red-700")}>{formatCurrency(row.netIncome)}</TableCell>
-                  <TableCell className="text-right font-semibold text-blue-600">{formatCurrency(row.fundsIn)}</TableCell>
-                  <TableCell className="text-right font-semibold text-orange-600">{formatCurrency(row.fundsOut)}</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(row.closingBalance)}</TableCell>
+              {monthlyFundsData.length > 0 ? (
+                monthlyFundsData.map((row) => (
+                    <TableRow key={row.month}>
+                    <TableCell className="font-medium">{row.month}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{formatCurrency(row.openingBalance)}</TableCell>
+                    <TableCell className={cn("text-right font-semibold", row.netIncome >= 0 ? "text-green-700" : "text-red-700")}>{formatCurrency(row.netIncome)}</TableCell>
+                    <TableCell className="text-right font-semibold text-blue-600">{formatCurrency(row.fundsIn)}</TableCell>
+                    <TableCell className="text-right font-semibold text-orange-600">{formatCurrency(row.fundsOut)}</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(row.closingBalance)}</TableCell>
+                    </TableRow>
+                ))
+               ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center h-24">No financial data found for the tracking period.</TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
