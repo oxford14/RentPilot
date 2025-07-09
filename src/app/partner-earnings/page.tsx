@@ -9,7 +9,7 @@ import { DateRangeSelector } from '@/components/reports/DateRangeSelector';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Handshake, TrendingUp, TrendingDown, DollarSign, PiggyBank, Users, Info } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 const formatCurrency = (value: number) => {
@@ -48,8 +48,8 @@ export default function PartnerEarningsPage() {
   const { grossIncome, totalExpenses } = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return { grossIncome: 0, totalExpenses: 0 };
     
-    const startDate = dateRange.from;
-    const endDate = dateRange.to;
+    const startDate = startOfDay(dateRange.from);
+    const endDate = endOfDay(dateRange.to);
 
     const filteredPayments = payments.filter(p => {
         const paymentDate = new Date(p.date);

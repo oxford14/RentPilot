@@ -58,8 +58,10 @@ export function DateRangeSelector({ onDateChange, className }: DateRangeSelector
         const prevMonth = subMonths(today, 1);
         newDateRange = { from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) };
         break;
+      case "custom":
+        return; // Do nothing if custom is selected, let the manual picker handle it
       default:
-        newDateRange = undefined; // Or keep current 'date' if no preset matches
+        newDateRange = undefined;
     }
     setDate(newDateRange);
     onDateChange(newDateRange);
@@ -108,8 +110,7 @@ export function DateRangeSelector({ onDateChange, className }: DateRangeSelector
             onSelect={(newRange) => {
               setDate(newRange);
               onDateChange(newRange);
-              // If a custom range is selected, we might want to clear the preset or set it to a "custom" value
-              // For now, let's assume selecting a date clears the preset concept for the next manual preset selection
+              setSelectedPreset("custom"); // Set preset to custom on manual selection
             }}
             numberOfMonths={2}
           />
@@ -120,6 +121,12 @@ export function DateRangeSelector({ onDateChange, className }: DateRangeSelector
           <SelectValue placeholder="Select preset" />
         </SelectTrigger>
         <SelectContent>
+          {selectedPreset === 'custom' && !date && (
+            <SelectItem value="custom" disabled>Custom Range</SelectItem>
+          )}
+          {selectedPreset === 'custom' && date && (
+             <SelectItem value="custom">Custom Range</SelectItem>
+          )}
           <SelectItem value="today">Today</SelectItem>
           <SelectItem value="yesterday">Yesterday</SelectItem>
           <SelectItem value="this_week">This Week</SelectItem>
