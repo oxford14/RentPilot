@@ -22,6 +22,8 @@ export default function PcManagementPage() {
   }, [clients, user]);
 
   const [pcCountInput, setPcCountInput] = useState('');
+  
+  const canConfigurePcCount = user?.isSuperAdmin || user?.role === 'admin';
 
   useEffect(() => {
     if (client) {
@@ -88,27 +90,29 @@ export default function PcManagementPage() {
         </div>
       </div>
 
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle>Configure Total PCs</CardTitle>
-          <CardDescription>Set the total number of PCs available for assignment.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-end gap-2">
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="pc-count">Number of PCs</Label>
-              <Input
-                type="number"
-                id="pc-count"
-                value={pcCountInput}
-                onChange={(e) => setPcCountInput(e.target.value)}
-                min="0"
-              />
+      {canConfigurePcCount && (
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle>Configure Total PCs</CardTitle>
+            <CardDescription>Set the total number of PCs available for assignment.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2">
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="pc-count">Number of PCs</Label>
+                <Input
+                  type="number"
+                  id="pc-count"
+                  value={pcCountInput}
+                  onChange={(e) => setPcCountInput(e.target.value)}
+                  min="0"
+                />
+              </div>
+              <Button onClick={handleSetPcCount}>Set Count</Button>
             </div>
-            <Button onClick={handleSetPcCount}>Set Count</Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {pcs.map(pc => (
