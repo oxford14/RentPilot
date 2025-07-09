@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -131,7 +132,7 @@ export default function PaymentsPage() {
               <CardTitle className="text-2xl font-bold font-headline">Payment Tracking</CardTitle>
               <CardDescription>Select a tenant to view their payments or record a new one.</CardDescription>
             </div>
-            <div className="flex w-full sm:w-auto flex-col-reverse sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="flex w-full sm:w-auto flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end items-stretch sm:items-center gap-4">
                <div className="p-3 border rounded-lg bg-muted/50 text-right shrink-0">
                   <p className="text-sm text-muted-foreground">Collected this month</p>
                   <p className="text-xl font-bold text-primary">₱{totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
