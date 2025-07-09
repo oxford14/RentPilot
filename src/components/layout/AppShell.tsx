@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -376,6 +376,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                 baseNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
             } else {
                 baseNavItems.push(pcManagementItem); // Fallback
+            }
+        }
+
+        // Add Company Funds for i-VirtuaTech Admin/SuperAdmin
+        const isIVirtuaTechAdmin = activeClientForDisplay?.name === 'i-VirtuaTech' && (authUser?.isSuperAdmin || authUser?.role === 'admin');
+        if (isIVirtuaTechAdmin) {
+            const companyFundsItem: AppSidebarNavItem = {
+                isGroup: false,
+                href: '/company-funds',
+                label: 'Company Funds',
+                icon: PiggyBank,
+            };
+            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+             if (expensesIndex !== -1) {
+                baseNavItems.splice(expensesIndex + 1, 0, companyFundsItem);
+            } else {
+                baseNavItems.push(companyFundsItem);
             }
         }
 

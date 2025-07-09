@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -74,6 +75,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
     const hubAdminForbiddenRoutes = ['/users', '/announcements', '/payments', '/additional-dues', '/reports'];
     const pathIsAdmin = pathname.startsWith('/admin');
+    const pathIsCompanyFunds = pathname.startsWith('/company-funds');
     const pathIsClientAdminOnly = ['/users', '/announcements'].includes(pathname);
     const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
@@ -82,6 +84,12 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
         router.push('/');
         return;
+    }
+    
+    if (pathIsCompanyFunds && !isSuperAdmin && !isClientAdmin) {
+       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access Company Funds." });
+       router.push('/');
+       return;
     }
     
     if (isHubAdmin && hubAdminForbiddenRoutes.some(p => pathname.startsWith(p))) {

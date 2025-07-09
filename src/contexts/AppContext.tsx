@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,6 +58,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawManagedUsersState, setRawManagedUsersState] = useState<ManagedUser[]>([]);
   const [rawSuperAdminUsersState, setRawSuperAdminUsersState] = useState<SuperAdminUser[]>([]);
   const [rawExpensesState, setRawExpensesState] = useState<Expense[]>([]);
+  const [rawCompanyFundsExpenses, setRawCompanyFundsExpenses] = useState<CompanyFundsExpense[]>([]);
   const [rawAdditionalDuesState, setRawAdditionalDuesState] = useState<AdditionalDue[]>([]);
   const [rawBusinessesState, setRawBusinessesState] = useState<Business[]>([]);
   const [rawWeeklyIncomesState, setRawWeeklyIncomesState] = useState<WeeklyIncome[]>([]);
@@ -82,6 +83,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawSuperAdminUsersState([]);
       setRawExpensesState([]);
       setRawAdditionalDuesState([]);
+      setRawCompanyFundsExpenses([]);
       setRawBusinessesState([]);
       setRawWeeklyIncomesState([]);
       setRawChatSessionsState([]);
@@ -104,6 +106,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'managedUsers', setter: setRawManagedUsersState, label: 'managed users' },
       { name: 'superAdminUsers', setter: setRawSuperAdminUsersState, label: 'super admin users' },
       { name: 'expenses', setter: setRawExpensesState, label: 'expenses' },
+      { name: 'companyFundsExpenses', setter: setRawCompanyFundsExpenses, label: 'company funds expenses' },
       { name: 'additionalDues', setter: setRawAdditionalDuesState, label: 'additional dues'},
       { name: 'businesses', setter: setRawBusinessesState, label: 'businesses' },
       { name: 'weeklyIncomes', setter: setRawWeeklyIncomesState, label: 'weekly incomes' },
@@ -219,6 +222,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const clientId = getScopedClientId();
     return rawExpensesState.filter(e => e.clientId === clientId);
   }, [rawExpensesState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
+
+  const companyFundsExpenses = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    if (authUser?.isSuperAdmin && !viewingAsClientId) {
+      return rawCompanyFundsExpenses.filter(e => !e.clientId);
+    }
+    const clientId = getScopedClientId();
+    return rawCompanyFundsExpenses.filter(e => e.clientId === clientId);
+  }, [rawCompanyFundsExpenses, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
 
   const additionalDues = useMemo(() => {
     if (!authIsAuthenticated) return [];
@@ -695,6 +707,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
     }
   };
+  
+  const addCompanyFundsExpense = async (expenseData: Omit<CompanyFundsExpense, 'id' | 'clientId'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const determinedClientId: string | undefined = getScopedClientId();
+    if (!determinedClientId) {
+      toast({ variant: "destructive", title: "Client context not found."});
+      return;
+    }
+    const newExpenseData: Omit<CompanyFundsExpense, 'id'> = {
+      ...expenseData,
+      clientId: determinedClientId,
+    };
+    try {
+      await addDoc(collection(db, 'companyFundsExpenses'), newExpenseData);
+    } catch (error: any) {
+      console.error("Error adding company funds expense:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${error.message}` });
+    }
+  };
+  
+  const updateCompanyFundsExpense = async (updatedExpense: CompanyFundsExpense) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const { id, ...dataToUpdate } = updatedExpense;
+    try {
+      await setDoc(doc(db, 'companyFundsExpenses', id), dataToUpdate, { merge: true });
+    } catch (error: any) {
+      console.error("Error updating company funds expense:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${error.message}` });
+    }
+  };
+
+  const deleteCompanyFundsExpense = async (expenseId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'companyFundsExpenses', expenseId));
+    } catch (error: any) {
+      console.error("Error deleting company funds expense:", error);
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
+    }
+  };
+
 
   const addAdditionalDue = async (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt' | 'creditApplied'>) => {
     if (!authIsAuthenticated) {
@@ -848,7 +910,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
     try {
       batch.delete(doc(db, 'clients', clientId));
-      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes'];
+      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
       for (const collName of collectionsToDelete) {
         const q = query(collection(db, collName), where('clientId', '==', clientId));
         const snapshot = await getDocs(q);
@@ -1010,7 +1072,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const batch = writeBatch(db);
-        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes'];
+        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
         
         for (const collName of collectionsToDelete) {
           const q = query(collection(db, collName), where('clientId', '==', clientId));
@@ -1237,7 +1299,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Restore In Progress", description: "This may take a moment. Please wait..." });
 
     const collectionsInBackup = Object.keys(backupData.data);
-    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements'];
+    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements', 'companyFundsExpenses'];
 
     try {
         const allCurrentDocs: { [key: string]: string[] } = {};
@@ -1439,6 +1501,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
     expenses,
+    companyFundsExpenses,
     expenseCategories: definedExpenseCategories,
     additionalDues,
     viewingAsClientId,
@@ -1494,6 +1557,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addExpense,
     updateExpense,
     deleteExpense,
+    
+    addCompanyFundsExpense,
+    updateCompanyFundsExpense,
+    deleteCompanyFundsExpense,
     
     addAdditionalDue,
     updateAdditionalDue,

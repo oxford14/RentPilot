@@ -113,6 +113,15 @@ export interface Expense {
   clientId?: string; // Firestore document ID of the client, or undefined/null for global expenses
 }
 
+export interface CompanyFundsExpense {
+  id: string;
+  clientId: string;
+  description: string;
+  amount: number;
+  date: string; // ISO string
+}
+
+
 export type AdditionalDueType = 'Water Bill' | 'Electricity Bill' | 'CUSA' | 'Other';
 export const additionalDueTypes: AdditionalDueType[] = ['Water Bill', 'Electricity Bill', 'CUSA', 'Other'];
 
@@ -305,6 +314,7 @@ export interface AppContextType {
   managedUsers: ManagedUser[]; // Filtered for current client context if applicable
   rawSuperAdminUsers: SuperAdminUser[]; // Full list for super admins
   expenses: Expense[]; 
+  companyFundsExpenses: CompanyFundsExpense[];
   expenseCategories: ExpenseCategory[];
   additionalDues: AdditionalDue[];
   viewingAsClientId: string | null;
@@ -374,6 +384,10 @@ export interface AppContextType {
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
+
+  addCompanyFundsExpense: (expenseData: Omit<CompanyFundsExpense, 'id' | 'clientId'>) => Promise<void>;
+  updateCompanyFundsExpense: (expense: CompanyFundsExpense) => Promise<void>;
+  deleteCompanyFundsExpense: (expenseId: string) => Promise<void>;
 
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
