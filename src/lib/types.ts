@@ -80,6 +80,7 @@ export interface Client {
   subscriptionPlanName?: string;
   subscriptionRate?: number;
   pcCount?: number;
+  pcIssues?: Record<number, string>;
 }
 
 export type ExpenseCategory = 
@@ -336,6 +337,7 @@ export interface AppContextType {
   updateClientPcCount: (clientId: string, count: number) => Promise<void>;
   assignTenantToPc: (tenantId: string, pcNumber: number) => Promise<void>;
   unassignTenantFromPc: (tenantId: string) => Promise<void>;
+  updateClientPcIssue: (clientId: string, pcNumber: number, issueText: string) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;

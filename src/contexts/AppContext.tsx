@@ -1026,7 +1026,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error cleaning client data:", error);
-        toast({ variant: "destructive", title: "Cleanup Failed", description: error.message });
+        toast({ variant: 'destructive', title: 'Cleanup Failed', description: error.message });
         return { success: false, message: `Cleanup failed: ${error.message}` };
     }
   };
@@ -1407,6 +1407,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
+  
+  const updateClientPcIssue = async (clientId: string, pcNumber: number, issueText: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const clientRef = doc(db, 'clients', clientId);
+    try {
+      if (issueText.trim()) {
+        await updateDoc(clientRef, {
+          [`pcIssues.${pcNumber}`]: issueText.trim()
+        });
+        toast({ title: "Success", description: `Issue for PC ${pcNumber} has been updated.` });
+      } else {
+        await updateDoc(clientRef, {
+          [`pcIssues.${pcNumber}`]: deleteField()
+        });
+        toast({ title: "Success", description: `Issue for PC ${pcNumber} has been cleared.` });
+      }
+    } catch (e: any) {
+      console.error("Error updating PC issue:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
 
   const contextValue: AppContextType = {
     tenants,
@@ -1447,6 +1471,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateClientPcCount,
     assignTenantToPc,
     unassignTenantFromPc,
+    updateClientPcIssue,
 
     addPayment,
     updatePayment,
