@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -134,4 +135,3 @@ export default function DeletedClientsPage() {
     </div>
   );
 }
-
