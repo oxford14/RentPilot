@@ -1,6 +1,7 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 
 // Initialize Firebase Admin SDK
@@ -8,6 +9,17 @@ admin.initializeApp();
 
 const storage = admin.storage();
 const bucket = storage.bucket("tenanttracker-u4wuw.appspot.com");
+
+/**
+ * Initializes Eventarc by deploying a simple Firestore-triggered function.
+ * This function triggers when a document is created in the "dummy" collection.
+ */
+exports.initializeEventarc = onDocumentCreated("dummy/{docId}", (event) => {
+  const docId = event.params.docId;
+  console.log(`Eventarc initialized by trigger from dummy document: ${docId}`);
+  return null;
+});
+
 
 exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
   // Set CORS headers for preflight and actual requests
