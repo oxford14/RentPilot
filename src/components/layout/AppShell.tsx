@@ -362,25 +362,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           return true;
         });
 
-        // PC Rental related features
-        if (activeClientForDisplay?.businessType === 'PC_Rental') {
+        if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
             };
-            const partnerEarningsItem: AppSidebarNavItem = {
-                isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake,
-            };
-             const companyFundsItem: AppSidebarNavItem = {
-                isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank,
-            };
-
-            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
-            if (expensesIndex !== -1) {
-                baseNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
-            } else {
-                baseNavItems.push(partnerEarningsItem, companyFundsItem);
-            }
-
             const tenantsIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
             if (tenantsIndex !== -1) {
                 baseNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
@@ -389,7 +374,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
         }
         
-        // Add Tracking to the bottom of the list only for specific clients.
+        if (activeClientForDisplay?.name === 'i-VirtuaTech') {
+           const partnerEarningsItem: AppSidebarNavItem = {
+                isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake,
+            };
+            const companyFundsItem: AppSidebarNavItem = {
+                isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank,
+            };
+            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+            if (expensesIndex !== -1) {
+                baseNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
+            } else {
+                baseNavItems.push(partnerEarningsItem, companyFundsItem);
+            }
+        }
+        
         if (activeClientForDisplay && activeClientForDisplay.name === "D' First Hub") {
             const trackingItem: AppSidebarNavItem = {
                 isGroup: false,

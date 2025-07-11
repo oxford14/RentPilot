@@ -69,6 +69,7 @@ export default function CompanyFundsPage() {
   }, [clients, user, viewingAsClientId]);
 
   const monthlyFundsData = useMemo(() => {
+    if (!client || client.name !== 'i-VirtuaTech') return [];
     const dataByMonth: { [key: string]: Partial<MonthlyFundsData> } = {};
 
     const processDate = (date: Date) => format(date, 'yyyy-MM');
@@ -189,13 +190,13 @@ export default function CompanyFundsPage() {
     }
   };
 
-  if (!client || client.businessType !== 'PC_Rental') {
+  if (!client || client.name !== 'i-VirtuaTech') {
     return (
       <div className="container mx-auto py-2">
         <Card>
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
-            <CardDescription>This feature is exclusively for PC Rental business types.</CardDescription>
+            <CardDescription>This feature is exclusively for the i-VirtuaTech client.</CardDescription>
           </CardHeader>
         </Card>
       </div>

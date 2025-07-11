@@ -214,8 +214,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       timezone: data.timezone,
     };
     
-    // Only include company funds settings if businessType is PC_Rental
-    if (data.businessType === 'PC_Rental') {
+    if (client?.name === 'i-VirtuaTech') {
       clientPayload.companyFundsStartingBalance = data.companyFundsStartingBalance;
       clientPayload.companyFundsStartDate = data.companyFundsStartDate ? new Date(data.companyFundsStartDate).toISOString() : undefined;
     }
@@ -253,8 +252,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       setIsSubmitting(false);
     }
   };
-  
-  const watchedBusinessType = form.watch('businessType');
 
   return (
     <>
@@ -447,11 +444,11 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 </div>
               )}
               
-              {watchedBusinessType === 'PC_Rental' && (
+              {client?.name === 'i-VirtuaTech' && (
                 <>
                 <Separator />
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                  <h3 className="font-semibold text-foreground">PC Rental Settings</h3>
+                  <h3 className="font-semibold text-foreground">i-VirtuaTech Settings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <FormField
                         control={form.control}

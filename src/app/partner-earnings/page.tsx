@@ -41,7 +41,7 @@ export default function PartnerEarningsPage() {
   // Page level protection
   useEffect(() => {
     const isAuthorized = user?.isSuperAdmin || user?.role === 'admin';
-    if (client && client.businessType !== 'PC_Rental' || !isAuthorized) {
+    if (client && client.name !== 'i-VirtuaTech' || !isAuthorized) {
         router.push('/');
     }
   }, [client, user, router]);
@@ -88,7 +88,7 @@ export default function PartnerEarningsPage() {
     };
   }, [profitToShare]);
 
-  if (!client || client.businessType !== 'PC_Rental' || (!user?.isSuperAdmin && user?.role !== 'admin')) {
+  if (!client || client.name !== 'i-VirtuaTech' || (!user?.isSuperAdmin && user?.role !== 'admin')) {
     return (
       <div className="container mx-auto py-2">
         <p>Loading or unauthorized...</p>
