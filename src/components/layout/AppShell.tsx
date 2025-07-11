@@ -406,7 +406,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             return { ...item, label };
         });
 
-        if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
+        if (activeClientForDisplay?.businessType === 'PC_Rental') {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
             };
@@ -835,4 +835,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
