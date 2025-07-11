@@ -76,8 +76,8 @@ export default function TrackingPage() {
   }, [clients, user, viewingAsClientId]);
 
   useEffect(() => {
-    if (currentClient && currentClient.businessType !== 'Standard') {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'This feature is only available for Standard business types.' });
+    if (currentClient && currentClient.name !== "D' First Hub") {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'This feature is only available for D\' First Hub.' });
       router.push('/');
     }
   }, [currentClient, router, toast]);
@@ -278,7 +278,7 @@ export default function TrackingPage() {
     return false;
   };
 
-  if (currentClient && currentClient.businessType !== 'Standard') {
+  if (currentClient && currentClient.name !== "D' First Hub") {
     return null; // Don't render content if redirection is about to happen
   }
 
