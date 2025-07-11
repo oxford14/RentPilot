@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -13,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import type { Client } from '@/lib/types';
+import type { Client, BusinessType } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop } from 'react-image-crop';
@@ -38,9 +39,17 @@ const timezones = [
   { value: 'Asia/Manila', label: 'Manila (PHT)'},
 ];
 
+const businessTypes: { value: BusinessType; label: string }[] = [
+    { value: 'Standard', label: 'Standard (Apartment/Commercial)' },
+    { value: 'PC_Rental', label: 'PC Rental / ESL Center' },
+    { value: 'ISP_Subscription', label: 'ISP Subscription Monitoring' },
+    { value: 'Vehicle_Rental', label: 'Vehicle Rental' },
+];
+
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
   logoFile: z.any().optional(),
+  businessType: z.enum(['Standard', 'PC_Rental', 'ISP_Subscription', 'Vehicle_Rental']).optional(),
   subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
   subscriptionEndDate: z.date().optional(),
   subscriptionPlanName: z.string().optional(),
@@ -117,6 +126,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
     defaultValues: {
       name: client?.name || '',
       logoFile: undefined,
+      businessType: client?.businessType || 'Standard',
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
       subscriptionPlanName: client?.subscriptionPlanName || '',
@@ -132,6 +142,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       form.reset({
         name: client?.name || '',
         logoFile: undefined,
+        businessType: client?.businessType || 'Standard',
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
         subscriptionPlanName: client?.subscriptionPlanName || '',
@@ -195,6 +206,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
     setIsSubmitting(true);
     const clientPayload: Partial<Client> = {
       name: data.name,
+      businessType: data.businessType || 'Standard',
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
       subscriptionPlanName: data.subscriptionPlanName,
@@ -202,7 +214,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       timezone: data.timezone,
     };
     
-    if (client && client.name === 'i-VirtuaTech') {
+    // Only include company funds settings if businessType is PC_Rental
+    if (data.businessType === 'PC_Rental') {
       clientPayload.companyFundsStartingBalance = data.companyFundsStartingBalance;
       clientPayload.companyFundsStartDate = data.companyFundsStartDate ? new Date(data.companyFundsStartDate).toISOString() : undefined;
     }
@@ -240,6 +253,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       setIsSubmitting(false);
     }
   };
+  
+  const watchedBusinessType = form.watch('businessType');
 
   return (
     <>
@@ -250,19 +265,45 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2 max-h-[80vh] overflow-y-auto">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Acme Corp Rentals" {...field} autoComplete="off" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Acme Corp Rentals" {...field} autoComplete="off" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="businessType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a business type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {businessTypes.map(type => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <FormField
@@ -406,11 +447,11 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 </div>
               )}
               
-              {client && client.name === 'i-VirtuaTech' && (
+              {watchedBusinessType === 'PC_Rental' && (
                 <>
                 <Separator />
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                  <h3 className="font-semibold text-foreground">Company Funds Settings (i-VirtuaTech Only)</h3>
+                  <h3 className="font-semibold text-foreground">PC Rental Settings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <FormField
                         control={form.control}

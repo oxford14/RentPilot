@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -40,7 +41,7 @@ export default function PartnerEarningsPage() {
   // Page level protection
   useEffect(() => {
     const isAuthorized = user?.isSuperAdmin || user?.role === 'admin';
-    if (client && client.name !== 'i-VirtuaTech' || !isAuthorized) {
+    if (client && client.businessType !== 'PC_Rental' || !isAuthorized) {
         router.push('/');
     }
   }, [client, user, router]);
@@ -87,7 +88,7 @@ export default function PartnerEarningsPage() {
     };
   }, [profitToShare]);
 
-  if (!client || client.name !== 'i-VirtuaTech' || (!user?.isSuperAdmin && user?.role !== 'admin')) {
+  if (!client || client.businessType !== 'PC_Rental' || (!user?.isSuperAdmin && user?.role !== 'admin')) {
     return (
       <div className="container mx-auto py-2">
         <p>Loading or unauthorized...</p>
@@ -102,7 +103,7 @@ export default function PartnerEarningsPage() {
           <Handshake className="mr-3 h-8 w-8 text-primary" />
           Partner Earnings
         </h1>
-        <p className="text-muted-foreground">Calculate profit shares based on monthly performance for i-VirtuaTech.</p>
+        <p className="text-muted-foreground">Calculate profit shares based on monthly performance for your PC Rental business.</p>
       </div>
       
       <Card className="shadow-xl">

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -98,8 +99,8 @@ export default function PcManagementPage() {
     );
   }
 
-  const allowedClients = ['i-VirtuaTech', "D' First Hub"];
-  if (!allowedClients.includes(client.name)) {
+  const allowedBusinessTypes: (string | undefined)[] = ['PC_Rental', 'ISP_Subscription'];
+  if (!allowedBusinessTypes.includes(client.businessType)) {
       return (
           <div className="container mx-auto py-2">
               <Card>
@@ -107,7 +108,7 @@ export default function PcManagementPage() {
                       <CardTitle>Access Denied</CardTitle>
                   </CardHeader>
                   <CardContent>
-                      <p>This feature is only available for specific clients.</p>
+                      <p>This feature is only available for PC Rental or ISP Subscription business types.</p>
                   </CardContent>
               </Card>
           </div>

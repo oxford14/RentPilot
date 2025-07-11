@@ -1,5 +1,7 @@
 
 
+export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
+
 export type ClientUserRole = 'admin' | 'user' | 'hub-admin';
 export type UserRole = ClientUserRole | 'tenant';
 
@@ -75,6 +77,7 @@ export interface Client {
   id: string; // Firestore document ID
   name: string;
   logoUrl?: string | null;
+  businessType?: BusinessType;
   subscriptionStatus?: 'active' | 'inactive';
   subscriptionEndDate?: string; // ISO string
   subscriptionPlanName?: string;

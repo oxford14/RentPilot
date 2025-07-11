@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -188,13 +189,13 @@ export default function CompanyFundsPage() {
     }
   };
 
-  if (!client || client.name !== 'i-VirtuaTech') {
+  if (!client || client.businessType !== 'PC_Rental') {
     return (
       <div className="container mx-auto py-2">
         <Card>
           <CardHeader>
             <CardTitle>Access Denied</CardTitle>
-            <CardDescription>This feature is exclusively for the i-VirtuaTech client.</CardDescription>
+            <CardDescription>This feature is exclusively for PC Rental business types.</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -358,4 +359,3 @@ export default function CompanyFundsPage() {
     </div>
   );
 }
-

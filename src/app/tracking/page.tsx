@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -75,8 +76,8 @@ export default function TrackingPage() {
   }, [clients, user, viewingAsClientId]);
 
   useEffect(() => {
-    if (currentClient && currentClient.name === 'i-VirtuaTech') {
-      toast({ variant: 'destructive', title: 'Access Denied', description: 'This feature is not available for this client.' });
+    if (currentClient && currentClient.businessType !== 'Standard') {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'This feature is only available for Standard business types.' });
       router.push('/');
     }
   }, [currentClient, router, toast]);
@@ -277,7 +278,7 @@ export default function TrackingPage() {
     return false;
   };
 
-  if (currentClient && currentClient.name === 'i-VirtuaTech') {
+  if (currentClient && currentClient.businessType !== 'Standard') {
     return null; // Don't render content if redirection is about to happen
   }
 

@@ -335,10 +335,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       if(isTenantSection) {
         baseNavItems = [...tenantNavItems];
       } else {
-        const isIVirtuaTechHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.name === 'i-VirtuaTech';
+        const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.businessType === 'PC_Rental';
         
         baseNavItems = [...appNavItems].filter(item => {
-          if (isIVirtuaTechHubAdmin) {
+          if (isHubAdmin) {
             if (['/users', '/announcements', '/payments', '/additional-dues', '/reports'].includes(item.href)) {
               return false;
             }
@@ -362,46 +362,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           return true;
         });
 
-        // Add PC Management for specific clients
-        const pcManagementClients = ['i-VirtuaTech', "D' First Hub"];
-        if (activeClientForDisplay && pcManagementClients.includes(activeClientForDisplay.name)) {
+        // PC Rental related features
+        if (activeClientForDisplay?.businessType === 'PC_Rental') {
             const pcManagementItem: AppSidebarNavItem = {
-                isGroup: false,
-                href: '/pc-management',
-                label: 'PC Management',
-                icon: Monitor,
+                isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
             };
+            const partnerEarningsItem: AppSidebarNavItem = {
+                isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake,
+            };
+             const companyFundsItem: AppSidebarNavItem = {
+                isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank,
+            };
+
+            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+            if (expensesIndex !== -1) {
+                baseNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
+            } else {
+                baseNavItems.push(partnerEarningsItem, companyFundsItem);
+            }
+
             const tenantsIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
             if (tenantsIndex !== -1) {
                 baseNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
             } else {
-                baseNavItems.push(pcManagementItem); // Fallback
+                baseNavItems.push(pcManagementItem);
             }
         }
-
-        // Add Company Funds for i-VirtuaTech Admin/SuperAdmin
-        const isIVirtuaTechAdmin = activeClientForDisplay?.name === 'i-VirtuaTech' && (authUser?.isSuperAdmin || authUser?.role === 'admin');
-        if (isIVirtuaTechAdmin) {
-            const companyFundsItem: AppSidebarNavItem = {
-                isGroup: false,
-                href: '/company-funds',
-                label: 'Company Funds',
-                icon: PiggyBank,
-            };
-            const partnerEarningsItem: AppSidebarNavItem = {
-                isGroup: false,
-                href: '/partner-earnings',
-                label: 'Partner Earnings',
-                icon: Handshake,
-            };
-            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
-             if (expensesIndex !== -1) {
-                baseNavItems.splice(expensesIndex + 1, 0, companyFundsItem, partnerEarningsItem);
-            } else {
-                baseNavItems.push(companyFundsItem, partnerEarningsItem);
-            }
-        }
-
+        
         // Add Tracking to the bottom of the list only for specific clients.
         if (activeClientForDisplay && activeClientForDisplay.name === "D' First Hub") {
             const trackingItem: AppSidebarNavItem = {
