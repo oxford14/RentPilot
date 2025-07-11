@@ -194,6 +194,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return authUser?.clientId;
   }, [authUser, authIsAuthenticated, viewingAsClientId]);
 
+  const activeClient = useMemo(() => {
+    const clientId = getScopedClientId();
+    if (!clientId) return null;
+    return rawClientsState.find(c => c.id === clientId) || null;
+  }, [getScopedClientId, rawClientsState]);
+
+  const terminology = useMemo(() => {
+    const businessType = activeClient?.businessType;
+    switch (businessType) {
+      case 'ISP_Subscription':
+        return { single: 'Subscriber', plural: 'Subscribers' };
+      case 'Vehicle_Rental':
+        return { single: 'Renter', plural: 'Renters' };
+      default:
+        return { single: 'Tenant', plural: 'Tenants' };
+    }
+  }, [activeClient]);
+
 
   // Filtered data based on auth user and view mode
   const tenants = useMemo(() => {
@@ -313,7 +331,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Error adding tenant to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add tenant: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add ${terminology.single}: ${error.message}` });
     }
   };
 
@@ -388,7 +406,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error updating tenant in Firestore:", error);
-        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update tenant: ${error.message}` });
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update ${terminology.single}: ${error.message}` });
     }
   };
 
@@ -401,8 +419,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const tenantSnapshot = await getDoc(tenantDocRef);
       if (!tenantSnapshot.exists()) {
-        toast({ variant: "destructive", title: "Not Found", description: "Tenant not found." });
-        return { success: false, message: 'Tenant not found.', action: 'not_found' };
+        toast({ variant: "destructive", title: "Not Found", description: `${terminology.single} not found.` });
+        return { success: false, message: `${terminology.single} not found.`, action: 'not_found' };
       }
       const tenantData = {id: tenantSnapshot.id, ...tenantSnapshot.data()} as Tenant;
 
@@ -416,14 +434,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       if (hasHistory) {
         await updateDoc(tenantDocRef, { status: 'inactive' });
-        return { success: true, message: `Tenant "${tenantData.name}" marked as inactive.`, action: 'inactivated' };
+        return { success: true, message: `${terminology.single} "${tenantData.name}" marked as inactive.`, action: 'inactivated' };
       } else {
         await deleteDoc(tenantDocRef);
-        return { success: true, message: `Tenant "${tenantData.name}" permanently deleted.`, action: 'deleted' };
+        return { success: true, message: `${terminology.single} "${tenantData.name}" permanently deleted.`, action: 'deleted' };
       }
     } catch (error: any) {
       console.error("Error attempting to delete tenant:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate tenant: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate ${terminology.single}: ${error.message}` });
       return { success: false, message: `Operation failed: ${error.message}`, action: 'error' };
     }
   };
@@ -766,7 +784,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { tenantId, amount: newDueAmount, type } = dueData;
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Tenant not found.' });
+      toast({ variant: 'destructive', title: 'Error', description: `${terminology.single} not found.` });
       return;
     }
 
@@ -1510,6 +1528,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     weeklyIncomes,
     backupScheduleSettings,
     announcements,
+    terminology,
     
     // Chat
     chatSessions: rawChatSessionsState,

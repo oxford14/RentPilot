@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -44,7 +45,7 @@ export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const { deletePayment, tenants, payments, additionalDues } = useAppContext(); 
+  const { deletePayment, tenants, payments, additionalDues, terminology } = useAppContext(); 
   const { toast } = useToast();
   
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -130,7 +131,7 @@ export default function PaymentsPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-2xl font-bold font-headline">Payment Tracking</CardTitle>
-              <CardDescription>Select a tenant to view their payments or record a new one.</CardDescription>
+              <CardDescription>Select a {terminology.single.toLowerCase()} to view their payments or record a new one.</CardDescription>
             </div>
             <div className="flex w-full sm:w-auto flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end items-stretch sm:items-center gap-4">
                <div className="p-3 border rounded-lg bg-muted/50 text-right shrink-0">
@@ -150,14 +151,14 @@ export default function PaymentsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              <CardTitle className="font-headline text-lg">Tenants</CardTitle>
+              <CardTitle className="font-headline text-lg">{terminology.plural}</CardTitle>
             </div>
-            <CardDescription className="text-xs">Search and select a tenant.</CardDescription>
+            <CardDescription className="text-xs">Search and select a {terminology.single.toLowerCase()}.</CardDescription>
             <div className="relative pt-2">
               <UserSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground mt-1" />
               <Input
                   type="text"
-                  placeholder="Search tenants by name/email..."
+                  placeholder={`Search ${terminology.plural.toLowerCase()} by name/email...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-full shadow-sm"
@@ -191,7 +192,7 @@ export default function PaymentsPage() {
                 )}
             </div>
             <CardDescription className="text-xs pt-2">
-              {tenant ? `Showing payments for ${tenant.name}.` : "Select a tenant from the list to view their payments."}
+              {tenant ? `Showing payments for ${tenant.name}.` : `Select a ${terminology.single.toLowerCase()} from the list to view their payments.`}
             </CardDescription>
             {tenant && balanceInfo && balanceBreakdown && (
                 <Accordion type="single" collapsible className="w-full pt-2">
@@ -237,7 +238,7 @@ export default function PaymentsPage() {
                           ) : (
                             <div className="text-sm text-muted-foreground flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              <span>This tenant is fully paid up. No outstanding dues.</span>
+                              <span>This {terminology.single.toLowerCase()} is fully paid up. No outstanding dues.</span>
                             </div>
                           )}
                         </AccordionContent>

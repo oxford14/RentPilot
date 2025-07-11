@@ -63,30 +63,29 @@ interface AdminNavGroup {
 type AdminSidebarConfigItem = AdminTopLevelNavItem | AdminNavGroup;
 
 
-const appNavItems: AppSidebarNavItem[] = [
-  { isGroup: false, href: '/', label: 'Dashboard', icon: Home },
-  { isGroup: false, href: '/tenants', label: 'Tenants', icon: Users },
-  { isGroup: false, href: '/payments', label: 'Payments', icon: CreditCard },
-  { isGroup: false, href: '/additional-dues', label: 'Additional Dues', icon: ListPlus },
-  { isGroup: false, href: '/monitoring', label: 'Monitoring', icon: BellRing },
-  { isGroup: false, href: '/expenses', label: 'Expenses', icon: ReceiptText },
-  { isGroup: false, href: '/announcements', label: 'Announcements', icon: Megaphone, clientAdminOnly: true },
-  { isGroup: false, href: '/subscription', label: 'Subscription', icon: Award, clientOnly: true },
+const baseAppNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
+  { isGroup: false, href: '/', icon: Home },
+  { isGroup: false, href: '/tenants', icon: Users },
+  { isGroup: false, href: '/payments', icon: CreditCard },
+  { isGroup: false, href: '/additional-dues', icon: ListPlus },
+  { isGroup: false, href: '/monitoring', icon: BellRing },
+  { isGroup: false, href: '/expenses', icon: ReceiptText },
+  { isGroup: false, href: '/announcements', icon: Megaphone, clientAdminOnly: true },
+  { isGroup: false, href: '/subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
-    label: 'Reports',
     icon: BarChart3,
     items: [
       { href: '/reports', label: 'Financial Summary', icon: FileText },
       { href: '/reports/earnings', label: 'Earnings Report', icon: TrendingUp },
     ]
   },
-  { isGroup: false, href: '/users', label: 'Manage Users', icon: UserCog, clientAdminOnly: true },
+  { isGroup: false, href: '/users', icon: UserCog, clientAdminOnly: true },
 ];
 
-const tenantNavItems: AppSidebarNavItem[] = [
-  { isGroup: false, href: '/', label: 'My Dashboard', icon: LayoutDashboard },
-  { isGroup: false, href: '/profile', label: 'My Profile', icon: UserCircle },
+const tenantNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
+  { isGroup: false, href: '/', icon: LayoutDashboard },
+  { isGroup: false, href: '/profile', icon: UserCircle },
 ];
 
 
@@ -178,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
-  const { viewingAsClientId, clients, setViewMode, tenants, announcements, markAnnouncementAsRead } = useAppContext();
+  const { viewingAsClientId, clients, setViewMode, tenants, announcements, markAnnouncementAsRead, terminology } = useAppContext();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
@@ -300,7 +299,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [loggedInClient, authUser]);
 
-
+  const appLabels = React.useMemo(() => {
+    const { single, plural } = terminology;
+    return {
+        dashboard: 'Dashboard',
+        tenants: plural,
+        payments: 'Payments',
+        additionalDues: 'Additional Dues',
+        monitoring: 'Monitoring',
+        expenses: 'Expenses',
+        announcements: 'Announcements',
+        subscription: 'Subscription',
+        reports: 'Reports',
+        users: `Manage Users`,
+        profile: 'My Profile',
+        myDashboard: 'My Dashboard'
+    };
+  }, [terminology]);
+  
+  
   if (isTrueAdminView) {
       currentAdminConfigItems = adminSidebarConfig;
       let activeItemFound = false;
@@ -331,18 +348,25 @@ export function AppShell({ children }: { children: ReactNode }) {
       else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
       else if (!activeItemFound && pathname === '/admin/maintenance/demo-requests') currentActivePageLabel = 'Demo Requests';
   } else {
-      let baseNavItems: AppSidebarNavItem[];
+      let baseNavItems: Omit<AppSidebarNavItem, 'label'>[];
       if(isTenantSection) {
         baseNavItems = [...tenantNavItems];
+        currentAppNavItems = baseNavItems.map(item => {
+            let label = 'Item';
+            if (item.href === '/') label = appLabels.myDashboard;
+            if (item.href === '/profile') label = appLabels.profile;
+            return { ...item, label };
+        });
+
       } else {
         const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.businessType === 'PC_Rental';
         
-        baseNavItems = [...appNavItems].filter(item => {
+        baseNavItems = [...baseAppNavItems].filter(item => {
           if (isHubAdmin) {
             if (['/users', '/announcements', '/payments', '/additional-dues', '/reports'].includes(item.href)) {
               return false;
             }
-            if (item.isGroup && item.label === 'Reports') {
+            if ('isGroup' in item && item.isGroup && item.items[0]?.href === '/reports') { // A bit fragile, but works for now
               return false;
             }
           }
@@ -362,15 +386,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           return true;
         });
 
+        currentAppNavItems = baseNavItems.map(item => {
+            if (item.isGroup) {
+                return { ...item, label: 'Reports' };
+            }
+            let label = "Menu Item";
+            if(item.href === '/') label = appLabels.dashboard;
+            if(item.href === '/tenants') label = appLabels.tenants;
+            if(item.href === '/payments') label = appLabels.payments;
+            if(item.href === '/additional-dues') label = appLabels.additionalDues;
+            if(item.href === '/monitoring') label = appLabels.monitoring;
+            if(item.href === '/expenses') label = appLabels.expenses;
+            if(item.href === '/announcements') label = appLabels.announcements;
+            if(item.href === '/subscription') label = appLabels.subscription;
+            if(item.href === '/users') label = appLabels.users;
+            
+            return { ...item, label };
+        });
+
         if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
             };
-            const tenantsIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+            const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
             if (tenantsIndex !== -1) {
-                baseNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
+                currentAppNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
             } else {
-                baseNavItems.push(pcManagementItem);
+                currentAppNavItems.push(pcManagementItem);
             }
         }
         
@@ -381,11 +423,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             const companyFundsItem: AppSidebarNavItem = {
                 isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank,
             };
-            const expensesIndex = baseNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+            const expensesIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
             if (expensesIndex !== -1) {
-                baseNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
+                currentAppNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
             } else {
-                baseNavItems.push(partnerEarningsItem, companyFundsItem);
+                currentAppNavItems.push(partnerEarningsItem, companyFundsItem);
             }
         }
         
@@ -396,11 +438,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 label: 'Tracking',
                 icon: MapPin,
             };
-            baseNavItems.push(trackingItem);
+            currentAppNavItems.push(trackingItem);
         }
       }
 
-      currentAppNavItems = baseNavItems;
 
       let activeItemFound = false;
       for (const item of currentAppNavItems) {
@@ -454,7 +495,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
     if (loggedInClient && !authUser?.isSuperAdmin) {
-        if(authUser?.role === 'tenant') return `${authUser.username} (Tenant at ${loggedInClient.name})`;
+        if(authUser?.role === 'tenant') return `${authUser.username} (${terminology.single} at ${loggedInClient.name})`;
       const roleLabel = authUser.role === 'hub-admin' ? 'Hub Admin' : (authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User');
       return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
     }

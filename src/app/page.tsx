@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { TenantDashboard } from '@/components/tenants/TenantDashboard';
 
 function AdminClientDashboard() {
-  const { tenants, payments } = useAppContext();
+  const { tenants, payments, terminology } = useAppContext();
   const [activeTenantsCount, setActiveTenantsCount] = useState(0);
   const [currentMonthPaymentsTotal, setCurrentMonthPaymentsTotal] = useState(0);
   const [delinquentTenantsCount, setDelinquentTenantsCount] = useState(0);
@@ -58,14 +58,14 @@ function AdminClientDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium font-headline">Active Tenants</CardTitle>
+            <CardTitle className="text-sm font-medium font-headline">Active {terminology.plural}</CardTitle>
             <Users className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{clientLoaded ? activeTenantsCount : '...'}</div>
-            <p className="text-xs text-muted-foreground">Currently active tenants in the system.</p>
+            <p className="text-xs text-muted-foreground">Currently active {terminology.plural.toLowerCase()} in the system.</p>
             <Link href="/tenants" passHref className="mt-2">
-              <Button variant="outline" size="sm" className="mt-2">View Tenants</Button>
+              <Button variant="outline" size="sm" className="mt-2">View {terminology.plural}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -91,7 +91,7 @@ function AdminClientDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{clientLoaded ? delinquentTenantsCount : '...'}</div>
-            <p className="text-xs text-muted-foreground">Tenants who might be overdue.</p>
+            <p className="text-xs text-muted-foreground">{terminology.plural} who might be overdue.</p>
              <Link href="/reports" passHref className="mt-2">
               <Button variant="outline" size="sm" className="mt-2">View Reports</Button>
             </Link>
@@ -107,7 +107,7 @@ function AdminClientDashboard() {
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/tenants" passHref>
             <Button className="w-full" variant="default">
-              <Users className="mr-2 h-4 w-4" /> Manage Tenants
+              <Users className="mr-2 h-4 w-4" /> Manage {terminology.plural}
             </Button>
           </Link>
           <Link href="/payments" passHref>
@@ -129,6 +129,7 @@ function AdminClientDashboard() {
 
 export default function DashboardPage() {
     const { user, isLoading } = useAuth();
+    const { terminology } = useAppContext();
     
     if (isLoading) {
         return (
@@ -139,7 +140,7 @@ export default function DashboardPage() {
     }
     
     if (user?.role === 'tenant') {
-        return <TenantDashboard />;
+        return <TenantDashboard terminology={terminology} />;
     }
     
     return <AdminClientDashboard />;
