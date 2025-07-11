@@ -503,6 +503,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           recipientId: tenant.id,
           recipientUsername: tenant.username,
         });
+        toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
       }
 
     } catch (error: any) {
@@ -882,9 +883,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       const dataToSave: Partial<Client> = {
         name: clientData.name,
+        businessType: clientData.businessType,
         logoUrl: logoUrl,
         subscriptionStatus: clientData.subscriptionStatus || 'active',
         subscriptionEndDate: clientData.subscriptionEndDate || addDays(new Date(), 30).toISOString(),
+        subscriptionPlanName: clientData.subscriptionPlanName,
+        subscriptionRate: clientData.subscriptionRate,
+        timezone: clientData.timezone,
       };
 
       await addDoc(collection(db, 'clients'), dataToSave);
