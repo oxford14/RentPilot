@@ -23,6 +23,20 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Switch } from '../ui/switch';
 import { Separator } from '../ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const timezones = [
+  { value: 'Etc/UTC', label: 'Coordinated Universal Time (UTC)' },
+  { value: 'America/New_York', label: 'Eastern Time (US & Canada)' },
+  { value: 'America/Chicago', label: 'Central Time (US & Canada)' },
+  { value: 'America/Denver', label: 'Mountain Time (US & Canada)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (US & Canada)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Berlin', label: 'Berlin, Amsterdam (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+  { value: 'Asia/Manila', label: 'Manila (PHT)'},
+];
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
@@ -33,6 +47,7 @@ const clientFormSchema = z.object({
   subscriptionRate: z.coerce.number().optional(),
   companyFundsStartingBalance: z.coerce.number().optional(),
   companyFundsStartDate: z.string().optional(),
+  timezone: z.string().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
@@ -108,6 +123,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       subscriptionRate: client?.subscriptionRate || 0,
       companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
       companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
+      timezone: client?.timezone || 'Asia/Manila',
     },
   });
 
@@ -122,6 +138,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         subscriptionRate: client?.subscriptionRate || 0,
         companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
         companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
+        timezone: client?.timezone || 'Asia/Manila',
       });
       setPreview(client?.logoUrl || null);
       setCroppedImageBlob(null);
@@ -182,6 +199,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
       subscriptionPlanName: data.subscriptionPlanName,
       subscriptionRate: data.subscriptionRate,
+      timezone: data.timezone,
     };
     
     if (client && client.name === 'i-VirtuaTech') {
@@ -338,19 +356,46 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 />
               </div>
 
-              <FormItem>
-                <FormLabel>Client Logo</FormLabel>
-                <FormControl>
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={onFileChange}
-                    autoComplete="off"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormItem>
+                  <FormLabel>Client Logo</FormLabel>
+                  <FormControl>
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={onFileChange}
+                      autoComplete="off"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client Timezone</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {timezones.map(tz => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {preview && (
                 <div className="space-y-2">

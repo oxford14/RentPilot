@@ -20,7 +20,7 @@ const timezones = [
   { value: 'Europe/Berlin', label: 'Berlin, Amsterdam (CET/CEST)' },
   { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
   { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
-  { value: 'Asia/Manila', label: 'Manila (PST)'},
+  { value: 'Asia/Manila', label: 'Manila (PHT)'},
 ];
 
 export default function AdminTimezoneSettingsPage() {
@@ -46,7 +46,7 @@ export default function AdminTimezoneSettingsPage() {
         await updateSystemTimezone(selectedTimezone);
         toast({
           title: "Settings Saved",
-          description: `System timezone updated to ${timezones.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone}.`,
+          description: `Super admin timezone updated to ${timezones.find(tz => tz.value === selectedTimezone)?.label || selectedTimezone}.`,
         });
       } catch (error) {
         // The context already shows a toast on error, so this is optional
@@ -66,8 +66,8 @@ export default function AdminTimezoneSettingsPage() {
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold font-headline">System Timezone Settings</h1>
-        <p className="text-muted-foreground">Manage the primary timezone for the RentPilot application.</p>
+        <h1 className="text-3xl font-bold font-headline">Super Admin Timezone Settings</h1>
+        <p className="text-muted-foreground">Manage the primary timezone for super admin level data like client subscriptions.</p>
       </div>
 
       <Card className="shadow-lg">
@@ -77,12 +77,12 @@ export default function AdminTimezoneSettingsPage() {
             Timezone Configuration
           </CardTitle>
           <CardDescription>
-            Set the system-wide timezone. This may affect how dates and times are displayed and processed.
+            Set the super admin timezone. This affects how dates are displayed for subscriptions and other non-client-specific data. Client data uses the timezone set for that specific client.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="timezone-select" className="text-base font-semibold">System Timezone</Label>
+            <Label htmlFor="timezone-select" className="text-base font-semibold">Super Admin Timezone</Label>
             <Select 
               value={selectedTimezone || ''} 
               onValueChange={handleTimezoneChange}

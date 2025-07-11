@@ -83,6 +83,7 @@ export interface Client {
   pcIssues?: Record<number, string>;
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
+  timezone?: string;
 }
 
 export type ExpenseCategory = 

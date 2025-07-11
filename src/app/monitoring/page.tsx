@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,7 +12,7 @@ import { BellRing, CalendarX, CalendarClock, CalendarPlus, Info } from 'lucide-r
 import Image from 'next/image';
 
 export default function MonitoringPage() {
-  const { tenants, payments, additionalDues, systemTimezone } = useAppContext();
+  const { tenants, payments, additionalDues, clients, viewingAsClientId } = useAppContext();
   const [categorizedTenants, setCategorizedTenants] = useState<{
     pastDue: MonitoredTenant[];
     dueToday: MonitoredTenant[];
@@ -20,12 +21,18 @@ export default function MonitoringPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const activeTenants = useMemo(() => tenants.filter(t => t.status === 'active'), [tenants]);
+  
+  const client = useMemo(() => {
+    return clients.find(c => c.id === viewingAsClientId);
+  }, [clients, viewingAsClientId]);
+  
+  const effectiveTimezone = client?.timezone || 'Etc/UTC';
 
   useEffect(() => {
     setIsLoading(true);
 
     const now = new Date();
-    const timeZone = systemTimezone || 'Etc/UTC';
+    const timeZone = effectiveTimezone;
 
     const dateParts = new Intl.DateTimeFormat('en-CA', {
         year: 'numeric', month: '2-digit', day: '2-digit', timeZone,
@@ -100,7 +107,7 @@ export default function MonitoringPage() {
     setCategorizedTenants({ pastDue: newPastDue, dueToday: newDueToday, upcoming: newUpcoming });
     setIsLoading(false);
 
-  }, [activeTenants, payments, additionalDues, systemTimezone]);
+  }, [activeTenants, payments, additionalDues, effectiveTimezone]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] w-full flex flex-col items-center justify-center p-4">
