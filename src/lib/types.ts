@@ -57,6 +57,7 @@ export interface Tenant {
   signedContractUrl?: string;
   contractEndDate?: string;
   pcNumber?: number;
+  clientId?: string;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -87,6 +88,13 @@ export interface Client {
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
+}
+
+export interface DeletedClientBackup {
+    id: string;
+    clientData: Client;
+    backupData: Record<string, any[]>;
+    deletedAt: string; // ISO string
 }
 
 export type ExpenseCategory = 
@@ -329,6 +337,7 @@ export interface AppContextType {
   weeklyIncomes: WeeklyIncome[];
   backupScheduleSettings: BackupScheduleSettings | null;
   announcements: Announcement[];
+  terminology: { single: string; plural: string };
   
   // Chat
   chatSessions: ChatSession[];
@@ -364,6 +373,8 @@ export interface AppContextType {
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
+  restoreClient: (backupId: string) => Promise<void>;
+  permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
 
   addManagedUser: (userData: Omit<ManagedUser, 'id'>) => Promise<void>;
   updateManagedUser: (user: ManagedUser) => Promise<void>;
@@ -401,6 +412,7 @@ export interface AppContextType {
   rawExpenses: Expense[];
   rawAdditionalDues: AdditionalDue[];
   rawDemoRequests: DemoRequest[];
+  rawDeletedClients: DeletedClientBackup[];
   
   rawBusinesses: Business[];
   rawWeeklyIncomes: WeeklyIncome[];

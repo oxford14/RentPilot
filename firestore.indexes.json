@@ -104,7 +104,15 @@
       "fields": [
         { "fieldPath": "clientId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "deletedClients",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
 }
+

@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,6 +66,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawDemoRequestsState, setRawDemoRequestsState] = useState<DemoRequest[]>([]);
   const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
   const [rawAnnouncementsState, setRawAnnouncementsState] = useState<Announcement[]>([]);
+  const [rawDeletedClientsState, setRawDeletedClientsState] = useState<DeletedClientBackup[]>([]);
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -89,6 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawChatSessionsState([]);
       setRawDemoRequestsState([]);
       setRawAnnouncementsState([]);
+      setRawDeletedClientsState([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
@@ -113,6 +115,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'chatSessions', setter: setRawChatSessionsState, label: 'chat sessions'},
       { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
       { name: 'announcements', setter: setRawAnnouncementsState, label: 'announcements' },
+      { name: 'deletedClients', setter: setRawDeletedClientsState, label: 'deleted clients' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -927,22 +930,107 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to delete clients." });
+      toast({ variant: 'destructive', title: 'Unauthorized' });
       return;
     }
-    const batch = writeBatch(db);
+
     try {
-      batch.delete(doc(db, 'clients', clientId));
-      const collectionsToDelete = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
-      for (const collName of collectionsToDelete) {
-        const q = query(collection(db, collName), where('clientId', '==', clientId));
-        const snapshot = await getDocs(q);
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-      }
-      await batch.commit();
+        const clientDoc = await getDoc(doc(db, 'clients', clientId));
+        if (!clientDoc.exists()) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Client not found.' });
+            return;
+        }
+        const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
+
+        const subcollectionsToBackup = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
+        const backupData: Record<string, any[]> = {};
+
+        for (const collName of subcollectionsToBackup) {
+            const q = query(collection(db, collName), where('clientId', '==', clientId));
+            const snapshot = await getDocs(q);
+            backupData[collName] = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        const fullBackup: DeletedClientBackup = {
+            clientData: clientData,
+            backupData: backupData,
+            deletedAt: new Date().toISOString(),
+        };
+
+        const batch = writeBatch(db);
+
+        // Save to deletedClients collection
+        batch.set(doc(db, 'deletedClients', clientId), fullBackup);
+        
+        // Delete original client and subcollections
+        batch.delete(doc(db, 'clients', clientId));
+        for (const collName of subcollectionsToBackup) {
+          backupData[collName].forEach(item => {
+            batch.delete(doc(db, collName, item.id));
+          });
+        }
+        
+        await batch.commit();
+        toast({ title: 'Client Moved to Recycle Bin', description: `${clientData.name} has been deleted. You can restore them from the maintenance menu.` });
     } catch (error: any) {
-      console.error("Error deleting client and associated data from Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete client: ${error.message}` });
+        console.error('Error soft-deleting client:', error);
+        toast({ variant: 'destructive', title: 'Error Deleting Client', description: error.message });
+    }
+  };
+
+  const restoreClient = async (backupId: string) => {
+    if (!authUser?.isSuperAdmin) {
+        toast({ variant: 'destructive', title: 'Unauthorized' });
+        return;
+    }
+
+    try {
+        const backupDocRef = doc(db, 'deletedClients', backupId);
+        const backupDoc = await getDoc(backupDocRef);
+
+        if (!backupDoc.exists()) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Backup not found.' });
+            return;
+        }
+
+        const backup = backupDoc.data() as DeletedClientBackup;
+        const batch = writeBatch(db);
+
+        // Restore the client document
+        const { id: clientId, ...clientData } = backup.clientData;
+        batch.set(doc(db, 'clients', clientId), clientData);
+
+        // Restore all subcollection documents
+        for (const collName in backup.backupData) {
+            backup.backupData[collName].forEach(item => {
+                const { id: docId, ...itemData } = item;
+                batch.set(doc(db, collName, docId), itemData);
+            });
+        }
+        
+        // Delete the backup document
+        batch.delete(backupDocRef);
+
+        await batch.commit();
+        toast({ title: 'Client Restored', description: `${backup.clientData.name} and all their data have been restored.` });
+
+    } catch (error: any) {
+        console.error('Error restoring client:', error);
+        toast({ variant: 'destructive', title: 'Restore Failed', description: error.message });
+    }
+  };
+
+  const permanentlyDeleteClientBackup = async (backupId: string) => {
+    if (!authUser?.isSuperAdmin) {
+        toast({ variant: 'destructive', title: 'Unauthorized' });
+        return;
+    }
+    try {
+        await deleteDoc(doc(db, 'deletedClients', backupId));
+        toast({ title: 'Client Permanently Deleted', description: 'The client backup has been permanently removed.' });
+    } catch (error: any) {
+        console.error('Error permanently deleting client:', error);
+        toast({ variant: 'destructive', title: 'Permanent Deletion Failed', description: error.message });
     }
   };
   
@@ -1569,6 +1657,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addClient,
     updateClient,
     deleteClient,
+    restoreClient,
+    permanentlyDeleteClientBackup,
 
     addManagedUser,
     updateManagedUser,
@@ -1606,6 +1696,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawExpenses: rawExpensesState,
     rawAdditionalDues: rawAdditionalDuesState,
     rawDemoRequests: rawDemoRequestsState,
+    rawDeletedClients: rawDeletedClientsState,
     
     rawBusinesses: rawBusinessesState,
     rawWeeklyIncomes: rawWeeklyIncomesState,
@@ -1642,3 +1733,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+

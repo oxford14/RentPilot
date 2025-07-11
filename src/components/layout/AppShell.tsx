@@ -21,7 +21,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2 } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -105,6 +105,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
       { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck },
       { href: '/admin/maintenance/backups', label: 'Backups', icon: DatabaseBackup },
+      { href: '/admin/maintenance/deleted-clients', label: 'Deleted Clients', icon: Trash2 },
     ]
   }
 ];
@@ -346,6 +347,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
       else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
       else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
+      else if (!activeItemFound && pathname === '/admin/maintenance/deleted-clients') currentActivePageLabel = 'Deleted Clients';
       else if (!activeItemFound && pathname === '/admin/maintenance/demo-requests') currentActivePageLabel = 'Demo Requests';
   } else {
       let baseNavItems: Omit<AppSidebarNavItem, 'label'>[];
@@ -833,3 +835,4 @@ export function AppShell({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
