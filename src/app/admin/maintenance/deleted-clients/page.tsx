@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import type { DeletedClientBackup } from '@/lib/types';
 import { Trash2, RotateCcw, AlertTriangle } from 'lucide-react';
