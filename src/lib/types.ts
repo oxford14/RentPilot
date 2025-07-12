@@ -1,5 +1,4 @@
 
-
 export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
 
 export type ClientUserRole = 'admin' | 'user' | 'hub-admin';
@@ -85,6 +84,11 @@ export type PcIssue = {
   } | string;
 };
 
+export interface NotificationSettings {
+  daysBeforeDueDate: number;
+  notifyOnDueDate: boolean;
+  daysBeforeContractExpiry: number;
+}
 
 export interface Client {
   id: string; // Firestore document ID
@@ -100,6 +104,7 @@ export interface Client {
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
+  notificationSettings?: NotificationSettings;
 }
 
 export interface DeletedClientBackup {

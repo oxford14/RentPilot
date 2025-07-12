@@ -71,6 +71,7 @@ const baseAppNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
   { isGroup: false, href: '/monitoring', icon: BellRing },
   { isGroup: false, href: '/expenses', icon: ReceiptText },
   { isGroup: false, href: '/announcements', icon: Megaphone, clientAdminOnly: true },
+  { isGroup: false, href: '/notifications', icon: Bell, clientAdminOnly: true },
   { isGroup: false, href: '/subscription', icon: Award, clientOnly: true },
   {
     isGroup: true,
@@ -310,6 +311,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         monitoring: 'Monitoring',
         expenses: 'Expenses',
         announcements: 'Announcements',
+        notifications: 'Notifications',
         subscription: 'Subscription',
         reports: 'Reports',
         users: `Manage Users`,
@@ -396,6 +398,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             if(item.href === '/monitoring') label = appLabels.monitoring;
             if(item.href === '/expenses') label = appLabels.expenses;
             if(item.href === '/announcements') label = appLabels.announcements;
+            if(item.href === '/notifications') label = appLabels.notifications;
             if(item.href === '/subscription') label = appLabels.subscription;
             if(item.href === '/users') label = appLabels.users;
             
@@ -462,6 +465,7 @@ export function AppShell({ children }: { children: ReactNode }) {
        if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
        else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
        else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
+       else if (!activeItemFound && pathname === '/notifications') currentActivePageLabel = 'Notifications';
        else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
        else if (!activeItemFound && pathname.startsWith('/contract/sign')) currentActivePageLabel = 'Sign Contract';
        else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
@@ -595,7 +599,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements'].includes(item.href)}
+                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements', '/notifications'].includes(item.href)}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
@@ -798,7 +802,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
           <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && !pathname.startsWith('/partner-earnings') && 'p-6')}>
-            {subscriptionExpired && !['/subscription', '/profile', '/settings'].includes(pathname) ? (
+            {subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">
                   <CardHeader>
