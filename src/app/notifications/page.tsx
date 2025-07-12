@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -46,11 +46,20 @@ export default function NotificationSettingsPage() {
   });
 
   useEffect(() => {
-    if (user && !user.isSuperAdmin && user.role !== 'admin') {
-        toast({ variant: 'destructive', title: 'Access Denied', description: 'This page is for client administrators.' });
+    if (user && client) {
+      const isClientAdmin = user.role === 'admin';
+      const isHubAdminForIVirtuaTech = user.role === 'hub-admin' && client.name === 'i-VirtuaTech';
+
+      if (!user.isSuperAdmin && !isClientAdmin && !isHubAdminForIVirtuaTech) {
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
+        router.push('/');
+      }
+    } else if (user && !user.isSuperAdmin && user.role === 'tenant') {
+        // Handle tenant case where client might not be loaded yet but we know they're a tenant
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'This page is for administrators.' });
         router.push('/');
     }
-  }, [user, router, toast]);
+  }, [user, client, router, toast]);
 
   useEffect(() => {
     if (client?.notificationSettings) {
@@ -68,7 +77,7 @@ export default function NotificationSettingsPage() {
     toast({ title: 'Settings Saved', description: 'Your notification preferences have been updated.' });
   };
 
-  if (!client) {
+  if (!client && !user?.isSuperAdmin) {
       return (
           <div className="container mx-auto py-2 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
