@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -19,25 +19,41 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { PcIssue } from '@/lib/types';
+import type { PcIssue, PcSubIssue } from '@/lib/types';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 
-const issueComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit'] as const;
+const issueSubComponents = {
+  Monitor: ['Adapter', 'Power Cable'],
+  'System Unit': ['RAM', 'Hard Drive', 'Motherboard'],
+};
+const issueMainComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit'] as const;
+
+const issueDetailSchema = z.object({
+  hasIssue: z.boolean(),
+  notes: z.string().optional(),
+});
+
+const subComponentSchema = z.object({
+    Adapter: issueDetailSchema.optional(),
+    'Power Cable': issueDetailSchema.optional(),
+    RAM: issueDetailSchema.optional(),
+    'Hard Drive': issueDetailSchema.optional(),
+    Motherboard: issueDetailSchema.optional(),
+});
 
 const issueFormSchema = z.object({
-  issues: z.object(
-    issueComponents.reduce((acc, component) => {
-      acc[component] = z.object({
-        hasIssue: z.boolean(),
-        notes: z.string().optional(),
-      });
-      return acc;
-    }, {} as Record<typeof issueComponents[number], z.ZodObject<{ hasIssue: z.ZodBoolean, notes: z.ZodOptional<z.ZodString> }>>)
-  ),
+  issues: z.object({
+    Monitor: issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }),
+    Keyboard: issueDetailSchema,
+    Mouse: issueDetailSchema,
+    UPS: issueDetailSchema,
+    'System Unit': issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }),
+  }),
   otherNotes: z.string().optional(),
 });
 
 type IssueFormValues = z.infer<typeof issueFormSchema>;
+
 
 export default function PcManagementPage() {
   const { clients, tenants, updateClientPcCount, assignTenantToPc, unassignTenantFromPc, updateClientPcIssue, viewingAsClientId } = useAppContext();
@@ -98,49 +114,70 @@ export default function PcManagementPage() {
   const handleOpenIssueDialog = (pcNumber: number) => {
     const pcIssues = client?.pcIssues || {};
     const issueData = pcIssues[pcNumber];
-    let defaultValues: IssueFormValues;
-  
+    
+    let defaultValues: Partial<IssueFormValues['issues']> = {};
+
     if (typeof issueData === 'string') {
-      // Handle legacy string data by moving it to otherNotes
-      defaultValues = {
-        issues: {
-          'Monitor': { hasIssue: false, notes: '' },
-          'Keyboard': { hasIssue: false, notes: '' },
-          'Mouse': { hasIssue: false, notes: '' },
-          'UPS': { hasIssue: false, notes: '' },
-          'System Unit': { hasIssue: false, notes: '' },
-        },
-        otherNotes: issueData, // Move the old string here
-      };
+      form.reset({ otherNotes: issueData });
     } else {
-      // Handle new object data or no data
-      const currentIssues = issueData || {};
-      defaultValues = {
-        issues: {
-          'Monitor': { hasIssue: !!currentIssues['Monitor'], notes: currentIssues['Monitor'] || '' },
-          'Keyboard': { hasIssue: !!currentIssues['Keyboard'], notes: currentIssues['Keyboard'] || '' },
-          'Mouse': { hasIssue: !!currentIssues['Mouse'], notes: currentIssues['Mouse'] || '' },
-          'UPS': { hasIssue: !!currentIssues['UPS'], notes: currentIssues['UPS'] || '' },
-          'System Unit': { hasIssue: !!currentIssues['System Unit'], notes: currentIssues['System Unit'] || '' },
-        },
-        otherNotes: currentIssues['otherNotes'] || '',
-      };
+        issueMainComponents.forEach(component => {
+            const currentIssue = issueData?.[component];
+            const hasSubIssues = issueSubComponents[component as keyof typeof issueSubComponents];
+
+            if (hasSubIssues) {
+                const subIssuesDefault: Record<string, { hasIssue: boolean; notes?: string }> = {};
+                hasSubIssues.forEach(sub => {
+                    subIssuesDefault[sub] = {
+                        hasIssue: !!currentIssue?.subIssues?.[sub],
+                        notes: currentIssue?.subIssues?.[sub] || '',
+                    };
+                });
+                 defaultValues[component] = {
+                    hasIssue: !!currentIssue?.notes,
+                    notes: currentIssue?.notes || '',
+                    subIssues: subIssuesDefault as any,
+                };
+            } else {
+                defaultValues[component] = {
+                    hasIssue: !!currentIssue?.notes,
+                    notes: currentIssue?.notes || '',
+                };
+            }
+        });
+        form.reset({
+            issues: defaultValues as IssueFormValues['issues'],
+            otherNotes: issueData?.otherNotes || '',
+        });
     }
-  
-    form.reset(defaultValues);
+
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
   };
+
 
   const onIssueSubmit = async (data: IssueFormValues) => {
     if (!client || selectedPcNumber === null) return;
     
     const newIssues: PcIssue = {};
-    for (const component of issueComponents) {
-        if(data.issues[component].hasIssue) {
-            newIssues[component] = data.issues[component].notes || 'Issue reported';
+    
+    (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponent => {
+        const issue = data.issues[mainComponent];
+        if (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue))) {
+            newIssues[mainComponent] = {
+                notes: issue.notes || '',
+                subIssues: {}
+            };
+            if (issue.subIssues) {
+                (Object.keys(issue.subIssues) as (keyof typeof issue.subIssues)[]).forEach(subComponent => {
+                    const subIssue = issue.subIssues![subComponent];
+                    if (subIssue?.hasIssue) {
+                        newIssues[mainComponent]!.subIssues![subComponent] = subIssue.notes || 'Issue reported';
+                    }
+                });
+            }
         }
-    }
+    });
+
     if (data.otherNotes) {
         newIssues['otherNotes'] = data.otherNotes;
     }
@@ -303,35 +340,71 @@ export default function PcManagementPage() {
                   </DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
-                {issueComponents.map((componentName) => (
-                  <div key={componentName} className="space-y-2">
-                    <FormField
-                      control={form.control}
-                      name={`issues.${componentName}.hasIssue`}
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                          <FormLabel className="font-semibold">{componentName}</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                    {form.watch(`issues.${componentName}.hasIssue`) && (
+                {issueMainComponents.map((componentName) => {
+                  const subComponents = issueSubComponents[componentName as keyof typeof issueSubComponents];
+                  return (
+                    <div key={componentName} className="space-y-2 p-3 border rounded-lg">
                       <FormField
                         control={form.control}
-                        name={`issues.${componentName}.notes`}
+                        name={`issues.${componentName}.hasIssue`}
                         render={({ field }) => (
-                          <FormItem className="pl-6">
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl>
-                              <Input placeholder={`Notes for ${componentName}...`} {...field} />
+                              <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                             </FormControl>
+                            <FormLabel className="font-semibold">{componentName}</FormLabel>
                           </FormItem>
                         )}
                       />
-                    )}
-                  </div>
-                ))}
+                      {form.watch(`issues.${componentName}.hasIssue`) && (
+                        <FormField
+                          control={form.control}
+                          name={`issues.${componentName}.notes`}
+                          render={({ field }) => (
+                            <FormItem className="pl-6">
+                              <FormControl>
+                                <Input placeholder={`Notes for ${componentName}...`} {...field} />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      {subComponents && (
+                        <div className="pl-6 space-y-2 mt-2">
+                            {subComponents.map(subName => (
+                                <div key={subName} className="space-y-2">
+                                    <FormField
+                                        control={form.control}
+                                        name={`issues.${componentName}.subIssues.${subName}.hasIssue`}
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm">{subName}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    {form.watch(`issues.${componentName}.subIssues.${subName}.hasIssue`) && (
+                                        <FormField
+                                            control={form.control}
+                                            name={`issues.${componentName}.subIssues.${subName}.notes`}
+                                            render={({ field }) => (
+                                                <FormItem className="pl-7">
+                                                    <FormControl>
+                                                        <Input placeholder={`Notes for ${subName}...`} {...field} />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <FormField
                   control={form.control}
                   name="otherNotes"

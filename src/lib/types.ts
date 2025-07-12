@@ -74,9 +74,17 @@ export interface Payment {
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
 }
 
-export interface PcIssue {
-  [componentName: string]: string; // e.g. { "Monitor": "Adapter broken", "Keyboard": "" }
-}
+export type PcSubIssue = {
+  [subComponentName: string]: string; // e.g., { "Adapter": "Broken", "Power Cable": "Missing" }
+};
+
+export type PcIssue = {
+  [mainComponentName: string]: {
+    notes: string;
+    subIssues?: PcSubIssue;
+  } | string;
+};
+
 
 export interface Client {
   id: string; // Firestore document ID
@@ -88,7 +96,7 @@ export interface Client {
   subscriptionPlanName?: string;
   subscriptionRate?: number;
   pcCount?: number;
-  pcIssues?: Record<number, PcIssue>; // Updated from Record<number, string>
+  pcIssues?: Record<number, PcIssue | string>; // Allow string for legacy
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;

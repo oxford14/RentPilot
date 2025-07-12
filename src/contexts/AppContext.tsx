@@ -1613,33 +1613,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const updateClientPcIssue = async (clientId: string, pcNumber: number, newIssues: PcIssue) => {
     if (!authIsAuthenticated) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
     }
     const clientRef = doc(db, 'clients', clientId);
     try {
-      // Filter out empty strings to keep the data clean
-      const cleanedIssues = Object.entries(newIssues).reduce((acc, [key, value]) => {
-          if (value && value.trim() !== '') {
-              acc[key] = value.trim();
-          }
-          return acc;
-      }, {} as PcIssue);
+        const clientDoc = await getDoc(clientRef);
+        const currentIssues = clientDoc.data()?.pcIssues || {};
 
-      if (Object.keys(cleanedIssues).length > 0) {
-        await updateDoc(clientRef, {
-          [`pcIssues.${pcNumber}`]: cleanedIssues
-        });
+        if (Object.keys(newIssues).length > 0) {
+            currentIssues[pcNumber] = newIssues;
+        } else {
+            delete currentIssues[pcNumber];
+        }
+
+        await updateDoc(clientRef, { pcIssues: currentIssues });
         toast({ title: "Success", description: `Issue for PC ${pcNumber} has been updated.` });
-      } else {
-        await updateDoc(clientRef, {
-          [`pcIssues.${pcNumber}`]: deleteField()
-        });
-        toast({ title: "Success", description: `Issue for PC ${pcNumber} has been cleared.` });
-      }
+
     } catch (e: any) {
-      console.error("Error updating PC issue:", e);
-      toast({ variant: "destructive", title: "Error", description: e.message });
+        console.error("Error updating PC issue:", e);
+        toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
