@@ -341,105 +341,106 @@ export default function PcManagementPage() {
     </div>
     
     <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onIssueSubmit)}>
-              <DialogHeader>
-                  <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
-                  <DialogDescription>
-                      Select the components with issues and add notes.
-                  </DialogDescription>
-              </DialogHeader>
-              <ScrollArea className="max-h-[60vh] p-1">
-                <div className="py-4 space-y-4 pr-4">
-                  {issueMainComponents.map((componentName) => {
-                    const subComponents = issueSubComponents[componentName as keyof typeof issueSubComponents];
-                    return (
-                      <div key={componentName} className="space-y-2 p-3 border rounded-lg">
-                        <FormField
-                          control={form.control}
-                          name={`issues.${componentName}.hasIssue`}
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                              </FormControl>
-                              <FormLabel className="font-semibold">{componentName}</FormLabel>
-                            </FormItem>
-                          )}
-                        />
-                        {form.watch(`issues.${componentName}.hasIssue`) && (
-                          <FormField
-                            control={form.control}
-                            name={`issues.${componentName}.notes`}
-                            render={({ field }) => (
-                              <FormItem className="pl-6">
-                                <FormControl>
-                                  <Input placeholder={`Notes for ${componentName}...`} {...field} />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        )}
-                        {subComponents && (
-                          <div className="pl-6 space-y-2 mt-2">
-                              {subComponents.map(subName => (
-                                  <div key={subName} className="space-y-2">
-                                      <FormField
-                                          control={form.control}
-                                          name={`issues.${componentName}.subIssues.${subName}.hasIssue`}
-                                          render={({ field }) => (
-                                              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                                  <FormControl>
-                                                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                                  </FormControl>
-                                                  <FormLabel className="font-normal text-sm">{subName}</FormLabel>
-                                              </FormItem>
-                                          )}
-                                      />
-                                      {form.watch(`issues.${componentName}.subIssues.${subName}.hasIssue`) && (
-                                          <FormField
-                                              control={form.control}
-                                              name={`issues.${componentName}.subIssues.${subName}.notes`}
-                                              render={({ field }) => (
-                                                  <FormItem className="pl-7">
-                                                      <FormControl>
-                                                          <Input placeholder={`Notes for ${subName}...`} {...field} />
-                                                      </FormControl>
-                                                  </FormItem>
-                                              )}
-                                          />
-                                      )}
-                                  </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <FormField
-                    control={form.control}
-                    name="otherNotes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold">Other / General Notes</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Any other details..." {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </ScrollArea>
-              <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsIssueDialogOpen(false)}>Cancel</Button>
-                  <Button type="submit">Save Issues</Button>
-              </DialogFooter>
-            </form>
-          </Form>
+        <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
+                <DialogDescription>
+                    Select the components with issues and add notes.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onIssueSubmit)} className="flex-1 flex flex-col min-h-0">
+                    <ScrollArea className="flex-1 -mx-6 px-6">
+                        <div className="py-4 space-y-4">
+                            {issueMainComponents.map((componentName) => {
+                                const subComponents = issueSubComponents[componentName as keyof typeof issueSubComponents];
+                                return (
+                                <div key={componentName} className="space-y-2 p-3 border rounded-lg">
+                                    <FormField
+                                    control={form.control}
+                                    name={`issues.${componentName}.hasIssue`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        <FormLabel className="font-semibold">{componentName}</FormLabel>
+                                        </FormItem>
+                                    )}
+                                    />
+                                    {form.watch(`issues.${componentName}.hasIssue`) && (
+                                    <FormField
+                                        control={form.control}
+                                        name={`issues.${componentName}.notes`}
+                                        render={({ field }) => (
+                                        <FormItem className="pl-6">
+                                            <FormControl>
+                                            <Input placeholder={`Notes for ${componentName}...`} {...field} />
+                                            </FormControl>
+                                        </FormItem>
+                                        )}
+                                    />
+                                    )}
+                                    {subComponents && (
+                                    <div className="pl-6 space-y-2 mt-2">
+                                        {subComponents.map(subName => (
+                                            <div key={subName} className="space-y-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`issues.${componentName}.subIssues.${subName}.hasIssue`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                            <FormControl>
+                                                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                            </FormControl>
+                                                            <FormLabel className="font-normal text-sm">{subName}</FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                {form.watch(`issues.${componentName}.subIssues.${subName}.hasIssue`) && (
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`issues.${componentName}.subIssues.${subName}.notes`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="pl-7">
+                                                                <FormControl>
+                                                                    <Input placeholder={`Notes for ${subName}...`} {...field} />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
+                                </div>
+                                );
+                            })}
+                            <FormField
+                                control={form.control}
+                                name="otherNotes"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="font-semibold">Other / General Notes</FormLabel>
+                                    <FormControl>
+                                    <Textarea placeholder="Any other details..." {...field} />
+                                    </FormControl>
+                                </FormItem>
+                                )}
+                            />
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter className="pt-4 mt-auto border-t">
+                        <Button type="button" variant="outline" onClick={() => setIsIssueDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit">Save Issues</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
         </DialogContent>
     </Dialog>
     </>
   );
 }
+
 
