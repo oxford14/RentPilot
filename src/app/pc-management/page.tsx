@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck, Wifi, Lan } from 'lucide-react';
+import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck, Wifi, Lan, Camera, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -127,27 +127,28 @@ export default function PcManagementPage() {
         otherNotesValue = issueData;
     } else if (typeof issueData === 'object' && issueData !== null) {
         issueMainComponents.forEach(component => {
-            const currentIssue = issueData[component];
-            const hasSubIssues = issueSubComponents[componentName as keyof typeof issueSubComponents];
+            const currentIssue = issueData[component as keyof typeof issueData];
+            const hasSubIssues = issueSubComponents[component as keyof typeof issueSubComponents];
             
             if(typeof currentIssue === 'object' && currentIssue !== null) {
                 if (hasSubIssues) {
                     const subIssuesDefault: Record<string, { hasIssue: boolean; notes?: string }> = {};
                     hasSubIssues.forEach(sub => {
+                        const subIssueData = (currentIssue as any).subIssues?.[sub];
                         subIssuesDefault[sub] = {
-                            hasIssue: !!currentIssue.subIssues?.[sub],
-                            notes: currentIssue.subIssues?.[sub] || '',
+                            hasIssue: !!subIssueData,
+                            notes: typeof subIssueData === 'string' ? subIssueData : '',
                         };
                     });
                     defaultValues[component] = {
-                        hasIssue: !!currentIssue.notes,
-                        notes: currentIssue.notes || '',
+                        hasIssue: !!(currentIssue as any).notes,
+                        notes: (currentIssue as any).notes || '',
                         subIssues: subIssuesDefault as any,
                     };
                 } else {
                     defaultValues[component] = {
-                        hasIssue: !!currentIssue.notes,
-                        notes: currentIssue.notes || '',
+                        hasIssue: !!(currentIssue as any).notes,
+                        notes: (currentIssue as any).notes || '',
                     };
                 }
             }
@@ -383,7 +384,7 @@ export default function PcManagementPage() {
                                     {subComponents && (
                                     <div className="pl-6 mt-2 space-y-2">
                                         {subComponents.map(subName => (
-                                            <div key={subName} className="space-y-2">
+                                            <div key={subName} className="space-y-2 ml-4">
                                                 <FormField
                                                     control={form.control}
                                                     name={`issues.${componentName}.subIssues.${subName}.hasIssue`}
@@ -441,6 +442,7 @@ export default function PcManagementPage() {
     </>
   );
 }
+
 
 
 
