@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1610,16 +1611,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const updateClientPcIssue = async (clientId: string, pcNumber: number, issueText: string) => {
+  const updateClientPcIssue = async (clientId: string, pcNumber: number, newIssues: PcIssue) => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
     const clientRef = doc(db, 'clients', clientId);
     try {
-      if (issueText.trim()) {
+      // Filter out empty strings to keep the data clean
+      const cleanedIssues = Object.entries(newIssues).reduce((acc, [key, value]) => {
+          if (value && value.trim() !== '') {
+              acc[key] = value.trim();
+          }
+          return acc;
+      }, {} as PcIssue);
+
+      if (Object.keys(cleanedIssues).length > 0) {
         await updateDoc(clientRef, {
-          [`pcIssues.${pcNumber}`]: issueText.trim()
+          [`pcIssues.${pcNumber}`]: cleanedIssues
         });
         toast({ title: "Success", description: `Issue for PC ${pcNumber} has been updated.` });
       } else {
@@ -1667,8 +1676,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     updateTenant,
     attemptDeleteTenant,
     generateTenantAccount,
-    forceChangeTenantPassword,
     resetTenantPassword,
+    forceChangeTenantPassword,
     uploadSignedContract,
     renewSignedContract,
     deleteSignedContract,

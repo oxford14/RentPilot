@@ -3,6 +3,9 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +18,26 @@ import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck } from 'lucide-
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { PcIssue } from '@/lib/types';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+
+const issueComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit'] as const;
+
+const issueFormSchema = z.object({
+  issues: z.object(
+    issueComponents.reduce((acc, component) => {
+      acc[component] = z.object({
+        hasIssue: z.boolean(),
+        notes: z.string().optional(),
+      });
+      return acc;
+    }, {} as Record<typeof issueComponents[number], z.ZodObject<{ hasIssue: z.ZodBoolean, notes: z.ZodOptional<z.ZodString> }>>)
+  ),
+  otherNotes: z.string().optional(),
+});
+
+type IssueFormValues = z.infer<typeof issueFormSchema>;
 
 export default function PcManagementPage() {
   const { clients, tenants, updateClientPcCount, assignTenantToPc, unassignTenantFromPc, updateClientPcIssue, viewingAsClientId } = useAppContext();
@@ -29,11 +52,14 @@ export default function PcManagementPage() {
   const [pcCountInput, setPcCountInput] = useState('');
   
   const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
-  const [selectedPcForIssue, setSelectedPcForIssue] = useState<{ pcNumber: number; issueText: string } | null>(null);
-  const [currentIssueText, setCurrentIssueText] = useState('');
+  const [selectedPcNumber, setSelectedPcNumber] = useState<number | null>(null);
   
   const canConfigurePcCount = user?.isSuperAdmin || user?.role === 'admin';
 
+  const form = useForm<IssueFormValues>({
+    resolver: zodResolver(issueFormSchema),
+  });
+  
   useEffect(() => {
     if (client) {
       setPcCountInput(String(client.pcCount || 0));
@@ -69,24 +95,38 @@ export default function PcManagementPage() {
     return tenants.filter(t => t.status === 'active' && !t.pcNumber);
   }, [tenants]);
   
-  const handleOpenIssueDialog = (pcNumber: number, currentIssue: string) => {
-    setSelectedPcForIssue({ pcNumber, issueText: currentIssue });
-    setCurrentIssueText(currentIssue);
+  const handleOpenIssueDialog = (pcNumber: number) => {
+    const currentIssues = client?.pcIssues?.[pcNumber] || {};
+    const defaultValues: IssueFormValues = {
+      issues: {
+        'Monitor': { hasIssue: !!currentIssues['Monitor'], notes: currentIssues['Monitor'] || '' },
+        'Keyboard': { hasIssue: !!currentIssues['Keyboard'], notes: currentIssues['Keyboard'] || '' },
+        'Mouse': { hasIssue: !!currentIssues['Mouse'], notes: currentIssues['Mouse'] || '' },
+        'UPS': { hasIssue: !!currentIssues['UPS'], notes: currentIssues['UPS'] || '' },
+        'System Unit': { hasIssue: !!currentIssues['System Unit'], notes: currentIssues['System Unit'] || '' },
+      },
+      otherNotes: currentIssues['otherNotes'] || '',
+    };
+    form.reset(defaultValues);
+    setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
   };
 
-  const handleSaveIssue = async () => {
-    if (client && selectedPcForIssue) {
-        await updateClientPcIssue(client.id, selectedPcForIssue.pcNumber, currentIssueText);
-        setIsIssueDialogOpen(false);
+  const onIssueSubmit = async (data: IssueFormValues) => {
+    if (!client || selectedPcNumber === null) return;
+    
+    const newIssues: PcIssue = {};
+    for (const component of issueComponents) {
+        if(data.issues[component].hasIssue) {
+            newIssues[component] = data.issues[component].notes || 'Issue reported';
+        }
     }
-  };
+    if (data.otherNotes) {
+        newIssues['otherNotes'] = data.otherNotes;
+    }
 
-  const handleClearIssue = async () => {
-    if (client && selectedPcForIssue) {
-        await updateClientPcIssue(client.id, selectedPcForIssue.pcNumber, '');
-        setIsIssueDialogOpen(false);
-    }
+    await updateClientPcIssue(client.id, selectedPcNumber, newIssues);
+    setIsIssueDialogOpen(false);
   };
 
 
@@ -174,7 +214,8 @@ export default function PcManagementPage() {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {pcs.map(pc => {
-          const hasIssue = !!client?.pcIssues?.[pc.number];
+          const issueObject = client?.pcIssues?.[pc.number]
+          const hasIssue = !!issueObject && Object.keys(issueObject).length > 0;
           return (
             <Card key={pc.number} className="shadow-lg flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -186,7 +227,7 @@ export default function PcManagementPage() {
                     variant={hasIssue ? "destructive" : "ghost"}
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => handleOpenIssueDialog(pc.number, client?.pcIssues?.[pc.number] || '')}
+                    onClick={() => handleOpenIssueDialog(pc.number)}
                 >
                     <AlertTriangle className="h-4 w-4" />
                     <span className="sr-only">Report Issue</span>
@@ -232,27 +273,64 @@ export default function PcManagementPage() {
     </div>
     
     <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Issue for PC {selectedPcForIssue?.pcNumber}</DialogTitle>
-                <DialogDescription>
-                    Add or edit the issue details for this PC. Leave blank to clear the issue.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-                <Label htmlFor="issue-text">Issue Description</Label>
-                <Textarea
-                    id="issue-text"
-                    value={currentIssueText}
-                    onChange={(e) => setCurrentIssueText(e.target.value)}
-                    rows={4}
-                    placeholder="e.g., Monitor is flickering, Keyboard 'W' key not working."
+        <DialogContent className="sm:max-w-lg">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onIssueSubmit)}>
+              <DialogHeader>
+                  <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
+                  <DialogDescription>
+                      Select the components with issues and add notes.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                {issueComponents.map((componentName) => (
+                  <div key={componentName} className="space-y-2">
+                    <FormField
+                      control={form.control}
+                      name={`issues.${componentName}.hasIssue`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          </FormControl>
+                          <FormLabel className="font-semibold">{componentName}</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch(`issues.${componentName}.hasIssue`) && (
+                      <FormField
+                        control={form.control}
+                        name={`issues.${componentName}.notes`}
+                        render={({ field }) => (
+                          <FormItem className="pl-6">
+                            <FormControl>
+                              <Input placeholder={`Notes for ${componentName}...`} {...field} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+                ))}
+                <FormField
+                  control={form.control}
+                  name="otherNotes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-semibold">Other / General Notes</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Any other details..." {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
                 />
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={handleClearIssue}>Clear & Save</Button>
-                <Button onClick={handleSaveIssue}>Save Issue</Button>
-            </DialogFooter>
+              </div>
+              <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsIssueDialogOpen(false)}>Cancel</Button>
+                  <Button type="submit">Save Issues</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
     </Dialog>
     </>

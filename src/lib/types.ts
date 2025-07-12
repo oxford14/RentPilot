@@ -74,6 +74,10 @@ export interface Payment {
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
 }
 
+export interface PcIssue {
+  [componentName: string]: string; // e.g. { "Monitor": "Adapter broken", "Keyboard": "" }
+}
+
 export interface Client {
   id: string; // Firestore document ID
   name: string;
@@ -84,7 +88,7 @@ export interface Client {
   subscriptionPlanName?: string;
   subscriptionRate?: number;
   pcCount?: number;
-  pcIssues?: Record<number, string>;
+  pcIssues?: Record<number, PcIssue>; // Updated from Record<number, string>
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
@@ -362,7 +366,7 @@ export interface AppContextType {
   updateClientPcCount: (clientId: string, count: number) => Promise<void>;
   assignTenantToPc: (tenantId: string, pcNumber: number) => Promise<void>;
   unassignTenantFromPc: (tenantId: string) => Promise<void>;
-  updateClientPcIssue: (clientId: string, pcNumber: number, issueText: string) => Promise<void>;
+  updateClientPcIssue: (clientId: string, pcNumber: number, newIssues: PcIssue) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;
