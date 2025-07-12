@@ -24,7 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { CustomCheckbox } from '@/components/ui/custom-checkbox';
 
 const issueSubComponents = {
-  Monitor: ['Adapter', 'Power Cable'],
+  Monitor: ['Adapter', 'Power Cable', 'HDMI'],
   'System Unit': ['RAM', 'Hard Drive', 'Motherboard', 'Wifi adapter', 'LAN'],
 };
 const issueMainComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit', 'Camera', 'Headphones'] as const;
@@ -37,6 +37,7 @@ const issueDetailSchema = z.object({
 const subComponentSchema = z.object({
     Adapter: issueDetailSchema.optional(),
     'Power Cable': issueDetailSchema.optional(),
+    HDMI: issueDetailSchema.optional(),
     RAM: issueDetailSchema.optional(),
     'Hard Drive': issueDetailSchema.optional(),
     Motherboard: issueDetailSchema.optional(),
@@ -456,12 +457,3 @@ export default function PcManagementPage() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
