@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup } from '@/lib/types';
@@ -354,8 +353,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let historyWasModified = false;
         
         // Unassign from PC if status changes to inactive
-        if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive' && dataToUpdate.pcNumber) {
-            delete dataToUpdate.pcNumber;
+        if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive' && originalTenant?.pcNumber) {
+            dataToUpdate.pcNumber = deleteField() as any;
             toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
         }
         
@@ -1765,3 +1764,4 @@ export const useAppContext = (): AppContextType => {
 };
 
 
+    
