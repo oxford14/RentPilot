@@ -21,25 +21,34 @@ async function verifyPasswordAndMigrate(
   if (!storedPassword) {
     return false;
   }
-  
+
+  const isHashed = storedPassword.startsWith('$2a$'); // bcrypt hashes start with this prefix
   let isMatch = false;
-  try {
-    isMatch = await bcrypt.compare(passwordInput, storedPassword);
-  } catch (e) {
-    console.warn("bcrypt comparison failed, attempting plaintext check for migration. This is expected for users with legacy passwords.");
-  }
-  
-  if (!isMatch && passwordInput === storedPassword) {
-    isMatch = true;
+
+  if (isHashed) {
+    // Stored password is a hash, compare with bcrypt
     try {
-      const newHashedPassword = await hashPassword(passwordInput);
-      await updateDoc(docRef, { password: newHashedPassword });
-      console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
-    } catch(updateError) {
-      console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
+      isMatch = await bcrypt.compare(passwordInput, storedPassword);
+    } catch (e) {
+      console.error("Bcrypt comparison failed:", e);
+      return false;
+    }
+  } else {
+    // Stored password is likely plaintext. Compare directly.
+    if (passwordInput === storedPassword) {
+      // If it matches, migrate it to a hash.
+      isMatch = true;
+      try {
+        const newHashedPassword = await hashPassword(passwordInput);
+        await updateDoc(docRef, { password: newHashedPassword });
+        console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
+      } catch (updateError) {
+        console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
+        // We still consider it a successful login for the user, but log the migration failure.
+      }
     }
   }
-  
+
   return isMatch;
 }
 
