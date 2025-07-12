@@ -171,23 +171,25 @@ export default function PcManagementPage() {
     
     const newIssues: PcIssue = {};
     
-    (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponent => {
-        const issue = data.issues[mainComponent];
-        if (issue && (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue)))) {
-            newIssues[mainComponent] = {
-                notes: issue.notes || '',
-                subIssues: {}
-            };
-            if (issue.subIssues) {
-                (Object.keys(issue.subIssues) as (keyof typeof issue.subIssues)[]).forEach(subComponent => {
-                    const subIssue = issue.subIssues![subComponent];
-                    if (subIssue?.hasIssue) {
-                        newIssues[mainComponent]!.subIssues![subComponent] = subIssue.notes || 'Issue reported';
-                    }
-                });
+    if (data.issues) {
+        (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponent => {
+            const issue = data.issues[mainComponent];
+            if (issue && (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue)))) {
+                newIssues[mainComponent] = {
+                    notes: issue.notes || '',
+                    subIssues: {}
+                };
+                if (issue.subIssues) {
+                    (Object.keys(issue.subIssues) as (keyof typeof issue.subIssues)[]).forEach(subComponent => {
+                        const subIssue = issue.subIssues![subComponent];
+                        if (subIssue?.hasIssue) {
+                            newIssues[mainComponent]!.subIssues![subComponent] = subIssue.notes || 'Issue reported';
+                        }
+                    });
+                }
             }
-        }
-    });
+        });
+    }
 
     if (data.otherNotes) {
         newIssues['otherNotes'] = data.otherNotes;
@@ -343,10 +345,10 @@ export default function PcManagementPage() {
     <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
         <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col fancy-dialog">
             <DialogHeader>
-                <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
-                <DialogDescription>
+                <h2 id="dlg-header">Issue for PC {selectedPcNumber}</h2>
+                <div id="dlg-content">
                     Select the components with issues and add notes.
-                </DialogDescription>
+                </div>
             </DialogHeader>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onIssueSubmit)} className="flex-1 flex flex-col min-h-0">
@@ -442,6 +444,7 @@ export default function PcManagementPage() {
     </>
   );
 }
+
 
 
 
