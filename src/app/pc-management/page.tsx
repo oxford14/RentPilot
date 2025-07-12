@@ -172,15 +172,18 @@ export default function PcManagementPage() {
             const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
             
             if (issueDetail) {
-                const hasNotes = typeof issueDetail === 'object' && issueDetail !== null && 'notes' in issueDetail && !!issueDetail.notes;
-                const hasSubIssuesData = typeof issueDetail === 'object' && issueDetail !== null && 'subIssues' in issueDetail && !!issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
-                
+                // Simplified logic: If any issue data exists for this component, mark it as having an issue.
+                const hasIssue = !!issueDetail;
+
+                const notes = (typeof issueDetail === 'object' && issueDetail !== null && 'notes' in issueDetail) ? issueDetail.notes || '' : '';
+
                 defaultValues.issues[component] = {
-                    hasIssue: hasNotes || hasSubIssuesData || typeof issueDetail === 'string',
-                    notes: (typeof issueDetail === 'object' && 'notes' in issueDetail) ? issueDetail.notes || '' : '',
+                    hasIssue: hasIssue,
+                    notes: notes,
                     subIssues: {},
                 };
-
+                
+                const hasSubIssuesData = typeof issueDetail === 'object' && issueDetail !== null && 'subIssues' in issueDetail && !!issueDetail.subIssues;
                 const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
                 if (subComponentsList && hasSubIssuesData) {
                     subComponentsList.forEach(sub => {
@@ -209,7 +212,7 @@ export default function PcManagementPage() {
     
     (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
       const mainIssueData = data.issues[mainComponentKey];
-      if (!mainIssueData || !mainIssueData.hasIssue) return; // Skip if parent is not checked
+      if (!mainIssueData || !mainIssueData.hasIssue) return;
 
       const subIssuesToSave: PcSubIssue = {};
       let hasAnySubIssue = false;
