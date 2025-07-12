@@ -1,4 +1,5 @@
 
+
 export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
 
 export type ClientUserRole = 'admin' | 'user' | 'hub-admin';
@@ -389,6 +390,7 @@ export interface AppContextType {
   
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
+  updateClientNotificationSettings: (settings: NotificationSettings) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
   restoreClient: (backupId: string) => Promise<void>;
   permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
@@ -405,6 +407,10 @@ export interface AppContextType {
   updateExpense: (expense: Expense) => Promise<void>; 
   deleteExpense: (expenseId: string) => Promise<void>; 
   
+  addCompanyFundsExpense: (expenseData: Omit<CompanyFundsExpense, 'id' | 'clientId'>) => Promise<void>;
+  updateCompanyFundsExpense: (expense: CompanyFundsExpense) => Promise<void>;
+  deleteCompanyFundsExpense: (expenseId: string) => Promise<void>;
+  
   addAdditionalDue: (dueData: Omit<AdditionalDue, 'id' | 'clientId' | 'createdAt' | 'creditApplied'>) => Promise<void>;
   updateAdditionalDue: (updatedDue: AdditionalDue) => Promise<void>;
   deleteAdditionalDue: (dueId: string) => Promise<void>;
@@ -418,11 +424,7 @@ export interface AppContextType {
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
-
-  addCompanyFundsExpense: (expenseData: Omit<CompanyFundsExpense, 'id' | 'clientId'>) => Promise<void>;
-  updateCompanyFundsExpense: (expense: CompanyFundsExpense) => Promise<void>;
-  deleteCompanyFundsExpense: (expenseId: string) => Promise<void>;
-
+  
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
   rawPayments: Payment[];
@@ -443,3 +445,4 @@ export interface AppContextType {
   // Tenant Portal
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
 }
+

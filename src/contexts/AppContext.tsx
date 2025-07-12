@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -958,6 +958,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateClientNotificationSettings = async (settings: NotificationSettings) => {
+    if (!authUser) {
+      throw new Error("You must be logged in.");
+    }
+    const clientId = getScopedClientId();
+    if (!clientId) {
+      throw new Error("No client context found.");
+    }
+
+    try {
+      const clientRef = doc(db, 'clients', clientId);
+      await updateDoc(clientRef, {
+        notificationSettings: settings
+      });
+    } catch (error: any) {
+      console.error("Error updating notification settings:", error);
+      throw new Error(`Failed to save notification settings: ${error.message}`);
+    }
+  };
+
   const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
@@ -1691,6 +1711,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     restoreClient,
     permanentlyDeleteClientBackup,
 
+    updateClientNotificationSettings,
+
     addManagedUser,
     updateManagedUser,
     deleteManagedUser,
@@ -1767,3 +1789,4 @@ export const useAppContext = (): AppContextType => {
 
 
     
+

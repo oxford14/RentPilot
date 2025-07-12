@@ -26,7 +26,7 @@ const notificationSettingsSchema = z.object({
 type FormValues = z.infer<typeof notificationSettingsSchema>;
 
 export default function NotificationSettingsPage() {
-  const { clients, updateClient } = useAppContext();
+  const { clients, updateClientNotificationSettings } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -72,9 +72,12 @@ export default function NotificationSettingsPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Client context not found.' });
       return;
     }
-    const updatedClient = { ...client, notificationSettings: data };
-    await updateClient(updatedClient);
-    toast({ title: 'Settings Saved', description: 'Your notification preferences have been updated.' });
+    try {
+        await updateClientNotificationSettings(data);
+        toast({ title: 'Settings Saved', description: 'Your notification preferences have been updated.' });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Error Saving Settings", description: error.message });
+    }
   };
 
   if (!client && !user?.isSuperAdmin) {
@@ -186,3 +189,4 @@ export default function NotificationSettingsPage() {
     </div>
   );
 }
+
