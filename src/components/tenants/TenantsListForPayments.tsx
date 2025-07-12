@@ -51,7 +51,7 @@ export function TenantsListForPayments({ onSelectTenant, searchTerm, selectedTen
   }
 
   return (
-    <ScrollArea className="h-[calc(100vh-280px)] sm:h-[calc(100vh-250px)] md:h-auto md:max-h-[600px] lg:max-h-[700px]">
+    <ScrollArea className="h-[600px]">
       <Table>
         <TableHeader>
           <TableRow>
