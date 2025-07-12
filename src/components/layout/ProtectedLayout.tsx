@@ -93,7 +93,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
        return;
     }
     
-    if (isHubAdmin && hubAdminForbiddenRoutes.some(p => pathname.startsWith(p))) {
+    if (isHubAdmin && hubAdminForbiddenRoutes.some(p => pathname.startsWith(p) && !['/expenses', '/announcements', '/notifications'].includes(p))) {
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
         router.push('/');
         return;

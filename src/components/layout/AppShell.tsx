@@ -368,7 +368,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         baseNavItems = [...baseAppNavItems].filter(item => {
           if (isHubAdmin) {
             // Hub admin only sees a specific set of menus
-            return ['/', '/tenants', '/pc-management', '/monitoring'].includes(item.href);
+            const allowedHubAdminRoutes = ['/', '/tenants', '/pc-management', '/monitoring', '/expenses', '/announcements', '/notifications'];
+            return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
           }
 
           const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
