@@ -88,6 +88,50 @@ export default function PcManagementPage() {
     }
   }, [client]);
   
+  // Auto-check parent when child is checked
+  const watchedMonitorSubIssues = form.watch('issues.Monitor.subIssues');
+  useEffect(() => {
+      if (watchedMonitorSubIssues) {
+          const hasAnySubIssue = Object.values(watchedMonitorSubIssues).some(sub => sub?.hasIssue);
+          if (hasAnySubIssue) {
+              form.setValue('issues.Monitor.hasIssue', true, { shouldValidate: true });
+          }
+      }
+  }, [watchedMonitorSubIssues, form]);
+
+  const watchedSystemUnitSubIssues = form.watch('issues.System Unit.subIssues');
+  useEffect(() => {
+      if (watchedSystemUnitSubIssues) {
+          const hasAnySubIssue = Object.values(watchedSystemUnitSubIssues).some(sub => sub?.hasIssue);
+          if (hasAnySubIssue) {
+              form.setValue('issues.System Unit.hasIssue', true, { shouldValidate: true });
+          }
+      }
+  }, [watchedSystemUnitSubIssues, form]);
+
+  // Auto-uncheck children when parent is unchecked
+  const watchedMonitorHasIssue = form.watch('issues.Monitor.hasIssue');
+  useEffect(() => {
+      if (watchedMonitorHasIssue === false) {
+          const subIssueKeys = issueSubComponents.Monitor;
+          subIssueKeys.forEach(key => {
+              form.setValue(`issues.Monitor.subIssues.${key}.hasIssue`, false);
+              form.setValue(`issues.Monitor.subIssues.${key}.notes`, '');
+          });
+      }
+  }, [watchedMonitorHasIssue, form]);
+
+  const watchedSystemUnitHasIssue = form.watch('issues.System Unit.hasIssue');
+  useEffect(() => {
+      if (watchedSystemUnitHasIssue === false) {
+          const subIssueKeys = issueSubComponents['System Unit'];
+          subIssueKeys.forEach(key => {
+              form.setValue(`issues.System Unit.subIssues.${key}.hasIssue`, false);
+              form.setValue(`issues.System Unit.subIssues.${key}.notes`, '');
+          });
+      }
+  }, [watchedSystemUnitHasIssue, form]);
+
   const handleSetPcCount = () => {
     const count = parseInt(pcCountInput, 10);
     if (client && !isNaN(count) && count >= 0) {
@@ -123,84 +167,94 @@ export default function PcManagementPage() {
     let defaultValues: IssueFormValues = { issues: {}, otherNotes: '' };
 
     if (issueDataForPC) {
-        issueMainComponents.forEach(component => {
-            const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
-            
-            if (issueDetail) {
-                const hasSubIssuesList = issueSubComponents[component as keyof typeof issueSubComponents];
-                
-                // Ensure default structure for the main component
-                if (!defaultValues.issues[component]) {
-                   defaultValues.issues[component] = { hasIssue: false, notes: '', subIssues: {} };
+      // Handle "otherNotes" at the root level
+      if (typeof issueDataForPC.otherNotes === 'string') {
+        defaultValues.otherNotes = issueDataForPC.otherNotes;
+      }
+  
+      issueMainComponents.forEach(component => {
+        const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
+        
+        if (issueDetail) {
+          // Initialize main component structure in defaultValues
+          if (!defaultValues.issues[component]) {
+             defaultValues.issues[component] = { hasIssue: false, notes: '', subIssues: {} };
+          }
+  
+          if (typeof issueDetail === 'object' && 'notes' in issueDetail) {
+            // This is the complex object structure
+            defaultValues.issues[component]!.hasIssue = !!issueDetail.notes || (issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0);
+            defaultValues.issues[component]!.notes = issueDetail.notes || '';
+  
+            const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
+            if (subComponentsList && issueDetail.subIssues) {
+              subComponentsList.forEach(sub => {
+                const subIssueNote = (issueDetail.subIssues as PcSubIssue)[sub];
+                if (subIssueNote) {
+                  if(!defaultValues.issues[component]!.subIssues) {
+                    defaultValues.issues[component]!.subIssues = {};
+                  }
+                  defaultValues.issues[component]!.subIssues![sub as keyof typeof subComponentSchema.shape] = {
+                    hasIssue: true,
+                    notes: typeof subIssueNote === 'string' ? subIssueNote : 'Issue reported',
+                  };
                 }
-
-                if (typeof issueDetail === 'object' && 'notes' in issueDetail) {
-                    defaultValues.issues[component]!.hasIssue = !!issueDetail.notes;
-                    defaultValues.issues[component]!.notes = issueDetail.notes || '';
-
-                    if (hasSubIssuesList && issueDetail.subIssues) {
-                        hasSubIssuesList.forEach(sub => {
-                            const subIssueNote = (issueDetail.subIssues as PcSubIssue)[sub];
-                            if (subIssueNote) {
-                                defaultValues.issues[component]!.subIssues![sub as keyof typeof subComponentSchema.shape] = {
-                                    hasIssue: true,
-                                    notes: typeof subIssueNote === 'string' ? subIssueNote : 'Issue reported',
-                                };
-                            }
-                        });
-                    }
-                }
+              });
             }
-        });
-        if (typeof issueDataForPC.otherNotes === 'string') {
-          defaultValues.otherNotes = issueDataForPC.otherNotes;
+          } else if (typeof issueDetail === 'string') {
+            // This is the legacy string format
+            defaultValues.issues[component]!.hasIssue = true;
+            defaultValues.issues[component]!.notes = issueDetail;
+          }
         }
+      });
     }
     
     form.reset(defaultValues);
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
   };
-
+  
   const onIssueSubmit = async (data: IssueFormValues) => {
-      if (!client || selectedPcNumber === null) return;
-      
-      const newIssues: PcIssue = {};
-      
-      // Process main components and their sub-issues
-      (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
-          const mainIssue = data.issues[mainComponentKey];
-          if (!mainIssue) return;
+    if (!client || selectedPcNumber === null) return;
+    
+    const newIssuesForPC: PcIssue = {};
+    
+    // Process main components and their sub-issues from the form
+    (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
+      const mainIssueData = data.issues[mainComponentKey];
+      if (!mainIssueData) return;
 
-          const processedSubIssues: PcSubIssue = {};
-          let hasAnySubIssue = false;
+      const subIssuesToSave: PcSubIssue = {};
+      let hasAnySubIssue = false;
 
-          if (mainIssue.subIssues) {
-              (Object.keys(mainIssue.subIssues) as (keyof typeof mainIssue.subIssues)[]).forEach(subComponentKey => {
-                  const subIssue = mainIssue.subIssues![subComponentKey];
-                  if (subIssue?.hasIssue) {
-                      processedSubIssues[subComponentKey] = subIssue.notes || 'Issue reported';
-                      hasAnySubIssue = true;
-                  }
-              });
+      // Check if there are any sub-issues checked
+      if (mainIssueData.subIssues) {
+        (Object.keys(mainIssueData.subIssues) as (keyof typeof mainIssueData.subIssues)[]).forEach(subComponentKey => {
+          const subIssueData = mainIssueData.subIssues![subComponentKey];
+          if (subIssueData?.hasIssue) {
+            subIssuesToSave[subComponentKey] = subIssueData.notes || 'Issue reported';
+            hasAnySubIssue = true;
           }
-          
-          // An issue exists if the main checkbox is checked OR any sub-issue is checked
-          if (mainIssue.hasIssue || hasAnySubIssue) {
-              newIssues[mainComponentKey] = {
-                  notes: mainIssue.notes || '',
-                  subIssues: hasAnySubIssue ? processedSubIssues : {},
-              };
-          }
-      });
-      
-      // Handle general notes
-      if (data.otherNotes && data.otherNotes.trim()) {
-          newIssues.otherNotes = data.otherNotes.trim();
+        });
       }
+      
+      // An issue exists for the main component if its own checkbox is checked, it has notes, OR any sub-issue is checked.
+      if (mainIssueData.hasIssue || mainIssueData.notes || hasAnySubIssue) {
+        newIssuesForPC[mainComponentKey] = {
+          notes: mainIssueData.notes || '',
+          subIssues: hasAnySubIssue ? subIssuesToSave : {},
+        };
+      }
+    });
+    
+    // Handle the general "otherNotes" field
+    if (data.otherNotes && data.otherNotes.trim()) {
+      newIssuesForPC.otherNotes = data.otherNotes.trim();
+    }
 
-      await updateClientPcIssue(client.id, selectedPcNumber, newIssues);
-      setIsIssueDialogOpen(false);
+    await updateClientPcIssue(client.id, selectedPcNumber, newIssuesForPC);
+    setIsIssueDialogOpen(false);
   };
 
 
@@ -379,7 +433,7 @@ export default function PcManagementPage() {
                           </FormItem>
                         )}
                       />
-                      {form.watch(`issues.${componentName}.hasIssue`) && (
+                      {(form.watch(`issues.${componentName}.hasIssue`) || (subComponents && Object.values(form.watch(`issues.${componentName}.subIssues`) || {}).some(sub => (sub as any)?.hasIssue))) && (
                         <FormField
                           control={form.control}
                           name={`issues.${componentName}.notes`}
