@@ -87,23 +87,23 @@ export default function PcManagementPage() {
     }
   }, [client]);
   
-  const watchedMonitorSubIssueChecks = issueSubComponents.Monitor.map(sub => form.watch(`issues.Monitor.subIssues.${sub}.hasIssue`));
+  const watchedMonitorSubIssues = issueSubComponents.Monitor.map(sub => form.watch(`issues.Monitor.subIssues.${sub}.hasIssue`));
   useEffect(() => {
-    if (watchedMonitorSubIssueChecks.some(isChecked => isChecked)) {
+    if (watchedMonitorSubIssues.some(isChecked => isChecked)) {
       if (!form.getValues('issues.Monitor.hasIssue')) {
         form.setValue('issues.Monitor.hasIssue', true, { shouldValidate: true });
       }
     }
-  }, [watchedMonitorSubIssueChecks, form]);
+  }, [watchedMonitorSubIssues, form]);
   
-  const watchedSystemUnitSubIssueChecks = issueSubComponents['System Unit'].map(sub => form.watch(`issues.System Unit.subIssues.${sub}.hasIssue`));
+  const watchedSystemUnitSubIssues = issueSubComponents['System Unit'].map(sub => form.watch(`issues.System Unit.subIssues.${sub}.hasIssue`));
   useEffect(() => {
-    if (watchedSystemUnitSubIssueChecks.some(isChecked => isChecked)) {
+    if (watchedSystemUnitSubIssues.some(isChecked => isChecked)) {
       if (!form.getValues('issues.System Unit.hasIssue')) {
         form.setValue('issues.System Unit.hasIssue', true, { shouldValidate: true });
       }
     }
-  }, [watchedSystemUnitSubIssueChecks, form]);
+  }, [watchedSystemUnitSubIssues, form]);
 
 
   // Auto-uncheck children when parent is unchecked
@@ -172,19 +172,17 @@ export default function PcManagementPage() {
             const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
             
             if (issueDetail) {
-                // Determine if parent checkbox should be checked
                 const hasNotes = typeof issueDetail === 'object' && issueDetail !== null && 'notes' in issueDetail && !!issueDetail.notes;
-                const hasSubIssues = typeof issueDetail === 'object' && issueDetail !== null && 'subIssues' in issueDetail && !!issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
+                const hasSubIssuesData = typeof issueDetail === 'object' && issueDetail !== null && 'subIssues' in issueDetail && !!issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
                 
                 defaultValues.issues[component] = {
-                    hasIssue: hasNotes || hasSubIssues,
+                    hasIssue: hasNotes || hasSubIssuesData || typeof issueDetail === 'string',
                     notes: (typeof issueDetail === 'object' && 'notes' in issueDetail) ? issueDetail.notes || '' : '',
                     subIssues: {},
                 };
 
-                // Populate sub-issues if they exist
                 const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
-                if (subComponentsList && hasSubIssues) {
+                if (subComponentsList && hasSubIssuesData) {
                     subComponentsList.forEach(sub => {
                         const subIssueData = (issueDetail as any).subIssues[sub];
                         if (subIssueData) {
@@ -226,11 +224,15 @@ export default function PcManagementPage() {
         });
       }
       
-      // Save the parent issue if it's checked, even if only for its own notes
-      newIssuesForPC[mainComponentKey] = {
+      const newMainIssueEntry: { notes: string; subIssues?: PcSubIssue } = {
         notes: mainIssueData.notes || '',
-        subIssues: hasAnySubIssue ? subIssuesToSave : undefined,
       };
+      
+      if (hasAnySubIssue) {
+        newMainIssueEntry.subIssues = subIssuesToSave;
+      }
+      
+      newIssuesForPC[mainComponentKey] = newMainIssueEntry;
     });
     
     if (data.otherNotes && data.otherNotes.trim()) {
