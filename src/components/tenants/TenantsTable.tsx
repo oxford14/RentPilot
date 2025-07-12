@@ -210,7 +210,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     return "your landlord";
   }, [displayedTenants, clients]);
 
-  const formatUtcDate = (dateString: string) => {
+  const formatUtcDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const utcDate = addMinutes(date, date.getTimezoneOffset());
     return format(utcDate, "PP");
@@ -244,10 +245,14 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               </TableHead>
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Rent (₱)</TableHead>
-              <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">
                  <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
                     Join Date {getSortIcon('joinDate')}
+                 </Button>
+              </TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                 <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1">
+                    Contract End {getSortIcon('contractEndDate')}
                  </Button>
               </TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -258,30 +263,18 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
               <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                 <TableCell className="font-medium">
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                        <span>{tenant.name}</span>
-                    </div>
+                      <span>{tenant.name}</span>
                      <span className="text-xs text-muted-foreground">{tenant.email}</span>
-                     {tenant.signedContractUrl && (
-                        <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-                           <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1 h-auto text-xs text-muted-foreground hover:bg-transparent hover:text-foreground">
-                             <FileViewIcon className="h-3 w-3 text-primary mr-1" />
-                             <span>Contract ends: {tenant.contractEndDate ? formatUtcDate(tenant.contractEndDate) : 'N/A'}</span>
-                             {getSortIcon('contractEndDate')}
-                           </Button>
-                        </div>
-                     )}
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
                 <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'} className={tenant.status === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-red-500/20 text-red-700 border-red-400'}>
-                    {tenant.status === 'active' ? <UserCheck className="h-3 w-3 mr-1" /> : <UserX className="h-3 w-3 mr-1" />}
-                    {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
-                  </Badge>
-                </TableCell>
                 <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
+                <TableCell className="hidden md:table-cell text-center">
+                    <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"}>
+                      {tenant.signedContractUrl ? formatUtcDate(tenant.contractEndDate) : "No Contract"}
+                    </Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
