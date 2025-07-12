@@ -71,7 +71,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             toast({ title: "Login Successful", description: toastDescription });
             
-            if (validatedUser.isSuperAdmin) {
+            if (validatedUser.temporaryPassword) {
+                router.push('/force-password-change');
+            } else if (validatedUser.isSuperAdmin) {
                 router.push('/admin');
             } else {
                 router.push('/');

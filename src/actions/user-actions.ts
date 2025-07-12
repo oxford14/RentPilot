@@ -2,8 +2,8 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, setDoc, getDocs, query, where, updateDoc, getDoc, DocumentReference } from 'firebase/firestore';
-import type { ManagedUser, SuperAdminUser, Tenant, User } from '@/lib/types';
+import { collection, addDoc, doc, setDoc, getDocs, query, where, updateDoc, getDoc, DocumentReference, writeBatch } from 'firebase/firestore';
+import type { ManagedUser, SuperAdminUser, Tenant, User, Client } from '@/lib/types';
 import bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = 10;
@@ -123,20 +123,51 @@ export async function serverGenerateTenantAccount(tenantId: string): Promise<{su
     if (!tenantSnapshot.exists()) {
         return { success: false, message: 'Tenant not found.' };
     }
-    if (tenantSnapshot.data().hasAccount) {
+    const tenantData = tenantSnapshot.data() as Tenant;
+
+    if (tenantData.hasAccount) {
         return { success: false, message: 'This tenant already has an account.' };
+    }
+    if (!tenantData.email) {
+        return { success: false, message: 'Tenant does not have an email address on file. Cannot send credentials.' };
     }
 
     const username = `tenant${Math.floor(100000 + Math.random() * 900000)}`;
     const temporaryPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await hashPassword(temporaryPassword);
 
-    await updateDoc(tenantRef, {
+    const batch = writeBatch(db);
+
+    batch.update(tenantRef, {
         username: username,
         password: hashedPassword,
         hasAccount: true,
         temporaryPassword: true,
     });
+
+    const clientName = tenantData.clientId ? (await getDoc(doc(db, 'clients', tenantData.clientId))).data()?.name || 'your landlord' : 'your landlord';
+
+    const emailBody = `
+        <p>Hello ${tenantData.name},</p>
+        <p>An account has been created for you on the RentPilot portal by ${clientName}.</p>
+        <p>You can use these credentials to log in. You will be required to change your password on your first login.</p>
+        <ul>
+            <li><strong>Username:</strong> ${username}</li>
+            <li><strong>Temporary Password:</strong> ${temporaryPassword}</li>
+        </ul>
+        <p>Thank you!</p>
+    `;
+
+    const mailRef = doc(collection(db, 'mail'));
+    batch.set(mailRef, {
+        to: [tenantData.email],
+        message: {
+            subject: `Your Tenant Portal Account Details from ${clientName}`,
+            html: emailBody,
+        },
+    });
+
+    await batch.commit();
     
     return { success: true, username: username, password: temporaryPassword };
 }
@@ -149,17 +180,48 @@ export async function serverResetTenantPassword(tenantId: string): Promise<{succ
     if (!tenantSnapshot.exists()) {
         return { success: false, message: 'Tenant not found.' };
     }
-    if (!tenantSnapshot.data().hasAccount) {
+    const tenantData = tenantSnapshot.data() as Tenant;
+
+    if (!tenantData.hasAccount) {
         return { success: false, message: 'This tenant does not have an account yet. Please generate one first.' };
+    }
+    if (!tenantData.email) {
+        return { success: false, message: 'Tenant does not have an email address on file. Cannot send new password.' };
     }
 
     const temporaryPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await hashPassword(temporaryPassword);
 
-    await updateDoc(tenantRef, {
+    const batch = writeBatch(db);
+
+    batch.update(tenantRef, {
         password: hashedPassword,
         temporaryPassword: true,
     });
+
+    const clientName = tenantData.clientId ? (await getDoc(doc(db, 'clients', tenantData.clientId))).data()?.name || 'your landlord' : 'your landlord';
+    
+    const emailBody = `
+        <p>Hello ${tenantData.name},</p>
+        <p>Your password for the RentPilot portal has been reset by ${clientName}.</p>
+        <p>Please use the following temporary password to log in. You will be required to create a new password after logging in.</p>
+        <ul>
+            <li><strong>Username:</strong> ${tenantData.username}</li>
+            <li><strong>New Temporary Password:</strong> ${temporaryPassword}</li>
+        </ul>
+        <p>Thank you!</p>
+    `;
+
+    const mailRef = doc(collection(db, 'mail'));
+    batch.set(mailRef, {
+        to: [tenantData.email],
+        message: {
+            subject: `Your Password has been Reset - ${clientName}`,
+            html: emailBody,
+        },
+    });
+    
+    await batch.commit();
     
     return { success: true, password: temporaryPassword };
 }
@@ -206,7 +268,7 @@ export async function serverChangeTenantPassword(
   }
 
   const newHashedPassword = await hashPassword(newPasswordInput);
-  await updateDoc(tenantDocRef, { password: newHashedPassword });
+  await updateDoc(tenantDocRef, { password: newHashedPassword, temporaryPassword: false });
 
   return { success: true, message: 'Password changed successfully.' };
 }

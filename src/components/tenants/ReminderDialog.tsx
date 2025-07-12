@@ -38,7 +38,8 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
 
     const getAnniversaryForMonth = (tenant: Tenant, refDate: Date): Date => {
         const joinDate = new Date(tenant.joinDate);
-        const joinDay = joinDate.getUTCDate();
+        const joinDay = tenant.monthlyDueDay || joinDate.getUTCDate();
+        
         const refYear = refDate.getUTCFullYear();
         const refMonth = refDate.getUTCMonth();
         
