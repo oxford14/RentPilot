@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Bell, Save, Loader2, Info, Mail, Smartphone } from 'lucide-react';
+import { Bell, Save, Loader2, Info, PlayCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const notificationSettingsSchema = z.object({
@@ -26,10 +26,11 @@ const notificationSettingsSchema = z.object({
 type FormValues = z.infer<typeof notificationSettingsSchema>;
 
 export default function NotificationSettingsPage() {
-  const { clients, updateClientNotificationSettings } = useAppContext();
+  const { clients, updateClientNotificationSettings, runNotificationTrigger } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const [isTriggering, setIsTriggering] = useState(false);
 
   const client = useMemo(() => {
     if (!user || !user.clientId) return null;
@@ -80,6 +81,18 @@ export default function NotificationSettingsPage() {
     }
   };
 
+  const handleTriggerNotifications = async () => {
+    setIsTriggering(true);
+    toast({ title: "Running notifications...", description: "This may take a moment."});
+    const result = await runNotificationTrigger();
+    if(result.success) {
+      toast({ title: "Success", description: result.message });
+    } else {
+      toast({ variant: 'destructive', title: "Error", description: result.message });
+    }
+    setIsTriggering(false);
+  }
+
   if (!client && !user?.isSuperAdmin) {
       return (
           <div className="container mx-auto py-2 flex items-center justify-center">
@@ -103,7 +116,7 @@ export default function NotificationSettingsPage() {
           <Info className="h-4 w-4" />
           <AlertTitle>How It Works</AlertTitle>
           <AlertDescription>
-            These settings control when automatic reminders are sent. This process runs daily in the background. Notifications are delivered to both the tenant's in-app inbox and their registered email address.
+            These settings control when automatic reminders are sent. This process runs daily, but you can trigger it manually for testing. Notifications are delivered to both the tenant's in-app inbox and their registered email address.
           </AlertDescription>
       </Alert>
 
@@ -177,10 +190,14 @@ export default function NotificationSettingsPage() {
                 )}
               />
             </CardContent>
-             <CardFooter className="border-t px-6 py-4">
+             <CardFooter className="border-t px-6 py-4 flex justify-between items-center">
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Settings
+              </Button>
+              <Button type="button" variant="outline" onClick={handleTriggerNotifications} disabled={isTriggering}>
+                {isTriggering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
+                Run Notifications Now
               </Button>
             </CardFooter>
           </Card>
@@ -189,4 +206,3 @@ export default function NotificationSettingsPage() {
     </div>
   );
 }
-

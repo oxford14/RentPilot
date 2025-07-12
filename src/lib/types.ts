@@ -391,9 +391,7 @@ export interface AppContextType {
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
   updateClientNotificationSettings: (settings: NotificationSettings) => Promise<void>;
-  deleteClient: (clientId: string) => Promise<void>;
-  restoreClient: (backupId: string) => Promise<void>;
-  permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
+  runNotificationTrigger: () => Promise<{success: boolean, message: string}>;
 
   addManagedUser: (userData: Omit<ManagedUser, 'id'>) => Promise<void>;
   updateManagedUser: (user: ManagedUser) => Promise<void>;
@@ -443,6 +441,8 @@ export interface AppContextType {
   restoreFromBackup: (backupData: any) => Promise<{ success: boolean; message: string; }>;
 
   // Tenant Portal
+  deleteClient: (clientId: string) => Promise<void>;
+  restoreClient: (backupId: string) => Promise<void>;
+  permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
 }
-

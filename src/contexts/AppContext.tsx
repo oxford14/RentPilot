@@ -959,10 +959,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateClientNotificationSettings = async (settings: NotificationSettings) => {
-    if (!authUser) {
+    if (!authIsAuthenticated || !authUser) {
       throw new Error("You must be logged in.");
     }
+
     const clientId = getScopedClientId();
+    const canUpdate = authUser.isSuperAdmin || 
+                      (authUser.role === 'admin' && authUser.clientId === clientId) ||
+                      (authUser.role === 'hub-admin' && activeClient?.name === 'i-VirtuaTech' && authUser.clientId === clientId);
+    
+    if (!canUpdate) {
+        throw new Error("You do not have permission to update these settings.");
+    }
     if (!clientId) {
       throw new Error("No client context found.");
     }
@@ -977,6 +985,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       throw new Error(`Failed to save notification settings: ${error.message}`);
     }
   };
+
+  const runNotificationTrigger = async (): Promise<{success: boolean, message: string}> => {
+    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/notificationRunner";
+    try {
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to trigger notifications: ${response.status} ${errorText}`);
+      }
+      const result = await response.json();
+      return { success: true, message: result.message };
+    } catch(error: any) {
+      console.error("Error triggering notifications:", error);
+      return { success: false, message: error.message };
+    }
+  }
 
   const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) {
@@ -1707,11 +1736,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     addClient,
     updateClient,
-    deleteClient,
-    restoreClient,
-    permanentlyDeleteClientBackup,
-
     updateClientNotificationSettings,
+    runNotificationTrigger,
 
     addManagedUser,
     updateManagedUser,
@@ -1742,7 +1768,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addAnnouncement,
     deleteAnnouncement,
     markAnnouncementAsRead,
-
+    
     rawManagedUsers: rawManagedUsersState,
     rawTenants: rawTenantsState,
     rawPayments: rawPaymentsState,
@@ -1761,6 +1787,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     restoreFromBackup,
 
     // Tenant Portal
+    deleteClient,
+    restoreClient,
+    permanentlyDeleteClientBackup,
     cleanClientData,
   };
 
@@ -1789,4 +1818,5 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
