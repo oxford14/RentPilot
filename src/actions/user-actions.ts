@@ -27,14 +27,18 @@ async function verifyPasswordAndMigrate(
   
   if (isLikelyHashed) {
     try {
-      return await bcrypt.compare(passwordInput, storedPassword);
+      // It's likely a hash, so let's try comparing it securely.
+      const match = await bcrypt.compare(passwordInput, storedPassword);
+      if (match) {
+        return true;
+      }
     } catch (e) {
-      // Ignore bcrypt errors (e.g., if it's not a valid hash despite the prefix)
-      // and fall through to plaintext check.
+      // This will catch cases where it's not a valid hash despite the prefix.
+      // We can safely ignore the error and fall through to plaintext check.
     }
   } 
   
-  // If not hashed, or if bcrypt compare failed, try plaintext comparison
+  // If it's not hashed, or if bcrypt compare failed, try plaintext comparison.
   if (passwordInput === storedPassword) {
       // If plaintext matches, hash the password and update the document.
       try {
@@ -43,11 +47,12 @@ async function verifyPasswordAndMigrate(
         console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
       } catch (updateError) {
         console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
-        // Do not block login if migration fails.
+        // Do not block login if migration fails. The user can still log in.
       }
-      return true;
+      return true; // The password was correct.
   }
 
+  // If we reach here, neither the hashed nor plaintext password matched.
   return false;
 }
 
@@ -299,6 +304,26 @@ export async function serverChangeTenantPassword(
 
   if (!isMatch) {
     return { success: false, message: 'Incorrect current password.' };
+  }
+
+  // Check if new password is used by another tenant with the same email
+  if (tenantData.email) {
+    const q = query(
+        collection(db, 'tenants'),
+        where('email', '==', tenantData.email)
+    );
+    const querySnapshot = await getDocs(q);
+
+    for (const otherTenantDoc of querySnapshot.docs) {
+        if (otherTenantDoc.id === tenantId) continue; // Skip self
+
+        const otherTenant = otherTenantDoc.data() as Tenant;
+        const newPasswordIsMatchForOther = await verifyPasswordAndMigrate(otherTenantDoc.ref, newPasswordInput, otherTenant.password);
+
+        if (newPasswordIsMatchForOther) {
+            return { success: false, message: 'Please try a different password.' };
+        }
+    }
   }
 
   const newHashedPassword = await hashPassword(newPasswordInput);
