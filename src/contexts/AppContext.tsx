@@ -473,23 +473,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const announcementRef = doc(collection(db, 'announcements'));
         batch.set(announcementRef, newAnnouncement);
 
-        // 2. If it's a direct message to a tenant, also trigger an email
+        // 2. Handle email sending
+        let emailRecipients: string[] = [];
+        let emailContent = `<p>${announcementData.content}</p>`;
+
+        // Case 1: Direct message to a single tenant
         if (announcementData.recipientId && announcementData.audience === 'tenant') {
             const tenant = rawTenantsState.find(t => t.id === announcementData.recipientId);
             if (tenant?.email) {
-                const mailRef = doc(collection(db, 'mail')); // Assumes 'mail' is the collection name for the extension
-                batch.set(mailRef, {
-                    to: [tenant.email],
-                    message: {
-                        subject: announcementData.title,
-                        html: `<p>${announcementData.content}</p>`,
-                    },
-                });
+                emailRecipients.push(tenant.email);
             }
+        // Case 2: Broadcast to all tenants of a client
+        } else if (announcementData.scope !== 'global' && announcementData.audience === 'tenant' && !announcementData.recipientId) {
+            const tenantsForClient = rawTenantsState.filter(t => t.clientId === announcementData.scope && t.email);
+            emailRecipients = tenantsForClient.map(t => t.email);
+        }
+
+        // Add email to the batch if there are recipients
+        if (emailRecipients.length > 0) {
+            const client = rawClientsState.find(c => c.id === announcementData.scope);
+            const fromName = client?.name || announcementData.senderName;
+            
+            const mailRef = doc(collection(db, 'mail'));
+            batch.set(mailRef, {
+                to: emailRecipients,
+                message: {
+                    subject: `${fromName}: ${announcementData.title}`,
+                    html: emailContent,
+                },
+            });
         }
 
         await batch.commit();
-
         toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
 
     } catch (error: any) {
@@ -1818,5 +1833,6 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
