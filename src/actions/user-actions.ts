@@ -22,37 +22,30 @@ async function verifyPasswordAndMigrate(
     return false;
   }
 
-  // bcrypt hashes start with $2a$, $2b$, or $2y$. Let's check for a dollar sign pattern.
   const isLikelyHashed = storedPassword.length > 50 && storedPassword.startsWith('$2');
-  let isMatch = false;
-
+  
   if (isLikelyHashed) {
-    // Stored password is likely a hash, try to compare with bcrypt
     try {
-      isMatch = await bcrypt.compare(passwordInput, storedPassword);
+      const isMatch = await bcrypt.compare(passwordInput, storedPassword);
+      if (isMatch) return true;
     } catch (e) {
-      // This can happen if storedPassword is not a valid hash format for bcrypt
-      console.error("Bcrypt comparison failed, falling back to plaintext check:", e);
-      isMatch = false;
+      // Not a valid hash, proceed to plaintext check
     }
   } 
   
-  // If it's not hashed, or if bcrypt comparison failed, try plaintext comparison.
-  if (!isMatch && passwordInput === storedPassword) {
-      // If it matches plaintext, it's a successful login.
-      isMatch = true;
+  // If not hashed, or if bcrypt compare failed/returned false, try plaintext
+  if (passwordInput === storedPassword) {
       try {
-        // Now, migrate the plaintext password to a hash for future logins.
         const newHashedPassword = await hashPassword(passwordInput);
         await updateDoc(docRef, { password: newHashedPassword });
         console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
       } catch (updateError) {
         console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
-        // We still consider it a successful login for the user, but log the migration failure.
       }
+      return true; // Login is successful even if migration fails.
   }
 
-  return isMatch;
+  return false;
 }
 
 
@@ -289,75 +282,79 @@ export async function serverChangeTenantPassword(
 
 // Login Verification Action
 export async function serverVerifyCredentials(usernameInput: string, passwordInput: string): Promise<User | null> {
-    // 1. Check super admin users by username
+    
+    // 1. Check super admin users
     const superAdminQuery = query(collection(db, 'superAdminUsers'), where('username', '==', usernameInput));
     const superAdminSnapshot = await getDocs(superAdminQuery);
-
     if (!superAdminSnapshot.empty) {
-        const superAdminDoc = superAdminSnapshot.docs[0];
-        const superAdminData = superAdminDoc.data() as SuperAdminUser;
-        if (await verifyPasswordAndMigrate(superAdminDoc.ref, passwordInput, superAdminData.password)) {
-            return { username: superAdminData.username, isSuperAdmin: true };
+        for (const superAdminDoc of superAdminSnapshot.docs) {
+            const superAdminData = superAdminDoc.data() as SuperAdminUser;
+            if (await verifyPasswordAndMigrate(superAdminDoc.ref, passwordInput, superAdminData.password)) {
+                return { username: superAdminData.username, isSuperAdmin: true };
+            }
         }
     }
     
-    // 2. Check managed client users by username OR email
+    // 2. Check managed client users
     const managedUserQueryByName = query(collection(db, 'managedUsers'), where('username', '==', usernameInput));
     const managedUserSnapshotByName = await getDocs(managedUserQueryByName);
 
-    let managedUserDoc = managedUserSnapshotByName.docs[0];
-
-    if (!managedUserDoc) {
+    let managedUserDocs = managedUserSnapshotByName.docs;
+    
+    if (managedUserDocs.length === 0) {
         const managedUserQueryByEmail = query(collection(db, 'managedUsers'), where('email', '==', usernameInput));
         const managedUserSnapshotByEmail = await getDocs(managedUserQueryByEmail);
-        managedUserDoc = managedUserSnapshotByEmail.docs[0];
+        managedUserDocs = managedUserSnapshotByEmail.docs;
     }
-    
-    if (managedUserDoc) {
-        const managedUserData = managedUserDoc.data() as ManagedUser;
-        if (await verifyPasswordAndMigrate(managedUserDoc.ref, passwordInput, managedUserData.password)) {
-            return {
-                username: managedUserData.username,
-                email: managedUserData.email,
-                clientId: managedUserData.clientId,
-                isSuperAdmin: false,
-                role: managedUserData.role,
-                canApplyDiscount: managedUserData.canApplyDiscount,
-            };
+
+    if (managedUserDocs.length > 0) {
+        for (const managedUserDoc of managedUserDocs) {
+            const managedUserData = managedUserDoc.data() as ManagedUser;
+            if (await verifyPasswordAndMigrate(managedUserDoc.ref, passwordInput, managedUserData.password)) {
+                return {
+                    username: managedUserData.username,
+                    email: managedUserData.email,
+                    clientId: managedUserData.clientId,
+                    isSuperAdmin: false,
+                    role: managedUserData.role,
+                    canApplyDiscount: managedUserData.canApplyDiscount,
+                };
+            }
         }
     }
 
-    // 3. Check tenants by username OR email
+    // 3. Check tenants
     const tenantQueryByUsername = query(collection(db, 'tenants'), where('username', '==', usernameInput));
     const tenantSnapshotByUsername = await getDocs(tenantQueryByUsername);
-    let tenantDoc = tenantSnapshotByUsername.docs[0];
+    let tenantDocs = tenantSnapshotByUsername.docs;
 
-    // If not found by username, try by email
-    if (!tenantDoc) {
+    if (tenantDocs.length === 0) {
         const tenantQueryByEmail = query(collection(db, 'tenants'), where('email', '==', usernameInput));
         const tenantSnapshotByEmail = await getDocs(tenantQueryByEmail);
-        tenantDoc = tenantSnapshotByEmail.docs[0];
+        tenantDocs = tenantSnapshotByEmail.docs;
     }
 
-    if (tenantDoc) {
-        const tenantData = tenantDoc.data() as Tenant;
+    if (tenantDocs.length > 0) {
+        for (const tenantDoc of tenantDocs) {
+            const tenantData = tenantDoc.data() as Tenant;
 
-        if (!tenantData.hasAccount) {
-            return null; // Don't allow login if account not activated
-        }
-        
-        if (await verifyPasswordAndMigrate(tenantDoc.ref, passwordInput, tenantData.password)) {
-             return {
-                username: tenantData.username!,
-                email: tenantData.email,
-                tenantId: tenantDoc.id,
-                isSuperAdmin: false,
-                role: 'tenant',
-                clientId: tenantData.clientId,
-                temporaryPassword: tenantData.temporaryPassword || false,
-            };
+            if (!tenantData.hasAccount) {
+                continue; // Skip to next tenant if account is not active
+            }
+            
+            if (await verifyPasswordAndMigrate(tenantDoc.ref, passwordInput, tenantData.password)) {
+                 return {
+                    username: tenantData.username!,
+                    email: tenantData.email,
+                    tenantId: tenantDoc.id,
+                    isSuperAdmin: false,
+                    role: 'tenant',
+                    clientId: tenantData.clientId,
+                    temporaryPassword: tenantData.temporaryPassword || false,
+                };
+            }
         }
     }
 
-    return null; // No user found or password incorrect
+    return null; // No user found or password incorrect for any matching user
 }
