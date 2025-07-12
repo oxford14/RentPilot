@@ -353,6 +353,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
         let historyWasModified = false;
         
+        // Unassign from PC if status changes to inactive
+        if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive' && dataToUpdate.pcNumber) {
+            delete dataToUpdate.pcNumber;
+            toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
+        }
+        
         if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate) {
             newHistory = [{
                 rate: updatedTenant.monthlyRentalRate,
@@ -1757,4 +1763,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
 
