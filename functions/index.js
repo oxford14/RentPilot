@@ -3,6 +3,9 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { runNotificationChecks } = require("./src/notifications");
+
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -18,6 +21,18 @@ exports.initializeEventarc = onDocumentCreated("dummy/{docId}", (event) => {
   const docId = event.params.docId;
   console.log(`Eventarc initialized by trigger from dummy document: ${docId}`);
   return null;
+});
+
+// Scheduled function to run daily notification checks
+exports.dailyNotificationRunner = onSchedule("every day 01:00", async (event) => {
+    console.log("Running daily notification checks...");
+    try {
+        await runNotificationChecks();
+        console.log("Successfully completed daily notification checks.");
+    } catch (error) {
+        console.error("Error running daily notification checks:", error);
+    }
+    return null;
 });
 
 
