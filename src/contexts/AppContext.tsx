@@ -454,14 +454,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
-    const newAnnouncement = {
-      ...announcementData,
-      createdAt: new Date().toISOString(),
-      readBy: [],
-    };
+
     try {
-      await addDoc(collection(db, 'announcements'), newAnnouncement);
-      toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
+        const batch = writeBatch(db);
+
+        // 1. Create the in-app announcement
+        const newAnnouncement = {
+            ...announcementData,
+            createdAt: new Date().toISOString(),
+            readBy: [],
+        };
+        const announcementRef = doc(collection(db, 'announcements'));
+        batch.set(announcementRef, newAnnouncement);
+
+        // 2. If it's a direct message to a tenant, also trigger an email
+        if (announcementData.recipientId && announcementData.audience === 'tenant') {
+            const tenant = rawTenantsState.find(t => t.id === announcementData.recipientId);
+            if (tenant?.email) {
+                const mailRef = doc(collection(db, 'mail')); // Assumes 'mail' is the collection name for the extension
+                batch.set(mailRef, {
+                    to: [tenant.email],
+                    message: {
+                        subject: announcementData.title,
+                        html: `<p>${announcementData.content}</p>`,
+                    },
+                });
+            }
+        }
+
+        await batch.commit();
+
+        toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
+
     } catch (error: any) {
       console.error("Error posting announcement:", error);
       toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
