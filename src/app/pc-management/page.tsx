@@ -345,10 +345,10 @@ export default function PcManagementPage() {
     <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
         <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col fancy-dialog">
             <DialogHeader>
-                <h2 id="dlg-header">Issue for PC {selectedPcNumber}</h2>
-                <div id="dlg-content">
+                <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
+                <DialogDescription>
                     Select the components with issues and add notes.
-                </div>
+                </DialogDescription>
             </DialogHeader>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onIssueSubmit)} className="flex-1 flex flex-col min-h-0">
@@ -444,6 +444,7 @@ export default function PcManagementPage() {
     </>
   );
 }
+
 
 
 
