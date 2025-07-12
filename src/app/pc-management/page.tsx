@@ -88,26 +88,24 @@ export default function PcManagementPage() {
     }
   }, [client]);
   
-  // Auto-check parent when child is checked
-  const watchedMonitorSubIssues = form.watch('issues.Monitor.subIssues');
+  const watchedMonitorSubIssueChecks = issueSubComponents.Monitor.map(sub => form.watch(`issues.Monitor.subIssues.${sub}.hasIssue`));
   useEffect(() => {
-      if (watchedMonitorSubIssues) {
-          const hasAnySubIssue = Object.values(watchedMonitorSubIssues).some(sub => sub?.hasIssue);
-          if (hasAnySubIssue) {
-              form.setValue('issues.Monitor.hasIssue', true, { shouldValidate: true });
-          }
+    if (watchedMonitorSubIssueChecks.some(isChecked => isChecked)) {
+      if (!form.getValues('issues.Monitor.hasIssue')) {
+        form.setValue('issues.Monitor.hasIssue', true, { shouldValidate: true });
       }
-  }, [watchedMonitorSubIssues, form]);
+    }
+  }, [watchedMonitorSubIssueChecks, form]);
+  
+  const watchedSystemUnitSubIssueChecks = issueSubComponents['System Unit'].map(sub => form.watch(`issues.System Unit.subIssues.${sub}.hasIssue`));
+  useEffect(() => {
+    if (watchedSystemUnitSubIssueChecks.some(isChecked => isChecked)) {
+      if (!form.getValues('issues.System Unit.hasIssue')) {
+        form.setValue('issues.System Unit.hasIssue', true, { shouldValidate: true });
+      }
+    }
+  }, [watchedSystemUnitSubIssueChecks, form]);
 
-  const watchedSystemUnitSubIssues = form.watch('issues.System Unit.subIssues');
-  useEffect(() => {
-      if (watchedSystemUnitSubIssues) {
-          const hasAnySubIssue = Object.values(watchedSystemUnitSubIssues).some(sub => sub?.hasIssue);
-          if (hasAnySubIssue) {
-              form.setValue('issues.System Unit.hasIssue', true, { shouldValidate: true });
-          }
-      }
-  }, [watchedSystemUnitSubIssues, form]);
 
   // Auto-uncheck children when parent is unchecked
   const watchedMonitorHasIssue = form.watch('issues.Monitor.hasIssue');
@@ -167,7 +165,6 @@ export default function PcManagementPage() {
     let defaultValues: IssueFormValues = { issues: {}, otherNotes: '' };
 
     if (issueDataForPC) {
-      // Handle "otherNotes" at the root level
       if (typeof issueDataForPC.otherNotes === 'string') {
         defaultValues.otherNotes = issueDataForPC.otherNotes;
       }
@@ -176,14 +173,13 @@ export default function PcManagementPage() {
         const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
         
         if (issueDetail) {
-          // Initialize main component structure in defaultValues
           if (!defaultValues.issues[component]) {
              defaultValues.issues[component] = { hasIssue: false, notes: '', subIssues: {} };
           }
   
           if (typeof issueDetail === 'object' && 'notes' in issueDetail) {
-            // This is the complex object structure
-            defaultValues.issues[component]!.hasIssue = !!issueDetail.notes || (issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0);
+            const hasSubIssues = issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
+            defaultValues.issues[component]!.hasIssue = !!issueDetail.notes || hasSubIssues;
             defaultValues.issues[component]!.notes = issueDetail.notes || '';
   
             const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
@@ -202,7 +198,6 @@ export default function PcManagementPage() {
               });
             }
           } else if (typeof issueDetail === 'string') {
-            // This is the legacy string format
             defaultValues.issues[component]!.hasIssue = true;
             defaultValues.issues[component]!.notes = issueDetail;
           }
@@ -220,7 +215,6 @@ export default function PcManagementPage() {
     
     const newIssuesForPC: PcIssue = {};
     
-    // Process main components and their sub-issues from the form
     (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
       const mainIssueData = data.issues[mainComponentKey];
       if (!mainIssueData) return;
@@ -228,7 +222,6 @@ export default function PcManagementPage() {
       const subIssuesToSave: PcSubIssue = {};
       let hasAnySubIssue = false;
 
-      // Check if there are any sub-issues checked
       if (mainIssueData.subIssues) {
         (Object.keys(mainIssueData.subIssues) as (keyof typeof mainIssueData.subIssues)[]).forEach(subComponentKey => {
           const subIssueData = mainIssueData.subIssues![subComponentKey];
@@ -239,16 +232,14 @@ export default function PcManagementPage() {
         });
       }
       
-      // An issue exists for the main component if its own checkbox is checked, it has notes, OR any sub-issue is checked.
-      if (mainIssueData.hasIssue || mainIssueData.notes || hasAnySubIssue) {
-        newIssuesForPC[mainComponentKey] = {
-          notes: mainIssueData.notes || '',
-          subIssues: hasAnySubIssue ? subIssuesToSave : {},
-        };
+      if (mainIssueData.hasIssue) {
+          newIssuesForPC[mainComponentKey] = {
+            notes: mainIssueData.notes || '',
+            subIssues: subIssuesToSave,
+          };
       }
     });
     
-    // Handle the general "otherNotes" field
     if (data.otherNotes && data.otherNotes.trim()) {
       newIssuesForPC.otherNotes = data.otherNotes.trim();
     }
@@ -343,7 +334,7 @@ export default function PcManagementPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {pcs.map(pc => {
           const issueObject = client?.pcIssues?.[pc.number]
-          const hasIssue = (typeof issueObject === 'string' && issueObject.length > 0) || (typeof issueObject === 'object' && issueObject !== null && Object.keys(issueObject).length > 0);
+          const hasIssue = (typeof issueObject === 'string' && issueObject.length > 0) || (typeof issueObject === 'object' && issueObject !== null && Object.keys(issueObject).length > 0 && (issueObject.otherNotes || Object.values(issueObject).some(v => typeof v === 'object' && v !== null)));
           return (
             <Card key={pc.number} className="shadow-lg flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -415,6 +406,7 @@ export default function PcManagementPage() {
                 {issueMainComponents.map((componentName) => {
                   const subComponents = issueSubComponents[componentName as keyof typeof issueSubComponents];
                   const fieldId = `issues-${componentName.replace(/\s+/g, '-')}`;
+                  const isParentChecked = form.watch(`issues.${componentName}.hasIssue`);
                   return (
                     <div key={componentName} className="space-y-2 p-3 border rounded-lg">
                       <FormField
@@ -433,7 +425,7 @@ export default function PcManagementPage() {
                           </FormItem>
                         )}
                       />
-                      {(form.watch(`issues.${componentName}.hasIssue`) || (subComponents && Object.values(form.watch(`issues.${componentName}.subIssues`) || {}).some(sub => (sub as any)?.hasIssue))) && (
+                      {(isParentChecked) && (
                         <FormField
                           control={form.control}
                           name={`issues.${componentName}.notes`}
@@ -446,10 +438,11 @@ export default function PcManagementPage() {
                           )}
                         />
                       )}
-                      {subComponents && (
+                      {subComponents && isParentChecked && (
                         <div className="pl-7 mt-2 space-y-2">
                           {subComponents.map(subName => {
                              const subFieldId = `${fieldId}-${subName.replace(/\s+/g, '-')}`;
+                             const isSubChecked = form.watch(`issues.${componentName}.subIssues.${subName}.hasIssue`);
                             return (
                               <div key={subName} className="space-y-2 ml-4">
                                 <FormField
@@ -468,7 +461,7 @@ export default function PcManagementPage() {
                                     </FormItem>
                                   )}
                                 />
-                                {form.watch(`issues.${componentName}.subIssues.${subName}.hasIssue`) && (
+                                {isSubChecked && (
                                   <FormField
                                     control={form.control}
                                     name={`issues.${componentName}.subIssues.${subName}.notes`}
