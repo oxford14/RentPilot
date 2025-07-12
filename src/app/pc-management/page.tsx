@@ -120,15 +120,15 @@ export default function PcManagementPage() {
     const pcIssues = client?.pcIssues || {};
     const issueData = pcIssues[pcNumber];
     
-    // Check for legacy string format and migrate to otherNotes
+    let defaultValues: Partial<IssueFormValues['issues']> = {};
+    let otherNotesValue = '';
+
     if (typeof issueData === 'string' && issueData.length > 0) {
-        form.reset({ otherNotes: issueData, issues: {} as any });
+        otherNotesValue = issueData;
     } else if (typeof issueData === 'object' && issueData !== null) {
-        // Handle new object format
-        let defaultValues: Partial<IssueFormValues['issues']> = {};
         issueMainComponents.forEach(component => {
             const currentIssue = issueData[component];
-            const hasSubIssues = issueSubComponents[component as keyof typeof issueSubComponents];
+            const hasSubIssues = issueSubComponents[componentName as keyof typeof issueSubComponents];
             
             if(typeof currentIssue === 'object' && currentIssue !== null) {
                 if (hasSubIssues) {
@@ -152,14 +152,13 @@ export default function PcManagementPage() {
                 }
             }
         });
-        form.reset({
-            issues: defaultValues as IssueFormValues['issues'],
-            otherNotes: issueData.otherNotes || '',
-        });
-    } else {
-        // No issues, reset form completely
-        form.reset({ issues: {} as any, otherNotes: '' });
+        otherNotesValue = (issueData as PcIssue).otherNotes || '';
     }
+
+    form.reset({
+        issues: defaultValues as IssueFormValues['issues'],
+        otherNotes: otherNotesValue,
+    });
     
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
@@ -382,7 +381,7 @@ export default function PcManagementPage() {
                                     />
                                     )}
                                     {subComponents && (
-                                    <div className="pl-6 space-y-2 mt-2">
+                                    <div className="pl-6 mt-2 space-y-2">
                                         {subComponents.map(subName => (
                                             <div key={subName} className="space-y-2">
                                                 <FormField
@@ -442,6 +441,7 @@ export default function PcManagementPage() {
     </>
   );
 }
+
 
 
 
