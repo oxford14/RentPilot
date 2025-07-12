@@ -271,9 +271,10 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                 <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
                 <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
                 <TableCell className="hidden md:table-cell text-center">
-                    <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"}>
-                      {tenant.signedContractUrl ? formatUtcDate(tenant.contractEndDate) : "No Contract"}
-                    </Badge>
+                  <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
+                    {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
+                    {tenant.signedContractUrl ? formatUtcDate(tenant.contractEndDate) : "No Contract"}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
