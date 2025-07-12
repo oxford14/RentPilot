@@ -147,7 +147,7 @@ export default function PaymentsPage() {
       </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 shadow-lg">
+        <Card className="lg:col-span-1 shadow-lg flex flex-col h-[calc(100vh-20rem)]">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -166,7 +166,7 @@ export default function PaymentsPage() {
               />
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 flex-1 min-h-0">
             <TenantsListForPayments 
               onSelectTenant={handleSelectTenant} 
               searchTerm={searchTerm} 
