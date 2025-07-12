@@ -22,27 +22,30 @@ async function verifyPasswordAndMigrate(
     return false;
   }
 
-  const isLikelyHashed = storedPassword.length > 50 && storedPassword.startsWith('$2');
+  // A simple heuristic to check if the password might be a bcrypt hash.
+  const isLikelyHashed = storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$');
   
   if (isLikelyHashed) {
     try {
-      const isMatch = await bcrypt.compare(passwordInput, storedPassword);
-      if (isMatch) return true;
+      return await bcrypt.compare(passwordInput, storedPassword);
     } catch (e) {
-      // Not a valid hash, proceed to plaintext check
+      // Ignore bcrypt errors (e.g., if it's not a valid hash despite the prefix)
+      // and fall through to plaintext check.
     }
   } 
   
-  // If not hashed, or if bcrypt compare failed/returned false, try plaintext
+  // If not hashed, or if bcrypt compare failed, try plaintext comparison
   if (passwordInput === storedPassword) {
+      // If plaintext matches, hash the password and update the document.
       try {
         const newHashedPassword = await hashPassword(passwordInput);
         await updateDoc(docRef, { password: newHashedPassword });
         console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
       } catch (updateError) {
         console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
+        // Do not block login if migration fails.
       }
-      return true; // Login is successful even if migration fails.
+      return true;
   }
 
   return false;
@@ -257,7 +260,7 @@ export async function serverForceChangeTenantPassword(tenantId: string, newPassw
             const isMatch = await verifyPasswordAndMigrate(tenantDoc.ref, newPassword, otherTenant.password);
 
             if (isMatch) {
-                return { success: false, message: 'Another user with the same email already uses this password. Please try a different password.' };
+                return { success: false, message: 'Please try a different password.' };
             }
         }
     }
