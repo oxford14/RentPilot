@@ -51,7 +51,7 @@ const AlertDialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-2 text-center sm:text-left",
+      "flex flex-col space-y-2 text-center",
       className
     )}
     {...props}
@@ -65,7 +65,7 @@ const AlertDialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-col-reverse gap-3 sm:flex-row sm:justify-center sm:space-x-2",
       className
     )}
     {...props}
@@ -79,7 +79,7 @@ const AlertDialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold", className)}
+    className={cn("text-2xl font-normal", className)}
     {...props}
   />
 ))
@@ -91,7 +91,7 @@ const AlertDialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-base text-muted-foreground", className)}
     {...props}
   />
 ))
@@ -104,7 +104,11 @@ const AlertDialogAction = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Action
     ref={ref}
-    className={cn(buttonVariants(), className)}
+    className={cn(
+        buttonVariants({ variant: "outline" }), 
+        "border-primary text-primary hover:bg-primary/10 hover:text-primary rounded-full",
+        className
+    )}
     {...props}
   />
 ))
@@ -118,7 +122,7 @@ const AlertDialogCancel = React.forwardRef<
     ref={ref}
     className={cn(
       buttonVariants({ variant: "outline" }),
-      "mt-2 sm:mt-0",
+      "mt-0 rounded-full",
       className
     )}
     {...props}
