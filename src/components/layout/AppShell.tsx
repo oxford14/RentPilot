@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from 'react';
@@ -175,8 +174,7 @@ const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNav
   );
 };
 
-
-export function AppShell({ children }: { children: ReactNode }) {
+function AppShellContent({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
@@ -515,7 +513,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <SidebarProvider defaultOpen>
+    <>
       <div className="flex min-h-screen w-full">
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center justify-center">
@@ -845,6 +843,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         onClose={() => setViewingAnnouncement(null)}
         announcement={viewingAnnouncement}
       />
-    </SidebarProvider>
+    </>
   );
+}
+
+
+export function AppShell({ children }: { children: ReactNode }) {
+    return (
+        <SidebarProvider defaultOpen>
+            <AppShellContent>{children}</AppShellContent>
+        </SidebarProvider>
+    )
 }
