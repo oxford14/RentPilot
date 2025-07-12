@@ -361,16 +361,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         });
 
       } else {
-        const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.businessType === 'PC_Rental';
+        const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.name === 'i-VirtuaTech';
         
         baseNavItems = [...baseAppNavItems].filter(item => {
           if (isHubAdmin) {
-            if (['/users', '/announcements', '/payments', '/additional-dues', '/reports'].includes(item.href)) {
-              return false;
-            }
-            if ('isGroup' in item && item.isGroup && item.items[0]?.href === '/reports') { // A bit fragile, but works for now
-              return false;
-            }
+            // Hub admin only sees a specific set of menus
+            return ['/', '/tenants', '/pc-management', '/monitoring'].includes(item.href);
           }
 
           const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
@@ -418,7 +414,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
         }
         
-        if (activeClientForDisplay?.name === 'i-VirtuaTech') {
+        if (activeClientForDisplay?.name === 'i-VirtuaTech' && !isHubAdmin) {
            const partnerEarningsItem: AppSidebarNavItem = {
                 isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake,
             };

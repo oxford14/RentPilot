@@ -73,7 +73,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const isHubAdmin = user?.role === 'hub-admin';
     const isRegularUser = user?.role === 'user';
 
-    const hubAdminForbiddenRoutes = ['/users', '/announcements', '/payments', '/additional-dues', '/reports'];
+    const hubAdminForbiddenRoutes = ['/users', '/payments', '/additional-dues', '/reports', '/company-funds', '/partner-earnings'];
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsCompanyFunds = pathname.startsWith('/company-funds');
     const pathIsPartnerEarnings = pathname.startsWith('/partner-earnings');
