@@ -96,17 +96,37 @@ export default function PcManagementPage() {
   }, [tenants]);
   
   const handleOpenIssueDialog = (pcNumber: number) => {
-    const currentIssues = client?.pcIssues?.[pcNumber] || {};
-    const defaultValues: IssueFormValues = {
-      issues: {
-        'Monitor': { hasIssue: !!currentIssues['Monitor'], notes: currentIssues['Monitor'] || '' },
-        'Keyboard': { hasIssue: !!currentIssues['Keyboard'], notes: currentIssues['Keyboard'] || '' },
-        'Mouse': { hasIssue: !!currentIssues['Mouse'], notes: currentIssues['Mouse'] || '' },
-        'UPS': { hasIssue: !!currentIssues['UPS'], notes: currentIssues['UPS'] || '' },
-        'System Unit': { hasIssue: !!currentIssues['System Unit'], notes: currentIssues['System Unit'] || '' },
-      },
-      otherNotes: currentIssues['otherNotes'] || '',
-    };
+    const pcIssues = client?.pcIssues || {};
+    const issueData = pcIssues[pcNumber];
+    let defaultValues: IssueFormValues;
+  
+    if (typeof issueData === 'string') {
+      // Handle legacy string data by moving it to otherNotes
+      defaultValues = {
+        issues: {
+          'Monitor': { hasIssue: false, notes: '' },
+          'Keyboard': { hasIssue: false, notes: '' },
+          'Mouse': { hasIssue: false, notes: '' },
+          'UPS': { hasIssue: false, notes: '' },
+          'System Unit': { hasIssue: false, notes: '' },
+        },
+        otherNotes: issueData, // Move the old string here
+      };
+    } else {
+      // Handle new object data or no data
+      const currentIssues = issueData || {};
+      defaultValues = {
+        issues: {
+          'Monitor': { hasIssue: !!currentIssues['Monitor'], notes: currentIssues['Monitor'] || '' },
+          'Keyboard': { hasIssue: !!currentIssues['Keyboard'], notes: currentIssues['Keyboard'] || '' },
+          'Mouse': { hasIssue: !!currentIssues['Mouse'], notes: currentIssues['Mouse'] || '' },
+          'UPS': { hasIssue: !!currentIssues['UPS'], notes: currentIssues['UPS'] || '' },
+          'System Unit': { hasIssue: !!currentIssues['System Unit'], notes: currentIssues['System Unit'] || '' },
+        },
+        otherNotes: currentIssues['otherNotes'] || '',
+      };
+    }
+  
     form.reset(defaultValues);
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
@@ -215,7 +235,7 @@ export default function PcManagementPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {pcs.map(pc => {
           const issueObject = client?.pcIssues?.[pc.number]
-          const hasIssue = !!issueObject && Object.keys(issueObject).length > 0;
+          const hasIssue = (typeof issueObject === 'string' && issueObject.length > 0) || (typeof issueObject === 'object' && issueObject !== null && Object.keys(issueObject).length > 0);
           return (
             <Card key={pc.number} className="shadow-lg flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
