@@ -24,9 +24,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 
 const issueSubComponents = {
   Monitor: ['Adapter', 'Power Cable'],
-  'System Unit': ['RAM', 'Hard Drive', 'Motherboard'],
+  'System Unit': ['RAM', 'Hard Drive', 'Motherboard', 'Wifi adapter', 'LAN'],
 };
-const issueMainComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit'] as const;
+const issueMainComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit', 'Camera', 'Headphones'] as const;
 
 const issueDetailSchema = z.object({
   hasIssue: z.boolean(),
@@ -39,6 +39,8 @@ const subComponentSchema = z.object({
     RAM: issueDetailSchema.optional(),
     'Hard Drive': issueDetailSchema.optional(),
     Motherboard: issueDetailSchema.optional(),
+    'Wifi adapter': issueDetailSchema.optional(),
+    LAN: issueDetailSchema.optional(),
 });
 
 const issueFormSchema = z.object({
@@ -48,6 +50,8 @@ const issueFormSchema = z.object({
     Mouse: issueDetailSchema,
     UPS: issueDetailSchema,
     'System Unit': issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }),
+    Camera: issueDetailSchema,
+    Headphones: issueDetailSchema,
   }),
   otherNotes: z.string().optional(),
 });
@@ -162,7 +166,7 @@ export default function PcManagementPage() {
     
     (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponent => {
         const issue = data.issues[mainComponent];
-        if (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue))) {
+        if (issue && (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue)))) {
             newIssues[mainComponent] = {
                 notes: issue.notes || '',
                 subIssues: {}
