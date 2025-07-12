@@ -115,7 +115,7 @@ const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttra
 const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a631f6b78299";
 
 // Helper component for grouped app navigation items
-const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pathname: string; disabled: boolean }) => {
+const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNavGroup; pathname: string; disabled: boolean, onClick?: () => void }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
   const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
   const showTooltip = sidebarState === 'collapsed' && !sidebarIsMobile;
@@ -160,6 +160,7 @@ const GroupedAppNavItem = ({ item, pathname, disabled }: { item: AppNavGroup; pa
                 isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
                 className="justify-start w-full"
                 disabled={disabled}
+                onClick={onClick}
               >
                 <Link href={subItem.href}>
                   <subItem.icon className="h-4 w-4" />
@@ -180,12 +181,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode, tenants, announcements, markAnnouncementAsRead, terminology } = useAppContext();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
   const [installPrompt, setInstallPrompt] = React.useState<any>(null);
   const [viewingAnnouncement, setViewingAnnouncement] = React.useState<Announcement | null>(null);
 
+  const handleMobileNavClick = () => {
+    if (isMobile) {
+        setOpenMobile(false);
+    }
+  };
 
   React.useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -218,6 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             duration: 9000,
         });
     }
+    handleMobileNavClick();
   };
 
   // Announcement logic
@@ -492,6 +500,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   
   const handleSidebarFooterSettingsClick = () => {
     router.push('/profile');
+    handleMobileNavClick();
   };
 
   const getAccountLabel = () => {
@@ -551,6 +560,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                               isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
                               tooltip={{ children: subItem.label, side: "right", className: "ml-2" }}
                               className="justify-start"
+                              onClick={handleMobileNavClick}
                             >
                               <Link href={subItem.href}>
                                 <subItem.icon className="h-5 w-5" />
@@ -569,6 +579,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
+                          onClick={handleMobileNavClick}
                         >
                           <Link href={item.href}>
                             <item.icon className="h-5 w-5" />
@@ -585,7 +596,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
                     return (
                        <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
-                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} />
+                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} onClick={handleMobileNavClick} />
                       </Accordion>
                     );
                   } else {
@@ -601,6 +612,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
                           disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements', '/notifications'].includes(item.href)}
+                          onClick={handleMobileNavClick}
                         >
                           <Link href={finalHref}>
                             <item.icon className="h-5 w-5" />
