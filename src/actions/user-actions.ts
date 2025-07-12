@@ -22,23 +22,27 @@ async function verifyPasswordAndMigrate(
     return false;
   }
 
-  const isHashed = storedPassword.startsWith('$2a$'); // bcrypt hashes start with this prefix
+  // bcrypt hashes start with $2a$, $2b$, or $2y$. Let's check for a dollar sign pattern.
+  const isLikelyHashed = storedPassword.length > 50 && storedPassword.startsWith('$2');
   let isMatch = false;
 
-  if (isHashed) {
-    // Stored password is a hash, compare with bcrypt
+  if (isLikelyHashed) {
+    // Stored password is likely a hash, try to compare with bcrypt
     try {
       isMatch = await bcrypt.compare(passwordInput, storedPassword);
     } catch (e) {
-      console.error("Bcrypt comparison failed:", e);
-      return false;
+      // This can happen if storedPassword is not a valid hash format for bcrypt
+      console.error("Bcrypt comparison failed, falling back to plaintext check:", e);
+      isMatch = false;
     }
-  } else {
-    // Stored password is likely plaintext. Compare directly.
-    if (passwordInput === storedPassword) {
-      // If it matches, migrate it to a hash.
+  } 
+  
+  // If it's not hashed, or if bcrypt comparison failed, try plaintext comparison.
+  if (!isMatch && passwordInput === storedPassword) {
+      // If it matches plaintext, it's a successful login.
       isMatch = true;
       try {
+        // Now, migrate the plaintext password to a hash for future logins.
         const newHashedPassword = await hashPassword(passwordInput);
         await updateDoc(docRef, { password: newHashedPassword });
         console.log(`Password for document ${docRef.id} has been migrated to a hash.`);
@@ -46,11 +50,11 @@ async function verifyPasswordAndMigrate(
         console.error(`Failed to migrate password for document ${docRef.id}:`, updateError);
         // We still consider it a successful login for the user, but log the migration failure.
       }
-    }
   }
 
   return isMatch;
 }
+
 
 // Super Admin Actions
 export async function serverAddSuperAdminUser(userData: Omit<SuperAdminUser, 'id'>): Promise<void> {
@@ -297,11 +301,19 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         }
     }
     
-    // 2. Check managed client users by username
-    const managedUserQuery = query(collection(db, 'managedUsers'), where('username', '==', usernameInput));
-    const managedUserSnapshot = await getDocs(managedUserQuery);
-    if (!managedUserSnapshot.empty) {
-        const managedUserDoc = managedUserSnapshot.docs[0];
+    // 2. Check managed client users by username OR email
+    const managedUserQueryByName = query(collection(db, 'managedUsers'), where('username', '==', usernameInput));
+    const managedUserSnapshotByName = await getDocs(managedUserQueryByName);
+
+    let managedUserDoc = managedUserSnapshotByName.docs[0];
+
+    if (!managedUserDoc) {
+        const managedUserQueryByEmail = query(collection(db, 'managedUsers'), where('email', '==', usernameInput));
+        const managedUserSnapshotByEmail = await getDocs(managedUserQueryByEmail);
+        managedUserDoc = managedUserSnapshotByEmail.docs[0];
+    }
+    
+    if (managedUserDoc) {
         const managedUserData = managedUserDoc.data() as ManagedUser;
         if (await verifyPasswordAndMigrate(managedUserDoc.ref, passwordInput, managedUserData.password)) {
             return {
@@ -315,11 +327,19 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         }
     }
 
-    // 3. Check tenants by username
-    const tenantQuery = query(collection(db, 'tenants'), where('username', '==', usernameInput));
-    const tenantSnapshot = await getDocs(tenantQuery);
-    if (!tenantSnapshot.empty) {
-        const tenantDoc = tenantSnapshot.docs[0];
+    // 3. Check tenants by username OR email
+    const tenantQueryByUsername = query(collection(db, 'tenants'), where('username', '==', usernameInput));
+    const tenantSnapshotByUsername = await getDocs(tenantQueryByUsername);
+    let tenantDoc = tenantSnapshotByUsername.docs[0];
+
+    // If not found by username, try by email
+    if (!tenantDoc) {
+        const tenantQueryByEmail = query(collection(db, 'tenants'), where('email', '==', usernameInput));
+        const tenantSnapshotByEmail = await getDocs(tenantQueryByEmail);
+        tenantDoc = tenantSnapshotByEmail.docs[0];
+    }
+
+    if (tenantDoc) {
         const tenantData = tenantDoc.data() as Tenant;
 
         if (!tenantData.hasAccount) {
