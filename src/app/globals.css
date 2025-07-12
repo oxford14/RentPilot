@@ -128,3 +128,34 @@
   animation: l5 1s infinite;
 }
 @keyframes l5 {to{transform: rotate(.5turn)}}
+
+/* Fancy Dialog Animations from CodePen */
+@keyframes modal-open {
+  from {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes modal-close {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.fancy-dialog[data-state=open] {
+  animation: modal-open 0.4s cubic-bezier(0.38, 0.58, 0.32, 1.07);
+}
+
+.fancy-dialog[data-state=closed] {
+  animation: modal-close 0.4s cubic-bezier(0.38, 0.58, 0.32, 1.07);
+}

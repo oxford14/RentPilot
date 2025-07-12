@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck } from 'lucide-react';
+import { Monitor, Server, User, Trash2, AlertTriangle, UserCheck, Wifi, Lan } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -341,7 +341,7 @@ export default function PcManagementPage() {
     </div>
     
     <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-        <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-lg h-[90vh] flex flex-col fancy-dialog">
             <DialogHeader>
                 <DialogTitle>Issue for PC {selectedPcNumber}</DialogTitle>
                 <DialogDescription>
@@ -442,5 +442,6 @@ export default function PcManagementPage() {
     </>
   );
 }
+
 
 
