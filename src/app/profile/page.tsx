@@ -106,7 +106,7 @@ export default function ProfilePage() {
                             <Mail className="mr-3 h-5 w-5 text-muted-foreground" />
                             <div>
                                 <p className="text-sm text-muted-foreground">Email</p>
-                                <p className="font-medium">{currentTenant?.email || 'Not available'}</p>
+                                <p className="font-medium break-all">{currentTenant?.email || 'Not available'}</p>
                             </div>
                         </div>
                     </CardContent>
