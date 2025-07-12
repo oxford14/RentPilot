@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -162,49 +161,44 @@ export default function PcManagementPage() {
   const handleOpenIssueDialog = (pcNumber: number) => {
     const pcIssues = client?.pcIssues || {};
     const issueDataForPC = pcIssues[pcNumber];
-    let defaultValues: IssueFormValues = { issues: {}, otherNotes: '' };
+    const defaultValues: IssueFormValues = { issues: {}, otherNotes: '' };
 
     if (issueDataForPC) {
-      if (typeof issueDataForPC.otherNotes === 'string') {
-        defaultValues.otherNotes = issueDataForPC.otherNotes;
-      }
-  
-      issueMainComponents.forEach(component => {
-        const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
-        
-        if (issueDetail) {
-          if (!defaultValues.issues[component]) {
-             defaultValues.issues[component] = { hasIssue: false, notes: '', subIssues: {} };
-          }
-  
-          if (typeof issueDetail === 'object' && 'notes' in issueDetail) {
-            const hasSubIssues = issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
-            defaultValues.issues[component]!.hasIssue = !!issueDetail.notes || hasSubIssues;
-            defaultValues.issues[component]!.notes = issueDetail.notes || '';
-  
-            const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
-            if (subComponentsList && issueDetail.subIssues) {
-              subComponentsList.forEach(sub => {
-                const subIssueNote = (issueDetail.subIssues as PcSubIssue)[sub];
-                if (subIssueNote) {
-                  if(!defaultValues.issues[component]!.subIssues) {
-                    defaultValues.issues[component]!.subIssues = {};
-                  }
-                  defaultValues.issues[component]!.subIssues![sub as keyof typeof subComponentSchema.shape] = {
-                    hasIssue: true,
-                    notes: typeof subIssueNote === 'string' ? subIssueNote : 'Issue reported',
-                  };
-                }
-              });
-            }
-          } else if (typeof issueDetail === 'string') {
-            defaultValues.issues[component]!.hasIssue = true;
-            defaultValues.issues[component]!.notes = issueDetail;
-          }
+        if (typeof issueDataForPC.otherNotes === 'string') {
+            defaultValues.otherNotes = issueDataForPC.otherNotes;
         }
-      });
+
+        issueMainComponents.forEach(component => {
+            const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
+            
+            if (issueDetail) {
+                // Determine if parent checkbox should be checked
+                const hasNotes = typeof issueDetail === 'object' && issueDetail !== null && 'notes' in issueDetail && !!issueDetail.notes;
+                const hasSubIssues = typeof issueDetail === 'object' && issueDetail !== null && 'subIssues' in issueDetail && !!issueDetail.subIssues && Object.keys(issueDetail.subIssues).length > 0;
+                
+                defaultValues.issues[component] = {
+                    hasIssue: hasNotes || hasSubIssues,
+                    notes: (typeof issueDetail === 'object' && 'notes' in issueDetail) ? issueDetail.notes || '' : '',
+                    subIssues: {},
+                };
+
+                // Populate sub-issues if they exist
+                const subComponentsList = issueSubComponents[component as keyof typeof issueSubComponents];
+                if (subComponentsList && hasSubIssues) {
+                    subComponentsList.forEach(sub => {
+                        const subIssueData = (issueDetail as any).subIssues[sub];
+                        if (subIssueData) {
+                            defaultValues.issues[component]!.subIssues![sub as keyof typeof subComponentSchema.shape] = {
+                                hasIssue: true,
+                                notes: typeof subIssueData === 'string' ? subIssueData : 'Issue reported',
+                            };
+                        }
+                    });
+                }
+            }
+        });
     }
-    
+
     form.reset(defaultValues);
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
@@ -217,7 +211,7 @@ export default function PcManagementPage() {
     
     (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
       const mainIssueData = data.issues[mainComponentKey];
-      if (!mainIssueData) return;
+      if (!mainIssueData || !mainIssueData.hasIssue) return; // Skip if parent is not checked
 
       const subIssuesToSave: PcSubIssue = {};
       let hasAnySubIssue = false;
@@ -232,12 +226,11 @@ export default function PcManagementPage() {
         });
       }
       
-      if (mainIssueData.hasIssue) {
-          newIssuesForPC[mainComponentKey] = {
-            notes: mainIssueData.notes || '',
-            subIssues: subIssuesToSave,
-          };
-      }
+      // Save the parent issue if it's checked, even if only for its own notes
+      newIssuesForPC[mainComponentKey] = {
+        notes: mainIssueData.notes || '',
+        subIssues: hasAnySubIssue ? subIssuesToSave : undefined,
+      };
     });
     
     if (data.otherNotes && data.otherNotes.trim()) {
@@ -334,7 +327,7 @@ export default function PcManagementPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {pcs.map(pc => {
           const issueObject = client?.pcIssues?.[pc.number]
-          const hasIssue = (typeof issueObject === 'string' && issueObject.length > 0) || (typeof issueObject === 'object' && issueObject !== null && Object.keys(issueObject).length > 0 && (issueObject.otherNotes || Object.values(issueObject).some(v => typeof v === 'object' && v !== null)));
+          const hasIssue = !!issueObject && Object.keys(issueObject).length > 0;
           return (
             <Card key={pc.number} className="shadow-lg flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
