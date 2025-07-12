@@ -14,7 +14,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -33,12 +33,16 @@ import { ReminderDialog } from './ReminderDialog';
 import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
 import { UploadContractDialog } from './UploadContractDialog';
 import { RenewContractDialog } from './RenewContractDialog';
+import { cn } from '@/lib/utils';
 
 
 interface TenantsTableProps {
   onEditTenant: (tenant: Tenant) => void;
   showInactiveTenants: boolean;
 }
+
+type SortKey = 'name' | 'joinDate' | 'contractEndDate';
+type SortDirection = 'ascending' | 'descending';
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
   const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract } = useAppContext();
@@ -53,6 +57,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [tenantForUpload, setTenantForUpload] = useState<Tenant | null>(null);
   const [isRenewContractOpen, setIsRenewContractOpen] = useState(false);
   const [tenantForRenew, setTenantForRenew] = useState<Tenant | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'ascending' });
 
 
   const toggleStatus = (tenant: Tenant) => {
@@ -155,11 +160,46 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setTenantToDeleteContract(null);
   };
 
+  const requestSort = (key: SortKey) => {
+    let direction: SortDirection = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const displayedTenants = useMemo(() => {
     const desiredStatus = showInactiveTenants ? 'inactive' : 'active';
-    let filtered = tenants.filter(tenant => tenant.status === desiredStatus);
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [tenants, showInactiveTenants]);
+    let filtered = [...tenants].filter(tenant => tenant.status === desiredStatus);
+
+    filtered.sort((a, b) => {
+      let aValue: string | number | Date | null = '';
+      let bValue: string | number | Date | null = '';
+
+      if (sortConfig.key === 'name') {
+        aValue = a.name;
+        bValue = b.name;
+      } else if (sortConfig.key === 'joinDate') {
+        aValue = new Date(a.joinDate);
+        bValue = new Date(b.joinDate);
+      } else if (sortConfig.key === 'contractEndDate') {
+        aValue = a.contractEndDate ? new Date(a.contractEndDate) : null;
+        bValue = b.contractEndDate ? new Date(b.contractEndDate) : null;
+      }
+
+      if (aValue === null) return 1;
+      if (bValue === null) return -1;
+      if (aValue === bValue) return 0;
+
+      if (sortConfig.direction === 'ascending') {
+        return aValue < bValue ? -1 : 1;
+      } else {
+        return aValue > bValue ? -1 : 1;
+      }
+    });
+
+    return filtered;
+  }, [tenants, showInactiveTenants, sortConfig]);
 
   const clientNameForGreeting = useMemo(() => {
     const firstTenant = displayedTenants.length > 0 ? displayedTenants[0] : null;
@@ -176,6 +216,14 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     return format(utcDate, "PP");
   };
 
+  const getSortIcon = (key: SortKey) => {
+    if (sortConfig.key !== key) return null;
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp className="h-3 w-3 ml-1" />;
+    }
+    return <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
   if (!displayedTenants || displayedTenants.length === 0) {
     const message = showInactiveTenants 
       ? "No inactive tenants found."
@@ -189,11 +237,19 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead>
+                 <Button variant="ghost" onClick={() => requestSort('name')} className="px-1">
+                   Name {getSortIcon('name')}
+                 </Button>
+              </TableHead>
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Rent (₱)</TableHead>
               <TableHead className="text-center">Status</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Join Date</TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                 <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
+                    Join Date {getSortIcon('joinDate')}
+                 </Button>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -208,8 +264,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                      <span className="text-xs text-muted-foreground">{tenant.email}</span>
                      {tenant.signedContractUrl && (
                         <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-                            <FileViewIcon className="h-3 w-3 text-primary" />
-                            <span>Contract ends: {tenant.contractEndDate ? formatUtcDate(tenant.contractEndDate) : 'N/A'}</span>
+                           <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1 h-auto text-xs text-muted-foreground hover:bg-transparent hover:text-foreground">
+                             <FileViewIcon className="h-3 w-3 text-primary mr-1" />
+                             <span>Contract ends: {tenant.contractEndDate ? formatUtcDate(tenant.contractEndDate) : 'N/A'}</span>
+                             {getSortIcon('contractEndDate')}
+                           </Button>
                         </div>
                      )}
                   </div>
