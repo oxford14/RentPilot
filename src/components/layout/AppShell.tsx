@@ -782,7 +782,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && (
                   <DropdownMenuItem asChild>
                     <a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                      <FileViewIcon className="mr-2 h-4 w-4" />
+                      <FileText className="mr-2 h-4 w-4" />
                       <span>View My Contract</span>
                     </a>
                   </DropdownMenuItem>
