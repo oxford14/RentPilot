@@ -21,7 +21,7 @@ const CustomCheckbox = React.forwardRef<
       <input 
         id={id} 
         type="checkbox" 
-        checked={checked}
+        checked={!!checked}
         onChange={(e) => onCheckedChange(e.target.checked)}
       />
       <label className="cbx" htmlFor={id}></label>
