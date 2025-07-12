@@ -17,7 +17,7 @@ export default function TenantsPage() {
   const { terminology } = useAppContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [showInactiveTenants, setShowInactiveTenants] = useState(true);
+  const [showInactiveTenants, setShowInactiveTenants] = useState(false);
 
   const handleOpenForm = (tenant?: Tenant) => {
     setEditingTenant(tenant || null);
@@ -40,15 +40,15 @@ export default function TenantsPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 w-full sm:w-auto">
                 <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                    {showInactiveTenants ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                    {showInactiveTenants ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                     <Label htmlFor="show-inactive-tenants" className="text-sm whitespace-nowrap">
-                        {showInactiveTenants ? "Showing Inactive" : "Hiding Inactive"}
+                        {showInactiveTenants ? "Showing Inactive" : "Showing Active"}
                     </Label>
                     <Switch
                         id="show-inactive-tenants"
                         checked={showInactiveTenants}
                         onCheckedChange={setShowInactiveTenants}
-                        aria-label={`Toggle visibility of inactive ${terminology.plural.toLowerCase()}`}
+                        aria-label={`Toggle between active and inactive ${terminology.plural.toLowerCase()}`}
                     />
                 </div>
                 <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">

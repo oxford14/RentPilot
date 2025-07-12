@@ -156,10 +156,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   };
 
   const displayedTenants = useMemo(() => {
-    let filtered = tenants;
-    if (!showInactiveTenants) {
-      filtered = tenants.filter(tenant => tenant.status === 'active');
-    }
+    const desiredStatus = showInactiveTenants ? 'inactive' : 'active';
+    let filtered = tenants.filter(tenant => tenant.status === desiredStatus);
     return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [tenants, showInactiveTenants]);
 
@@ -180,8 +178,8 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
 
   if (!displayedTenants || displayedTenants.length === 0) {
     const message = showInactiveTenants 
-      ? "No tenants found. Add a new tenant to get started."
-      : "No active tenants found. Toggle the switch to show inactive tenants or add a new active tenant.";
+      ? "No inactive tenants found."
+      : "No active tenants found.";
     return <p className="text-center text-muted-foreground py-8">{message}</p>;
   }
 
