@@ -147,7 +147,7 @@ export default function PaymentsPage() {
       </Card>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 shadow-lg flex flex-col h-[calc(100vh-20rem)]">
+        <Card className="lg:col-span-1 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -166,7 +166,7 @@ export default function PaymentsPage() {
               />
             </div>
           </CardHeader>
-          <CardContent className="p-0 flex-1 min-h-0">
+          <CardContent className="p-0">
             <TenantsListForPayments 
               onSelectTenant={handleSelectTenant} 
               searchTerm={searchTerm} 
@@ -175,7 +175,7 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-lg min-h-[300px] flex flex-col">
+        <Card className="lg:col-span-2 shadow-lg flex flex-col">
           <CardHeader>
             <div className="flex justify-between items-start flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-center gap-2">
@@ -265,7 +265,7 @@ export default function PaymentsPage() {
                </div>
             )}
           </CardHeader>
-          <CardContent className="flex-grow flex flex-col gap-4 pt-4">
+          <CardContent className="flex-grow flex flex-col gap-4 pt-4 min-h-0">
              {selectedTenantId && (
               <div className="flex justify-end">
                 <Select value={filterPeriod} onValueChange={(value) => setFilterPeriod(value as any)}>
