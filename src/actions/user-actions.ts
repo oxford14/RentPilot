@@ -236,6 +236,31 @@ export async function serverResetTenantPassword(tenantId: string): Promise<{succ
 // New Tenant Force Password Change Action
 export async function serverForceChangeTenantPassword(tenantId: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     const tenantRef = doc(db, 'tenants', tenantId);
+    const tenantSnapshot = await getDoc(tenantRef);
+
+    if (!tenantSnapshot.exists()) {
+        return { success: false, message: 'Tenant not found.' };
+    }
+    const currentTenant = tenantSnapshot.data() as Tenant;
+
+    if (currentTenant.email) {
+        const q = query(
+            collection(db, 'tenants'),
+            where('email', '==', currentTenant.email)
+        );
+        const querySnapshot = await getDocs(q);
+
+        for (const tenantDoc of querySnapshot.docs) {
+            if (tenantDoc.id === tenantId) continue; // Skip self
+
+            const otherTenant = tenantDoc.data() as Tenant;
+            const isMatch = await verifyPasswordAndMigrate(tenantDoc.ref, newPassword, otherTenant.password);
+
+            if (isMatch) {
+                return { success: false, message: 'Another user with the same email already uses this password. Please try a different password.' };
+            }
+        }
+    }
     
     const newHashedPassword = await hashPassword(newPassword);
     
@@ -328,7 +353,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
     const tenantSnapshotByUsername = await getDocs(tenantQueryByUsername);
     let tenantDocs = tenantSnapshotByUsername.docs;
 
-    if (tenantDocs.length === 0) {
+    if (tenantDocs.length === 0 && usernameInput.includes('@')) {
         const tenantQueryByEmail = query(collection(db, 'tenants'), where('email', '==', usernameInput));
         const tenantSnapshotByEmail = await getDocs(tenantQueryByEmail);
         tenantDocs = tenantSnapshotByEmail.docs;
