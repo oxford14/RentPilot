@@ -30,7 +30,7 @@ const issueSubComponents = {
 const issueMainComponents = ['Monitor', 'Keyboard', 'Mouse', 'UPS', 'System Unit', 'Camera', 'Headphones'] as const;
 
 const issueDetailSchema = z.object({
-  hasIssue: z.boolean(),
+  hasIssue: z.boolean().optional(),
   notes: z.string().optional(),
 });
 
@@ -47,13 +47,13 @@ const subComponentSchema = z.object({
 
 const issueFormSchema = z.object({
   issues: z.object({
-    Monitor: issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }),
-    Keyboard: issueDetailSchema,
-    Mouse: issueDetailSchema,
-    UPS: issueDetailSchema,
-    'System Unit': issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }),
-    Camera: issueDetailSchema,
-    Headphones: issueDetailSchema,
+    Monitor: issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }).optional(),
+    Keyboard: issueDetailSchema.optional(),
+    Mouse: issueDetailSchema.optional(),
+    UPS: issueDetailSchema.optional(),
+    'System Unit': issueDetailSchema.extend({ subIssues: subComponentSchema.optional() }).optional(),
+    Camera: issueDetailSchema.optional(),
+    Headphones: issueDetailSchema.optional(),
   }),
   otherNotes: z.string().optional(),
 });
@@ -119,85 +119,88 @@ export default function PcManagementPage() {
   
   const handleOpenIssueDialog = (pcNumber: number) => {
     const pcIssues = client?.pcIssues || {};
-    const issueData = pcIssues[pcNumber];
-    
-    let defaultValues: Partial<IssueFormValues['issues']> = {};
-    let otherNotesValue = '';
+    const issueDataForPC = pcIssues[pcNumber];
+    let defaultValues: IssueFormValues = { issues: {}, otherNotes: '' };
 
-    if (typeof issueData === 'string' && issueData.length > 0) {
-        otherNotesValue = issueData;
-    } else if (typeof issueData === 'object' && issueData !== null) {
+    if (issueDataForPC) {
         issueMainComponents.forEach(component => {
-            const currentIssue = issueData[component as keyof typeof issueData];
-            const hasSubIssues = issueSubComponents[component as keyof typeof issueSubComponents];
+            const issueDetail = issueDataForPC[component as keyof typeof issueDataForPC];
             
-            if(typeof currentIssue === 'object' && currentIssue !== null) {
-                if (hasSubIssues) {
-                    const subIssuesDefault: Record<string, { hasIssue: boolean; notes?: string }> = {};
-                    hasSubIssues.forEach(sub => {
-                        const subIssueData = (currentIssue as any).subIssues?.[sub];
-                        subIssuesDefault[sub] = {
-                            hasIssue: !!subIssueData,
-                            notes: typeof subIssueData === 'string' ? subIssueData : '',
-                        };
-                    });
-                    defaultValues[component] = {
-                        hasIssue: !!(currentIssue as any).notes,
-                        notes: (currentIssue as any).notes || '',
-                        subIssues: subIssuesDefault as any,
-                    };
-                } else {
-                    defaultValues[component] = {
-                        hasIssue: !!(currentIssue as any).notes,
-                        notes: (currentIssue as any).notes || '',
-                    };
+            if (issueDetail) {
+                const hasSubIssuesList = issueSubComponents[component as keyof typeof issueSubComponents];
+                
+                // Ensure default structure for the main component
+                if (!defaultValues.issues[component]) {
+                   defaultValues.issues[component] = { hasIssue: false, notes: '', subIssues: {} };
+                }
+
+                if (typeof issueDetail === 'object' && 'notes' in issueDetail) {
+                    defaultValues.issues[component]!.hasIssue = !!issueDetail.notes;
+                    defaultValues.issues[component]!.notes = issueDetail.notes || '';
+
+                    if (hasSubIssuesList && issueDetail.subIssues) {
+                        hasSubIssuesList.forEach(sub => {
+                            const subIssueNote = (issueDetail.subIssues as PcSubIssue)[sub];
+                            if (subIssueNote) {
+                                defaultValues.issues[component]!.subIssues![sub as keyof typeof subComponentSchema.shape] = {
+                                    hasIssue: true,
+                                    notes: typeof subIssueNote === 'string' ? subIssueNote : 'Issue reported',
+                                };
+                            }
+                        });
+                    }
                 }
             }
         });
-        otherNotesValue = (issueData as PcIssue).otherNotes || '';
+        if (typeof issueDataForPC.otherNotes === 'string') {
+          defaultValues.otherNotes = issueDataForPC.otherNotes;
+        }
     }
-
-    form.reset({
-        issues: defaultValues as IssueFormValues['issues'],
-        otherNotes: otherNotesValue,
-    });
     
+    form.reset(defaultValues);
     setSelectedPcNumber(pcNumber);
     setIsIssueDialogOpen(true);
   };
 
-
   const onIssueSubmit = async (data: IssueFormValues) => {
-    if (!client || selectedPcNumber === null) return;
-    
-    const newIssues: PcIssue = {};
-    
-    if (data.issues) {
-        (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponent => {
-            const issue = data.issues[mainComponent];
-            if (issue && (issue.hasIssue || (issue.subIssues && Object.values(issue.subIssues).some(si => si?.hasIssue)))) {
-                newIssues[mainComponent] = {
-                    notes: issue.notes || '',
-                    subIssues: {}
-                };
-                if (issue.subIssues) {
-                    (Object.keys(issue.subIssues) as (keyof typeof issue.subIssues)[]).forEach(subComponent => {
-                        const subIssue = issue.subIssues![subComponent];
-                        if (subIssue?.hasIssue) {
-                            newIssues[mainComponent]!.subIssues![subComponent] = subIssue.notes || 'Issue reported';
-                        }
-                    });
-                }
-            }
-        });
-    }
+      if (!client || selectedPcNumber === null) return;
+      
+      const newIssues: PcIssue = {};
+      
+      // Process main components and their sub-issues
+      (Object.keys(data.issues) as (keyof typeof data.issues)[]).forEach(mainComponentKey => {
+          const mainIssue = data.issues[mainComponentKey];
+          if (!mainIssue) return;
 
-    if (data.otherNotes) {
-        newIssues['otherNotes'] = data.otherNotes;
-    }
+          const processedSubIssues: PcSubIssue = {};
+          let hasAnySubIssue = false;
 
-    await updateClientPcIssue(client.id, selectedPcNumber, newIssues);
-    setIsIssueDialogOpen(false);
+          if (mainIssue.subIssues) {
+              (Object.keys(mainIssue.subIssues) as (keyof typeof mainIssue.subIssues)[]).forEach(subComponentKey => {
+                  const subIssue = mainIssue.subIssues![subComponentKey];
+                  if (subIssue?.hasIssue) {
+                      processedSubIssues[subComponentKey] = subIssue.notes || 'Issue reported';
+                      hasAnySubIssue = true;
+                  }
+              });
+          }
+          
+          // An issue exists if the main checkbox is checked OR any sub-issue is checked
+          if (mainIssue.hasIssue || hasAnySubIssue) {
+              newIssues[mainComponentKey] = {
+                  notes: mainIssue.notes || '',
+                  subIssues: hasAnySubIssue ? processedSubIssues : {},
+              };
+          }
+      });
+      
+      // Handle general notes
+      if (data.otherNotes && data.otherNotes.trim()) {
+          newIssues.otherNotes = data.otherNotes.trim();
+      }
+
+      await updateClientPcIssue(client.id, selectedPcNumber, newIssues);
+      setIsIssueDialogOpen(false);
   };
 
 
@@ -369,7 +372,7 @@ export default function PcManagementPage() {
                                <CustomCheckbox
                                 id={fieldId}
                                 label={componentName}
-                                checked={field.value}
+                                checked={!!field.value}
                                 onCheckedChange={field.onChange}
                                />
                             </FormControl>
