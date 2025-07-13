@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { Ticket, Wrench, Link as LinkIcon, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 const ticketUpdateSchema = z.object({
   status: z.enum(ticketStatuses),
@@ -46,7 +47,7 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
     resolver: zodResolver(ticketUpdateSchema),
     defaultValues: {
       status: ticket.status,
-      assignedTechnicianId: ticket.assignedTechnicianId || '',
+      assignedTechnicianId: ticket.assignedTechnicianId || 'unassigned',
       internalNotes: ticket.internalNotes || '',
     },
   });
