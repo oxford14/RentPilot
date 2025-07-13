@@ -314,7 +314,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Client User views (admin, user, hub-admin, technician)
     if (authUser.clientId) {
       // Technician view: only see assigned tickets
-      if (authUser.role === 'technician') {
+      if (authUser.role === 'technician' && authUser.id) {
         return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
       }
       // Other client users see all tickets for their client
@@ -1916,6 +1916,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 
