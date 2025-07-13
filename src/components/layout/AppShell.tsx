@@ -374,27 +374,32 @@ function AppShellContent({ children }: { children: ReactNode }) {
 
       } else {
         const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.name === 'i-VirtuaTech';
+        const isTechnician = authUser?.role === 'technician';
         
-        baseNavItems = [...baseAppNavItems].filter(item => {
-          if (isHubAdmin) {
-            const allowedHubAdminRoutes = ['/', '/tenants', '/monitoring', '/expenses', '/announcements', '/notifications'];
-            return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
-          }
-
-          const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
-
-          if (item.clientAdminOnly) {
-            const isActuallyClientAdmin = (authUser?.role === 'admin') && !authUser.isSuperAdmin;
-            return isActuallyClientAdmin || isSuperAdminViewingAsClient;
-          }
-          if (item.clientOnly) {
-            return isClientContext;
-          }
-          if (item.superAdminOnly) { 
-              return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
-          }
-          return true;
-        });
+        if (isTechnician) {
+            baseNavItems = []; // Technicians start with a blank slate
+        } else {
+            baseNavItems = [...baseAppNavItems].filter(item => {
+              if (isHubAdmin) {
+                const allowedHubAdminRoutes = ['/', '/tenants', '/monitoring', '/expenses', '/announcements', '/notifications'];
+                return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
+              }
+    
+              const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
+    
+              if (item.clientAdminOnly) {
+                const isActuallyClientAdmin = (authUser?.role === 'admin') && !authUser.isSuperAdmin;
+                return isActuallyClientAdmin || isSuperAdminViewingAsClient;
+              }
+              if (item.clientOnly) {
+                return isClientContext;
+              }
+              if (item.superAdminOnly) { 
+                  return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
+              }
+              return true;
+            });
+        }
 
         currentAppNavItems = baseNavItems.map(item => {
             if (item.isGroup) {
@@ -431,11 +436,15 @@ function AppShellContent({ children }: { children: ReactNode }) {
             const ticketSupportItem: AppSidebarNavItem = {
                 isGroup: false, href: '/ticket-support', label: 'Ticket Support', icon: Ticket,
             };
-             const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-            if (tenantsIndex !== -1) {
-                currentAppNavItems.splice(tenantsIndex + 1, 0, ticketSupportItem);
-            } else {
+            if(isTechnician) {
                 currentAppNavItems.push(ticketSupportItem);
+            } else {
+                const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+                if (tenantsIndex !== -1) {
+                    currentAppNavItems.splice(tenantsIndex + 1, 0, ticketSupportItem);
+                } else {
+                    currentAppNavItems.push(ticketSupportItem);
+                }
             }
         }
         
