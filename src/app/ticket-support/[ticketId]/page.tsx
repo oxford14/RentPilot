@@ -4,14 +4,15 @@
 import React, { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { TicketDetails } from '@/components/isp-support/TicketDetails';
 
-export default function TicketDetailsPage({ params }: { params: { ticketId: string } }) {
+export default function TicketDetailsPage() {
   const { user } = useAuth();
   const { clients, techSupportRequests, viewingAsClientId } = useAppContext();
   const router = useRouter();
-  const { ticketId } = params;
+  const params = useParams();
+  const ticketId = params.ticketId as string;
 
   const ticket = useMemo(() => {
     if (!techSupportRequests || !Array.isArray(techSupportRequests)) return null;
@@ -26,8 +27,10 @@ export default function TicketDetailsPage({ params }: { params: { ticketId: stri
   
   const isAuthorized = React.useMemo(() => {
     if (!client) return false;
-    // Allow super admin to see any ticket, regardless of client business type
-    if (user?.isSuperAdmin) return true;
+    // Allow super admin to see any ticket, but only if they are viewing as an ISP client
+    if (user?.isSuperAdmin) {
+        return client.businessType === 'ISP_Subscription';
+    }
     
     // For non-super admins, enforce business type and ticket ownership
     if (client.businessType !== 'ISP_Subscription') return false;
