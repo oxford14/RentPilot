@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,21 +11,24 @@ import { TechSupportTicketList } from '@/components/isp-support/TechSupportTicke
 
 export default function TicketSupportPage() {
   const { user } = useAuth();
-  const { clients } = useAppContext();
+  const { clients, viewingAsClientId } = useAppContext();
   const router = useRouter();
 
   const client = React.useMemo(() => {
-    if (!user?.clientId) return null;
-    return clients.find(c => c.id === user.clientId);
-  }, [user, clients]);
+    const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+    if (!currentContextClientId) return null;
+    return clients.find(c => c.id === currentContextClientId);
+  }, [user, clients, viewingAsClientId]);
 
   React.useEffect(() => {
+    if (user?.isSuperAdmin) return; // Super admin always has access
+
     if (client && client.businessType !== 'ISP_Subscription') {
         router.push('/');
     }
-  }, [client, router]);
+  }, [client, router, user]);
 
-  if (!client || client.businessType !== 'ISP_Subscription') {
+  if (!user?.isSuperAdmin && (!client || client.businessType !== 'ISP_Subscription')) {
     return (
         <div className="container mx-auto py-2">
             <p>Loading or unauthorized...</p>
