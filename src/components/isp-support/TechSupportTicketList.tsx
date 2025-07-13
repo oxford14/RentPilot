@@ -23,9 +23,10 @@ const statusColors: Record<TicketStatus, string> = {
 interface TechSupportTicketListProps {
     statusFilter: TicketStatus | 'all';
     issueTypeFilter: IssueCategory | 'all';
+    technicianFilter: string; // Can be 'all', 'unassigned', or a technician ID
 }
 
-export function TechSupportTicketList({ statusFilter, issueTypeFilter }: TechSupportTicketListProps) {
+export function TechSupportTicketList({ statusFilter, issueTypeFilter, technicianFilter }: TechSupportTicketListProps) {
     const { techSupportRequests } = useAppContext();
     const router = useRouter();
 
@@ -34,16 +35,26 @@ export function TechSupportTicketList({ statusFilter, issueTypeFilter }: TechSup
             return [];
         }
         
-        const filteredByStatus = statusFilter === 'all' 
-            ? techSupportRequests 
-            : techSupportRequests.filter(ticket => ticket.status === statusFilter);
+        let filteredTickets = [...techSupportRequests];
 
-        const filteredByType = issueTypeFilter === 'all'
-            ? filteredByStatus
-            : filteredByStatus.filter(ticket => ticket.issueType === issueTypeFilter);
+        if (statusFilter !== 'all') {
+            filteredTickets = filteredTickets.filter(ticket => ticket.status === statusFilter);
+        }
+        
+        if (issueTypeFilter !== 'all') {
+            filteredTickets = filteredTickets.filter(ticket => ticket.issueType === issueTypeFilter);
+        }
 
-        return [...filteredByType].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [techSupportRequests, statusFilter, issueTypeFilter]);
+        if (technicianFilter !== 'all') {
+            if (technicianFilter === 'unassigned') {
+                filteredTickets = filteredTickets.filter(ticket => !ticket.assignedTechnicianId);
+            } else {
+                filteredTickets = filteredTickets.filter(ticket => ticket.assignedTechnicianId === technicianFilter);
+            }
+        }
+
+        return filteredTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [techSupportRequests, statusFilter, issueTypeFilter, technicianFilter]);
 
     const handleViewTicket = (ticketId: string) => {
         router.push(`/ticket-support/${ticketId}`);

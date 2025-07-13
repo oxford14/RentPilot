@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
-import { Ticket, ListFilter } from 'lucide-react';
+import { Ticket, ListFilter, User } from 'lucide-react';
 import { TechSupportTicketList } from '@/components/isp-support/TechSupportTicketList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ticketStatuses, type TicketStatus, issueCategories, type IssueCategory } from '@/lib/types';
@@ -14,16 +14,34 @@ import { ticketStatuses, type TicketStatus, issueCategories, type IssueCategory 
 
 export default function TicketSupportPage() {
   const { user } = useAuth();
-  const { clients, viewingAsClientId } = useAppContext();
+  const { clients, viewingAsClientId, managedUsers } = useAppContext();
   const router = useRouter();
+  
   const [statusFilter, setStatusFilter] = React.useState<TicketStatus | 'all'>('all');
   const [issueTypeFilter, setIssueTypeFilter] = React.useState<IssueCategory | 'all'>('all');
+  const [technicianFilter, setTechnicianFilter] = React.useState<string>('all');
 
   const client = React.useMemo(() => {
     const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
     if (!currentContextClientId) return null;
     return clients.find(c => c.id === currentContextClientId);
   }, [user, clients, viewingAsClientId]);
+
+  const availableTechnicians = React.useMemo(() => {
+    return managedUsers.filter(u => u.role === 'technician');
+  }, [managedUsers]);
+  
+  const isTechnician = user?.role === 'technician';
+  const canManageFilters = user?.isSuperAdmin || user?.role === 'admin' || user?.role === 'hub-admin';
+
+  React.useEffect(() => {
+    if (isTechnician && user?.id) {
+        setTechnicianFilter(user.id);
+    } else {
+        setTechnicianFilter('all');
+    }
+  }, [isTechnician, user]);
+
 
   const isAuthorized = React.useMemo(() => {
     if (!client) return false;
@@ -57,7 +75,7 @@ export default function TicketSupportPage() {
           Technical Support Tickets
         </h1>
         <p className="text-muted-foreground">
-          View and manage support requests from your subscribers.
+          {isTechnician ? "View tickets assigned to you." : "View and manage support requests from your subscribers."}
         </p>
       </div>
 
@@ -70,35 +88,58 @@ export default function TicketSupportPage() {
                   All support tickets submitted by your subscribers.
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <ListFilter className="h-4 w-4 text-muted-foreground" />
-                 <Select value={issueTypeFilter} onValueChange={(value) => setIssueTypeFilter(value as any)}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filter by type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Issue Types</SelectItem>
-                        {issueCategories.map(type => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filter by status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {ticketStatuses.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+              <div className="flex items-center gap-2 w-full flex-wrap sm:w-auto sm:flex-nowrap">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <ListFilter className="h-4 w-4 text-muted-foreground shrink-0"/>
+                    <Select value={issueTypeFilter} onValueChange={(value) => setIssueTypeFilter(value as any)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Filter by type..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Issue Types</SelectItem>
+                            {issueCategories.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Filter by status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            {ticketStatuses.map(status => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 {canManageFilters && (
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Select value={technicianFilter} onValueChange={setTechnicianFilter}>
+                          <SelectTrigger className="w-full sm:w-[180px]">
+                              <SelectValue placeholder="Filter by technician..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">All Technicians</SelectItem>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {availableTechnicians.map(tech => (
+                                  <SelectItem key={tech.id} value={tech.id}>{tech.username}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                    </div>
+                )}
               </div>
             </div>
         </CardHeader>
         <CardContent>
-          <TechSupportTicketList statusFilter={statusFilter} issueTypeFilter={issueTypeFilter} />
+          <TechSupportTicketList 
+            statusFilter={statusFilter} 
+            issueTypeFilter={issueTypeFilter} 
+            technicianFilter={technicianFilter} 
+          />
         </CardContent>
       </Card>
     </div>
