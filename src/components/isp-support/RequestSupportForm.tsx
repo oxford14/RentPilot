@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,9 +31,15 @@ export function RequestSupportForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(requestFormSchema),
+    defaultValues: {
+      issueType: undefined,
+      description: '',
+      attachments: undefined,
+    }
   });
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,6 +50,9 @@ export function RequestSupportForm() {
 
   const removeFile = (indexToRemove: number) => {
     setFiles(files.filter((_, index) => index !== indexToRemove));
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
   };
   
   const onSubmit = async (data: FormValues) => {
@@ -55,6 +65,9 @@ export function RequestSupportForm() {
       toast({ title: "Support Request Sent", description: "Your request has been submitted successfully." });
       form.reset();
       setFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || "An unknown error occurred." });
     } finally {
@@ -71,7 +84,7 @@ export function RequestSupportForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Issue Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category..." />
@@ -108,7 +121,7 @@ export function RequestSupportForm() {
                 <FormLabel>Attachments (Optional)</FormLabel>
                 <FormControl>
                     <div className="relative">
-                        <Input id="attachments" type="file" multiple onChange={handleFileChange} className="pl-12" />
+                        <Input id="attachments" type="file" multiple onChange={handleFileChange} ref={fileInputRef} className="pl-12" />
                         <Paperclip className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     </div>
                 </FormControl>
