@@ -299,17 +299,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const techSupportRequests = useMemo(() => {
     if (!authIsAuthenticated || !authUser) return [];
+    
+    // Super Admin view
     if (authUser.isSuperAdmin) {
         const clientId = getScopedClientId();
         return clientId ? rawTechSupportRequests.filter(t => t.clientId === clientId) : rawTechSupportRequests;
     }
+    
+    // Tenant view
     if (authUser.role === 'tenant') {
         return rawTechSupportRequests.filter(t => t.subscriberId === authUser.tenantId);
     }
-    // For client-side users (admin, user, technician)
+    
+    // Client User views (admin, user, hub-admin, technician)
     if (authUser.clientId) {
-        return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
+      // Technician view: only see assigned tickets
+      if (authUser.role === 'technician') {
+        return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
+      }
+      // Other client users see all tickets for their client
+      return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
     }
+
     return [];
   }, [rawTechSupportRequests, authIsAuthenticated, authUser, getScopedClientId]);
 
@@ -1905,6 +1916,8 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
+
 
 
 
