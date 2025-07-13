@@ -12,14 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form, FormField, FormItem } from '@/components/ui/form';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { TechSupportRequest, TicketStatus, ManagedUser } from '@/lib/types';
+import type { TechSupportRequest, TicketStatus } from '@/lib/types';
 import { ticketStatuses } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, formatDistanceToNow } from 'date-fns';
-import { Ticket, User, Wrench, Calendar, Link as LinkIcon, Info, Save, Loader2, ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
+import { Ticket, Wrench, Link as LinkIcon, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const ticketUpdateSchema = z.object({
@@ -57,13 +55,15 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
     return managedUsers.filter(user => user.role === 'technician');
   }, [managedUsers]);
   
-  const canManageTicket = user?.isSuperAdmin || user?.role === 'admin';
+  const canManageTicket = user?.isSuperAdmin || user?.role === 'admin' || user?.role === 'hub-admin';
+  const isTechnicianViewing = user?.role === 'technician';
+  const isSubscriberViewing = user?.role === 'tenant';
+
 
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     const updates: Partial<TechSupportRequest> = {
       status: data.status,
-      // Handle the "unassigned" value from the select dropdown
       assignedTechnicianId: data.assignedTechnicianId === 'unassigned' ? undefined : data.assignedTechnicianId,
       internalNotes: data.internalNotes || '',
     };
@@ -91,7 +91,7 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
         Back to Ticket List
       </Button>
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
+        <div className={cn("space-y-6", isSubscriberViewing ? "md:col-span-3" : "md:col-span-2")}>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-3">
@@ -130,75 +130,77 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
           </Card>
         </div>
 
-        <div className="md:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wrench className="h-5 w-5" />
-                Manage Ticket
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label>Status</Label>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!canManageTicket}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ticketStatuses.map(status => (
-                              <SelectItem key={status} value={status}>{status}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="assignedTechnicianId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label>Assign Technician</Label>
-                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!canManageTicket}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a technician..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {availableTechnicians.map(tech => (
-                              <SelectItem key={tech.id} value={tech.id}>{tech.username}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="internalNotes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label>Internal Notes</Label>
-                        <Textarea placeholder="Add notes for your team..." {...field} />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isLoading} className="w-full">
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Changes
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
+        {!isSubscriberViewing && (
+          <div className="md:col-span-1 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Manage Ticket
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Label>Status</Label>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!canManageTicket && !isTechnicianViewing}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ticketStatuses.map(status => (
+                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="assignedTechnicianId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Label>Assign Technician</Label>
+                          <Select onValueChange={field.onChange} value={field.value || 'unassigned'} disabled={!canManageTicket}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a technician..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {availableTechnicians.map(tech => (
+                                <SelectItem key={tech.id} value={tech.id}>{tech.username}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="internalNotes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Label>Internal Notes</Label>
+                          <Textarea placeholder="Add notes for your team..." {...field} />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={isLoading} className="w-full">
+                      {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      Save Changes
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
