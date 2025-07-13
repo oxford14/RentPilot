@@ -40,10 +40,10 @@ export default function ClientUserManagementPage() {
   }, [authUser, clients]);
 
   useEffect(() => {
+    // This check is now stricter. Only 'admin' role can access this page.
     const isClientAdmin = authUser?.role === 'admin' && !authUser.isSuperAdmin;
-    const isHubAdminForIVirtuaTech = authUser?.role === 'hub-admin' && currentClient?.name === 'i-VirtuaTech';
 
-    if (authUser && !isClientAdmin && !isHubAdminForIVirtuaTech) {
+    if (authUser && !isClientAdmin) {
         toast({variant: "destructive", title: "Access Denied", description: "You do not have permission to view this page."})
         router.push('/');
     }
@@ -94,7 +94,8 @@ export default function ClientUserManagementPage() {
     return 'N/A';
   };
 
-  if (!authUser || authUser.isSuperAdmin || !currentClient || !['admin', 'hub-admin'].includes(authUser.role || '')) {
+  // Stricter check for rendering content as well
+  if (!authUser || authUser.isSuperAdmin || !currentClient || authUser.role !== 'admin') {
     return <div className="container mx-auto py-2"><p>Loading or unauthorized...</p></div>;
   }
 
