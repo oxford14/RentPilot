@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Form, FormField, FormItem } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { TechSupportRequest, TicketStatus, ManagedUser } from '@/lib/types';
@@ -39,6 +40,7 @@ const statusColors: Record<TicketStatus, string> = {
 
 export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
   const router = useRouter();
+  const { user } = useAuth();
   const { managedUsers, updateTechSupportRequest } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,6 +56,8 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
   const availableTechnicians = useMemo(() => {
     return managedUsers.filter(user => user.role === 'technician');
   }, [managedUsers]);
+  
+  const canManageTicket = user?.isSuperAdmin || user?.role === 'admin';
 
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
@@ -142,7 +146,7 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
                     render={({ field }) => (
                       <FormItem>
                         <Label>Status</Label>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!canManageTicket}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
@@ -161,7 +165,7 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
                     render={({ field }) => (
                       <FormItem>
                         <Label>Assign Technician</Label>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={!canManageTicket}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a technician..." />
                           </SelectTrigger>
