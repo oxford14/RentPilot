@@ -482,5 +482,9 @@ export interface AppContextType {
   restoreClient: (backupId: string) => Promise<void>;
   permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
+  
+  // Tech Support
   addTechSupportRequest: (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => Promise<void>;
+  updateTechSupportRequest: (ticketId: string, updates: Partial<TechSupportRequest>) => Promise<void>;
 }
+

@@ -1752,6 +1752,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     await addDoc(collection(db, 'techSupportRequests'), newTicket);
   };
+  
+  const updateTechSupportRequest = async (ticketId: string, updates: Partial<TechSupportRequest>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      const ticketRef = doc(db, 'techSupportRequests', ticketId);
+      await updateDoc(ticketRef, updates);
+      toast({ title: "Ticket Updated", description: "The support ticket has been updated successfully." });
+    } catch (e: any) {
+      console.error("Error updating ticket:", e);
+      toast({ variant: "destructive", title: "Update Failed", description: e.message });
+      throw e;
+    }
+  };
 
   const contextValue: AppContextType = {
     tenants,
@@ -1861,6 +1877,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     permanentlyDeleteClientBackup,
     cleanClientData,
     addTechSupportRequest,
+    updateTechSupportRequest,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {
@@ -1888,6 +1905,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 
