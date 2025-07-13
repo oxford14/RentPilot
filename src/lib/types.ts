@@ -343,6 +343,7 @@ export type IssueCategory = 'No Internet' | 'Slow Connection' | 'Router Issue' |
 export const issueCategories: IssueCategory[] = ['No Internet', 'Slow Connection', 'Router Issue', 'Billing Concern', 'Others'];
 
 export type TicketStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+export const ticketStatuses: TicketStatus[] = ['Pending', 'Assigned', 'In Progress', 'Resolved', 'Closed'];
 
 export interface TechSupportRequest {
   id: string; // Firestore doc ID

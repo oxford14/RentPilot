@@ -20,7 +20,11 @@ const statusColors: Record<TicketStatus, string> = {
     'Closed': 'bg-gray-500/20 text-gray-700 border-gray-400',
 };
 
-export function TechSupportTicketList() {
+interface TechSupportTicketListProps {
+    statusFilter: TicketStatus | 'all';
+}
+
+export function TechSupportTicketList({ statusFilter }: TechSupportTicketListProps) {
     const { techSupportRequests } = useAppContext();
     const router = useRouter();
 
@@ -28,8 +32,13 @@ export function TechSupportTicketList() {
         if (!techSupportRequests || !Array.isArray(techSupportRequests)) {
             return [];
         }
-        return [...techSupportRequests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [techSupportRequests]);
+        
+        const filtered = statusFilter === 'all' 
+            ? techSupportRequests 
+            : techSupportRequests.filter(ticket => ticket.status === statusFilter);
+
+        return [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [techSupportRequests, statusFilter]);
 
     const handleViewTicket = (ticketId: string) => {
         router.push(`/ticket-support/${ticketId}`);
@@ -39,8 +48,8 @@ export function TechSupportTicketList() {
         return (
             <div className="text-center text-muted-foreground py-12">
                 <Ticket className="mx-auto h-12 w-12 mb-4 text-gray-400" />
-                <p className="text-lg font-medium">No Support Tickets</p>
-                <p className="text-sm">There are no support tickets to display.</p>
+                <p className="text-lg font-medium">No Support Tickets Found</p>
+                <p className="text-sm">There are no tickets matching the current filter.</p>
             </div>
         );
     }
