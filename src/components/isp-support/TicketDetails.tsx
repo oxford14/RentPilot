@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -63,7 +63,8 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
     setIsLoading(true);
     const updates: Partial<TechSupportRequest> = {
       status: data.status,
-      assignedTechnicianId: data.assignedTechnicianId || undefined,
+      // Handle the "unassigned" value from the select dropdown
+      assignedTechnicianId: data.assignedTechnicianId === 'unassigned' ? undefined : data.assignedTechnicianId,
       internalNotes: data.internalNotes || '',
     };
     
@@ -170,7 +171,7 @@ export function TicketDetails({ ticket }: { ticket: TechSupportRequest }) {
                             <SelectValue placeholder="Select a technician..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Unassigned</SelectItem>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
                             {availableTechnicians.map(tech => (
                               <SelectItem key={tech.id} value={tech.id}>{tech.username}</SelectItem>
                             ))}
