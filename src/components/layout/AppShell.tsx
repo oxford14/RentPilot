@@ -20,7 +20,7 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2 } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -361,10 +361,14 @@ function AppShellContent({ children }: { children: ReactNode }) {
       let baseNavItems: Omit<AppSidebarNavItem, 'label'>[];
       if(isTenantSection) {
         baseNavItems = [...tenantNavItems];
+        if (activeClientForDisplay?.businessType === 'ISP_Subscription') {
+            baseNavItems.push({ isGroup: false, href: '/request-support', icon: Ticket });
+        }
         currentAppNavItems = baseNavItems.map(item => {
             let label = 'Item';
             if (item.href === '/') label = appLabels.myDashboard;
             if (item.href === '/profile') label = appLabels.profile;
+            if (item.href === '/request-support') label = 'Request Support';
             return { ...item, label };
         });
 
@@ -373,7 +377,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
         
         baseNavItems = [...baseAppNavItems].filter(item => {
           if (isHubAdmin) {
-            // Hub admin only sees a specific set of menus
             const allowedHubAdminRoutes = ['/', '/tenants', '/pc-management', '/monitoring', '/expenses', '/announcements', '/notifications'];
             return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
           }
@@ -421,6 +424,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
                 currentAppNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
             } else {
                 currentAppNavItems.push(pcManagementItem);
+            }
+        }
+        
+        if (activeClientForDisplay?.businessType === 'ISP_Subscription') {
+            const ticketSupportItem: AppSidebarNavItem = {
+                isGroup: false, href: '/ticket-support', label: 'Ticket Support', icon: Ticket,
+            };
+             const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+            if (tenantsIndex !== -1) {
+                currentAppNavItems.splice(tenantsIndex + 1, 0, ticketSupportItem);
+            } else {
+                currentAppNavItems.push(ticketSupportItem);
             }
         }
         
@@ -506,7 +521,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
     if (loggedInClient && !authUser?.isSuperAdmin) {
         if(authUser?.role === 'tenant') return `${authUser.username} (${terminology.single} at ${loggedInClient.name})`;
-      const roleLabel = authUser.role === 'hub-admin' ? 'Hub Admin' : (authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User');
+      const roleLabel = authUser.role === 'hub-admin' ? 'Hub Admin' : (authUser.role === 'technician' ? 'Technician' : (authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User'));
       return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
     }
     return authUser?.username || 'My Account';
@@ -517,7 +532,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen w-full">
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center justify-center">
-            <Link href="/" className="flex items-center justify-center">
+            <Link href="/" className="flex items-center justify-center" onClick={handleMobileNavClick}>
                 {/* Expanded Logo */}
                 <Image 
                   src={MAIN_APP_LOGO_URL}
@@ -793,7 +808,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
                 {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && (
                   <DropdownMenuItem asChild>
                     <a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                      <FileText className="mr-2 h-4 w-4" />
+                      <FileViewIcon className="mr-2 h-4 w-4" />
                       <span>View My Contract</span>
                     </a>
                   </DropdownMenuItem>

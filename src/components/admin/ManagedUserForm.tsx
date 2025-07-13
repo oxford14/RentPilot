@@ -20,7 +20,7 @@ const managedUserFormSchema = z.object({
   username: z.string().min(3, { message: "Username must be at least 3 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().optional(),
-  role: z.enum(['admin', 'user', 'hub-admin'] as [ClientUserRole, ...ClientUserRole[]], {
+  role: z.enum(['admin', 'user', 'hub-admin', 'technician'] as [ClientUserRole, ...ClientUserRole[]], {
     required_error: "User role is required.",
   }),
   canApplyDiscount: z.boolean().optional(),
@@ -124,7 +124,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
     }
   };
 
-  const availableRoles: ClientUserRole[] = ['admin', 'user'];
+  const availableRoles: ClientUserRole[] = ['admin', 'user', 'technician'];
   if (targetClientName === 'i-VirtuaTech') {
       availableRoles.push('hub-admin');
   }
@@ -204,7 +204,7 @@ export function ManagedUserForm({ isOpen, onClose, targetClientId, targetClientN
                     <SelectContent>
                       {availableRoles.map(roleValue => (
                         <SelectItem key={roleValue} value={roleValue}>
-                          {roleValue === 'hub-admin' ? 'Hub Admin' : roleValue.charAt(0).toUpperCase() + roleValue.slice(1)}
+                          {roleValue === 'hub-admin' ? 'Hub Admin' : (roleValue === 'technician' ? 'Technician' : roleValue.charAt(0).toUpperCase() + roleValue.slice(1))}
                         </SelectItem>
                       ))}
                     </SelectContent>

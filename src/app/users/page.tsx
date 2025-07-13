@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ManagedUser } from '@/lib/types';
-import { UsersRound, UserPlus, Edit2, Trash2, ShieldCheck, UserCircle2, UserCog } from 'lucide-react';
+import { UsersRound, UserPlus, Edit2, Trash2, ShieldCheck, UserCircle2, UserCog, Wrench } from 'lucide-react';
 import { ManagedUserForm } from '@/components/admin/ManagedUserForm';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -78,11 +78,13 @@ export default function ClientUserManagementPage() {
   const getRoleIcon = (role?: string) => {
     if (role === 'admin') return <ShieldCheck className="h-4 w-4 text-primary mr-1" />;
     if (role === 'hub-admin') return <UserCog className="h-4 w-4 text-primary mr-1" />;
+    if (role === 'technician') return <Wrench className="h-4 w-4 text-primary mr-1" />;
     return <UserCircle2 className="h-4 w-4 text-muted-foreground mr-1" />;
   };
 
   const formatRoleName = (role?: string) => {
     if (role === 'hub-admin') return 'Hub Admin';
+    if (role === 'technician') return 'Technician';
     if (role && typeof role === 'string' && role.length > 0) {
       return role.charAt(0).toUpperCase() + role.slice(1);
     }

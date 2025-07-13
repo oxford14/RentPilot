@@ -2,7 +2,7 @@
 
 export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
 
-export type ClientUserRole = 'admin' | 'user' | 'hub-admin';
+export type ClientUserRole = 'admin' | 'user' | 'hub-admin' | 'technician';
 export type UserRole = ClientUserRole | 'tenant';
 
 export interface User { // For AuthContext user
@@ -101,7 +101,7 @@ export interface Client {
   subscriptionPlanName?: string;
   subscriptionRate?: number;
   pcCount?: number;
-  pcIssues?: Record<number, PcIssue | string>; // Allow string for legacy
+  pcIssues?: Record<number, PcIssue>;
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
@@ -337,6 +337,41 @@ export type AttemptDeleteTenantResult = {
   message: string;
   action: 'deleted' | 'inactivated' | 'not_found' | 'error';
 };
+
+// =================== ISP Ticketing System Types ===================
+export type IssueCategory = 'No Internet' | 'Slow Connection' | 'Router Issue' | 'Billing Concern' | 'Others';
+export const issueCategories: IssueCategory[] = ['No Internet', 'Slow Connection', 'Router Issue', 'Billing Concern', 'Others'];
+
+export type TicketStatus = 'Pending' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+
+export interface TechSupportRequest {
+  id: string; // Firestore doc ID
+  subscriberId: string; // Tenant ID
+  clientId: string;
+  issueType: IssueCategory;
+  description: string;
+  attachments: string[]; // URLs
+  status: TicketStatus;
+  createdAt: string; // ISO String
+  resolvedAt?: string; // ISO String
+  assignedTechnicianId?: string; // ManagedUser ID
+  assignedTechnicianName?: string;
+  internalNotes?: string;
+  subscriberName: string; // Denormalized for easy display
+}
+
+export interface FieldWorkLog {
+  id: string;
+  ticketId: string;
+  technicianId: string;
+  technicianName: string;
+  startTime: string; // ISO String
+  endTime: string; // ISO String
+  notes: string;
+  attachments: string[]; // URLs
+  workStatus: 'Completed' | 'Follow-up Needed';
+}
+
 
 // AppContextType now reflects that CRUD operations are async (return Promise)
 export interface AppContextType {
