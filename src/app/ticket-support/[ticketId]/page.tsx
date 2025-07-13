@@ -7,13 +7,13 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useRouter } from 'next/navigation';
 import { TicketDetails } from '@/components/isp-support/TicketDetails';
 
-export default function TicketDetailsPage({ params }: { params: { ticketId: string } }) {
+export default function TicketDetailsPage({ params: { ticketId } }: { params: { ticketId: string } }) {
   const { user } = useAuth();
   const { clients, techSupportRequests, viewingAsClientId } = useAppContext();
   const router = useRouter();
-  const ticketId = params.ticketId;
 
   const ticket = useMemo(() => {
+    if (!techSupportRequests || !Array.isArray(techSupportRequests)) return null;
     return techSupportRequests.find(t => t.id === ticketId);
   }, [techSupportRequests, ticketId]);
 
