@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, Ticket } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { TicketStatus } from '@/lib/types';
+import type { TicketStatus, IssueCategory } from '@/lib/types';
 
 const statusColors: Record<TicketStatus, string> = {
     'Pending': 'bg-yellow-500/20 text-yellow-700 border-yellow-400',
@@ -22,9 +22,10 @@ const statusColors: Record<TicketStatus, string> = {
 
 interface TechSupportTicketListProps {
     statusFilter: TicketStatus | 'all';
+    issueTypeFilter: IssueCategory | 'all';
 }
 
-export function TechSupportTicketList({ statusFilter }: TechSupportTicketListProps) {
+export function TechSupportTicketList({ statusFilter, issueTypeFilter }: TechSupportTicketListProps) {
     const { techSupportRequests } = useAppContext();
     const router = useRouter();
 
@@ -33,12 +34,16 @@ export function TechSupportTicketList({ statusFilter }: TechSupportTicketListPro
             return [];
         }
         
-        const filtered = statusFilter === 'all' 
+        const filteredByStatus = statusFilter === 'all' 
             ? techSupportRequests 
             : techSupportRequests.filter(ticket => ticket.status === statusFilter);
 
-        return [...filtered].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [techSupportRequests, statusFilter]);
+        const filteredByType = issueTypeFilter === 'all'
+            ? filteredByStatus
+            : filteredByStatus.filter(ticket => ticket.issueType === issueTypeFilter);
+
+        return [...filteredByType].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [techSupportRequests, statusFilter, issueTypeFilter]);
 
     const handleViewTicket = (ticketId: string) => {
         router.push(`/ticket-support/${ticketId}`);

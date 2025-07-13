@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Ticket, ListFilter } from 'lucide-react';
 import { TechSupportTicketList } from '@/components/isp-support/TechSupportTicketList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ticketStatuses, type TicketStatus } from '@/lib/types';
+import { ticketStatuses, type TicketStatus, issueCategories, type IssueCategory } from '@/lib/types';
 
 
 export default function TicketSupportPage() {
@@ -17,6 +17,7 @@ export default function TicketSupportPage() {
   const { clients, viewingAsClientId } = useAppContext();
   const router = useRouter();
   const [statusFilter, setStatusFilter] = React.useState<TicketStatus | 'all'>('all');
+  const [issueTypeFilter, setIssueTypeFilter] = React.useState<IssueCategory | 'all'>('all');
 
   const client = React.useMemo(() => {
     const currentContextClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
@@ -71,6 +72,17 @@ export default function TicketSupportPage() {
               </div>
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <ListFilter className="h-4 w-4 text-muted-foreground" />
+                 <Select value={issueTypeFilter} onValueChange={(value) => setIssueTypeFilter(value as any)}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filter by type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Issue Types</SelectItem>
+                        {issueCategories.map(type => (
+                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                         <SelectValue placeholder="Filter by status..." />
@@ -86,7 +98,7 @@ export default function TicketSupportPage() {
             </div>
         </CardHeader>
         <CardContent>
-          <TechSupportTicketList statusFilter={statusFilter} />
+          <TechSupportTicketList statusFilter={statusFilter} issueTypeFilter={issueTypeFilter} />
         </CardContent>
       </Card>
     </div>
