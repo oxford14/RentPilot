@@ -2,7 +2,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,6 +67,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [backupScheduleSettings, setBackupScheduleSettings] = useState<BackupScheduleSettings | null>(null);
   const [rawAnnouncementsState, setRawAnnouncementsState] = useState<Announcement[]>([]);
   const [rawDeletedClientsState, setRawDeletedClientsState] = useState<DeletedClientBackup[]>([]);
+  const [rawTechSupportRequests, setRawTechSupportRequests] = useState<TechSupportRequest[]>([]);
+
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
   const [systemTimezoneState, setSystemTimezoneState] = useState<string>(DEFAULT_TIMEZONE);
@@ -91,6 +93,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawDemoRequestsState([]);
       setRawAnnouncementsState([]);
       setRawDeletedClientsState([]);
+      setRawTechSupportRequests([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
@@ -116,6 +119,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'demoRequests', setter: setRawDemoRequestsState, label: 'demo requests'},
       { name: 'announcements', setter: setRawAnnouncementsState, label: 'announcements' },
       { name: 'deletedClients', setter: setRawDeletedClientsState, label: 'deleted clients' },
+      { name: 'techSupportRequests', setter: setRawTechSupportRequests, label: 'tech support requests' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -292,6 +296,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!authIsAuthenticated) return [];
     return rawAnnouncementsState;
   }, [rawAnnouncementsState, authIsAuthenticated]);
+
+  const techSupportRequests = useMemo(() => {
+    if (!authIsAuthenticated || !authUser) return [];
+    if (authUser.isSuperAdmin) {
+        const clientId = getScopedClientId();
+        return clientId ? rawTechSupportRequests.filter(t => t.clientId === clientId) : rawTechSupportRequests;
+    }
+    if (authUser.role === 'tenant') {
+        return rawTechSupportRequests.filter(t => t.subscriberId === authUser.tenantId);
+    }
+    // For client-side users (admin, user, technician)
+    if (authUser.clientId) {
+        return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
+    }
+    return [];
+  }, [rawTechSupportRequests, authIsAuthenticated, authUser, getScopedClientId]);
 
   const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => {
     if (!authIsAuthenticated) {
@@ -1293,7 +1313,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error cleaning client data:", error);
-        toast({ variant: 'destructive', title: 'Cleanup Failed', description: error.message });
+        toast({ variant: 'destructive', title: 'Cleanup Failed', description: `Cleanup failed: ${error.message}` });
         return { success: false, message: `Cleanup failed: ${error.message}` };
     }
   };
@@ -1700,6 +1720,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addTechSupportRequest = async (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => {
+    if (!authIsAuthenticated || !authUser || !authUser.tenantId || !authUser.clientId) {
+        throw new Error("User is not properly authenticated or lacks tenant/client information.");
+    }
+    const tenant = rawTenantsState.find(t => t.id === authUser.tenantId);
+    if (!tenant) {
+        throw new Error("Could not find the current subscriber's details.");
+    }
+
+    const attachmentUrls: string[] = [];
+    if (files.length > 0) {
+        for (const file of files) {
+            const fileId = uuidv4();
+            const storageRef = ref(storage, `ticket_attachments/${authUser.clientId}/${fileId}-${file.name}`);
+            const uploadResult = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+            attachmentUrls.push(downloadURL);
+        }
+    }
+
+    const newTicket: Omit<TechSupportRequest, 'id'> = {
+        ...requestData,
+        attachments: attachmentUrls,
+        clientId: authUser.clientId,
+        subscriberId: authUser.tenantId,
+        subscriberName: tenant.name,
+        status: 'Pending',
+        createdAt: new Date().toISOString(),
+    };
+
+    await addDoc(collection(db, 'techSupportRequests'), newTicket);
+  };
+
   const contextValue: AppContextType = {
     tenants,
     payments,
@@ -1717,6 +1770,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     backupScheduleSettings,
     announcements,
     terminology,
+    techSupportRequests,
     
     // Chat
     chatSessions: rawChatSessionsState,
@@ -1806,6 +1860,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     restoreClient,
     permanentlyDeleteClientBackup,
     cleanClientData,
+    addTechSupportRequest,
   };
 
   if (isDataLoading && authIsAuthenticated && !initialLoadComplete) {
@@ -1833,6 +1888,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 

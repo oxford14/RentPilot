@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo } from 'react';
@@ -24,6 +25,9 @@ export function TechSupportTicketList() {
     const router = useRouter();
 
     const sortedTickets = useMemo(() => {
+        if (!techSupportRequests || !Array.isArray(techSupportRequests)) {
+            return [];
+        }
         return [...techSupportRequests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [techSupportRequests]);
 

@@ -391,6 +391,7 @@ export interface AppContextType {
   backupScheduleSettings: BackupScheduleSettings | null;
   announcements: Announcement[];
   terminology: { single: string; plural: string };
+  techSupportRequests: TechSupportRequest[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -480,4 +481,5 @@ export interface AppContextType {
   restoreClient: (backupId: string) => Promise<void>;
   permanentlyDeleteClientBackup: (backupId: string) => Promise<void>;
   cleanClientData: (clientId: string) => Promise<{ success: boolean; message: string; }>;
+  addTechSupportRequest: (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => Promise<void>;
 }
