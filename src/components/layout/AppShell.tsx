@@ -238,8 +238,8 @@ function AppShellContent({ children }: { children: ReactNode }) {
     let relevant: Announcement[] = [];
     if (authUser.isSuperAdmin) {
         // Super admins do not see announcements in their bell. They manage them from their page.
-    } else if (authUser.role === 'admin' || authUser.role === 'user' || authUser.role === 'hub-admin') {
-        // Client admins only see global announcements, not targeted ones.
+    } else if (authUser.role === 'admin' || authUser.role === 'user' || authUser.role === 'hub-admin' || authUser.role === 'technician') {
+        // Client admins and users only see global announcements, not tenant-specific ones.
         relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin' && !a.recipientId);
     } else if (authUser.role === 'tenant' && authUser.clientId && authUser.tenantId) {
         // Tenants see broadcasts for their client AND messages sent directly to them.
@@ -377,7 +377,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
         
         baseNavItems = [...baseAppNavItems].filter(item => {
           if (isHubAdmin) {
-            const allowedHubAdminRoutes = ['/', '/tenants', '/pc-management', '/monitoring', '/expenses', '/announcements', '/notifications'];
+            const allowedHubAdminRoutes = ['/', '/tenants', '/monitoring', '/expenses', '/announcements', '/notifications'];
             return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
           }
 
@@ -624,7 +624,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
                           isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                           tooltip={{ children: item.label, side: "right", className: "ml-2" }}
                           className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/monitoring', '/profile', '/announcements', '/notifications'].includes(item.href)}
+                          disabled={subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications'].includes(item.href)}
                           onClick={handleMobileNavClick}
                         >
                           <Link href={finalHref}>

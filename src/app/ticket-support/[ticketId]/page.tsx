@@ -23,18 +23,25 @@ export default function TicketDetailsPage({ params }: { params: { ticketId: stri
     return clients.find(c => c.id === currentContextClientId);
   }, [user, clients, viewingAsClientId]);
   
+  const isAuthorized = React.useMemo(() => {
+    if (!client) return false;
+    if (client.businessType !== 'ISP_Subscription') return false;
+    if (user?.isSuperAdmin) return true; // Super admin can see any ticket IF viewing an ISP client
+    if (ticket && user && ticket.clientId !== user.clientId) return false; // Non-super-admin can't see other clients' tickets
+    return true;
+  }, [client, ticket, user]);
+  
   React.useEffect(() => {
-    if (user?.isSuperAdmin) return; // Super admin always has access
-
-    // Redirect if the client isn't an ISP, or if the ticket doesn't belong to them
-    if (client && client.businessType !== 'ISP_Subscription') {
-        router.push('/');
+    // This effect handles redirection if authorization status changes after initial render.
+    if (client && !isAuthorized) {
+      router.push('/');
     }
-    if (ticket && user && ticket.clientId !== user.clientId) {
-        router.push('/ticket-support');
-    }
-  }, [client, router, ticket, user]);
+  }, [client, isAuthorized, router]);
 
+  if (!isAuthorized) {
+    return <div className="container mx-auto py-2"><p>Loading or unauthorized...</p></div>;
+  }
+  
   if (!ticket) {
     return <div className="container mx-auto py-2"><p>Loading ticket details or ticket not found...</p></div>;
   }

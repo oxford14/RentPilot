@@ -20,15 +20,18 @@ export default function TicketSupportPage() {
     return clients.find(c => c.id === currentContextClientId);
   }, [user, clients, viewingAsClientId]);
 
-  React.useEffect(() => {
-    if (user?.isSuperAdmin) return; // Super admin always has access
+  const isAuthorized = React.useMemo(() => {
+    if (!client) return false;
+    return client.businessType === 'ISP_Subscription';
+  }, [client]);
 
-    if (client && client.businessType !== 'ISP_Subscription') {
+  React.useEffect(() => {
+    if (client && !isAuthorized) {
         router.push('/');
     }
-  }, [client, router, user]);
+  }, [client, isAuthorized, router]);
 
-  if (!user?.isSuperAdmin && (!client || client.businessType !== 'ISP_Subscription')) {
+  if (!isAuthorized) {
     return (
         <div className="container mx-auto py-2">
             <p>Loading or unauthorized...</p>
