@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Megaphone, PlusCircle, Trash2, CalendarClock, History, Clock } from 'lucide-react';
-import { format, formatInTimeZone, toDate } from 'date-fns-tz';
+import { format, formatInTimeZone, toDate, fromZonedTime } from 'date-fns-tz';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -77,7 +77,7 @@ export default function AnnouncementsPage() {
   
   const isScheduled = form.watch('isScheduled');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && !user.isSuperAdmin && user.role !== 'admin') {
       toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
       router.push('/');
@@ -115,6 +115,17 @@ export default function AnnouncementsPage() {
 
       const dateInClientTimezone = new Date(year, month, day, hours, minutes);
       
+      const nowInClientTimezone = fromZonedTime(new Date(), clientTimezone);
+
+      if (dateInClientTimezone < nowInClientTimezone) {
+          toast({
+              variant: 'destructive',
+              title: 'Invalid Schedule Time',
+              description: 'Cannot schedule an announcement for a time in the past.',
+          });
+          return;
+      }
+      
       const zonedDateString = formatInTimeZone(dateInClientTimezone, clientTimezone, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
       scheduledAtISO = toDate(zonedDateString).toISOString();
       
@@ -141,12 +152,14 @@ export default function AnnouncementsPage() {
     deleteAnnouncement(announcementId);
     toast({ title: 'Scheduled post cancelled.' });
   }
+  
+  const canViewPage = user?.isSuperAdmin || user?.role === 'admin';
 
+  if (!canViewPage) {
+     return <div className="container mx-auto py-2"><p>Access Denied.</p></div>;
+  }
   if (!currentClientId) {
     return <div className="container mx-auto py-2"><p>Please select a client to view announcements.</p></div>;
-  }
-   if (!user?.isSuperAdmin && user?.role !== 'admin') {
-     return <div className="container mx-auto py-2"><p>Access Denied.</p></div>;
   }
 
   return (
