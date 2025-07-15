@@ -81,11 +81,14 @@ export default function AnnouncementsPage() {
   const isScheduled = form.watch('isScheduled');
 
   useEffect(() => {
-    if (user && !user.isSuperAdmin && user.role !== 'admin') {
+    const isClientAdmin = user?.role === 'admin';
+    const isAllowedSuperAdmin = user?.isSuperAdmin && currentClientId;
+
+    if (!isClientAdmin && !isAllowedSuperAdmin) {
       toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
       router.push('/');
     }
-  }, [user, router, toast]);
+  }, [user, currentClientId, router, toast]);
 
   const { sentAnnouncements, scheduledAnnouncements } = useMemo(() => {
     if (!currentClientId) return { sentAnnouncements: [], scheduledAnnouncements: [] };
@@ -106,13 +109,14 @@ export default function AnnouncementsPage() {
   
   const handleEdit = (announcement: Announcement) => {
     setEditingAnnouncement(announcement);
-    const scheduledDateTime = fromZonedTime(announcement.scheduledAt, clientTimezone);
+    // Correctly parse the stored UTC date into the client's timezone for display
+    const scheduledDateTimeInClientTz = toDate(announcement.scheduledAt, { timeZone: clientTimezone });
     form.reset({
       title: announcement.title,
       content: announcement.content,
       isScheduled: true,
-      scheduledAtDate: scheduledDateTime,
-      scheduledAtTime: format(scheduledDateTime, 'HH:mm'),
+      scheduledAtDate: scheduledDateTimeInClientTz,
+      scheduledAtTime: format(scheduledDateTimeInClientTz, 'HH:mm'),
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -134,9 +138,10 @@ export default function AnnouncementsPage() {
       const month = localDate.getMonth();
       const day = localDate.getDate();
 
-      const dateInClientTimezone = new Date(year, month, day, hours, minutes);
+      // This creates a Date object that represents the local wall-clock time in the client's timezone
+      const dateInClientTimezone = fromZonedTime(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`, clientTimezone);
       
-      const nowInClientTimezone = fromZonedTime(new Date(), clientTimezone);
+      const nowInClientTimezone = new Date();
 
       if (dateInClientTimezone < nowInClientTimezone && !isEditing) {
           toast({
@@ -147,8 +152,7 @@ export default function AnnouncementsPage() {
           return;
       }
       
-      const zonedDateString = formatInTimeZone(dateInClientTimezone, clientTimezone, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-      scheduledAtISO = toDate(zonedDateString).toISOString();
+      scheduledAtISO = dateInClientTimezone.toISOString();
       
     } else if (data.isScheduled) {
       toast({ variant: 'destructive', title: 'Invalid Date/Time', description: 'Please provide a valid date and time for scheduling.' });
