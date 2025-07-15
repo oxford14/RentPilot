@@ -306,11 +306,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (authUser.role === 'tenant') {
         return rawTechSupportRequests.filter(t => t.subscriberId === authUser.tenantId);
     }
-    // For client-side users (admin, user, technician)
+    if (authUser.role === 'technician') {
+      return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
+    }
     if (authUser.clientId) {
-      if (authUser.role === 'technician') {
-        return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
-      }
       return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
     }
     return [];
@@ -487,7 +486,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const batch = writeBatch(db);
 
-        const newAnnouncement = {
+        const newAnnouncement: Omit<Announcement, 'id'> = {
             ...announcementData,
             createdAt: new Date().toISOString(),
             readBy: [],
@@ -495,6 +494,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const announcementRef = doc(collection(db, 'announcements'));
         batch.set(announcementRef, newAnnouncement);
 
+        // This is a simplified email logic, for full functionality, a dedicated backend would be better
+        if (newAnnouncement.status === 'sent') {
+            let emailRecipients: string[] = [];
+            
+            if (newAnnouncement.recipientId) {
+                const tenant = rawTenantsState.find(t => t.id === newAnnouncement.recipientId);
+                if (tenant?.email) emailRecipients.push(tenant.email);
+            } else if (newAnnouncement.scope !== 'global' && newAnnouncement.audience === 'tenant') {
+                const tenantsForClient = rawTenantsState.filter(t => t.clientId === newAnnouncement.scope && t.email);
+                emailRecipients = tenantsForClient.map(t => t.email);
+            }
+
+            if (emailRecipients.length > 0) {
+                const client = rawClientsState.find(c => c.id === newAnnouncement.scope);
+                const fromName = client?.name || newAnnouncement.senderName;
+                const mailRef = doc(collection(db, 'mail'));
+                batch.set(mailRef, {
+                    to: emailRecipients,
+                    message: {
+                        subject: `${fromName}: ${newAnnouncement.title}`,
+                        html: `<p>${newAnnouncement.content}</p>`,
+                    },
+                });
+            }
+        }
+        
         await batch.commit();
         toast({ title: announcementData.isScheduled ? "Announcement Scheduled" : "Announcement Posted", description: "Your announcement has been saved." });
 
@@ -981,6 +1006,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
+  
+  const updateClientNotificationSettings = async (settings: NotificationSettings) => {
+    if (!authIsAuthenticated || !authUser) {
+      throw new Error("You must be logged in.");
+    }
+
+    const clientId = getScopedClientId();
+    const canUpdate = authUser.isSuperAdmin || 
+                      (authUser.role === 'admin' && authUser.clientId === clientId) ||
+                      (authUser.role === 'hub-admin' && activeClient?.name === 'i-VirtuaTech' && authUser.clientId === clientId);
+    
+    if (!canUpdate) {
+        throw new Error("You do not have permission to update these settings.");
+    }
+    if (!clientId) {
+      throw new Error("No client context found.");
+    }
+
+    try {
+      const clientRef = doc(db, 'clients', clientId);
+      await updateDoc(clientRef, {
+        notificationSettings: settings
+      });
+    } catch (error: any) {
+      console.error("Error updating notification settings:", error);
+      throw new Error(`Failed to save notification settings: ${error.message}`);
+    }
+  };
+
+  const runNotificationTrigger = async (): Promise<{success: boolean, message: string}> => {
+    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/notificationRunner";
+    try {
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to trigger notifications: ${response.status} ${errorText}`);
+      }
+      const result = await response.json();
+      return { success: true, message: result.message };
+    } catch(error: any) {
+      console.error("Error triggering notifications:", error);
+      return { success: false, message: error.message };
+    }
+  }
 
   const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) {
@@ -1849,6 +1923,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 
