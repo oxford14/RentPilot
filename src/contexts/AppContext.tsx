@@ -503,35 +503,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const announcementRef = doc(collection(db, 'announcements'));
         batch.set(announcementRef, newAnnouncement);
 
-        if (!announcementData.isScheduled) {
-            let emailRecipients: string[] = [];
-            let emailContent = `<p>${announcementData.content}</p>`;
-
-            if (announcementData.recipientId && announcementData.audience === 'tenant') {
-                const tenant = rawTenantsState.find(t => t.id === announcementData.recipientId);
-                if (tenant?.email) {
-                    emailRecipients.push(tenant.email);
-                }
-            } else if (announcementData.scope !== 'global' && announcementData.audience === 'tenant' && !announcementData.recipientId) {
-                const tenantsForClient = rawTenantsState.filter(t => t.clientId === announcementData.scope && t.email);
-                emailRecipients = tenantsForClient.map(t => t.email);
-            }
-
-            if (emailRecipients.length > 0) {
-                const client = rawClientsState.find(c => c.id === announcementData.scope);
-                const fromName = client?.name || announcementData.senderName;
-                
-                const mailRef = doc(collection(db, 'mail'));
-                batch.set(mailRef, {
-                    to: emailRecipients,
-                    message: {
-                        subject: `${fromName}: ${announcementData.title}`,
-                        html: emailContent,
-                    },
-                });
-            }
-        }
-
         await batch.commit();
         toast({ title: announcementData.isScheduled ? "Announcement Scheduled" : "Announcement Posted", description: "Your announcement has been saved." });
 
@@ -1919,6 +1890,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 

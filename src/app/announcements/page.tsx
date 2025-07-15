@@ -1,19 +1,22 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Megaphone, PlusCircle, Trash2, CalendarClock, History, Clock } from 'lucide-react';
-import { format, formatDistanceToNow, setHours, setMinutes } from 'date-fns';
+import { format, formatInTimeZone, toDate } from 'date-fns-tz';
+import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +33,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { Announcement } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+
 
 const announcementFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters.").max(100, "Title is too long."),
@@ -61,6 +63,13 @@ export default function AnnouncementsPage() {
 
   const currentClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
 
+  const client = useMemo(() => {
+    if (!currentClientId) return null;
+    return clients.find(c => c.id === currentClientId);
+  }, [clients, currentClientId]);
+
+  const clientTimezone = client?.timezone || 'Etc/UTC';
+
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementFormSchema),
     defaultValues: { title: '', content: '', isScheduled: false },
@@ -69,12 +78,11 @@ export default function AnnouncementsPage() {
   const isScheduled = form.watch('isScheduled');
 
   React.useEffect(() => {
-    const canAccess = user?.role === 'admin' || (user?.isSuperAdmin && viewingAsClientId);
-    if (!canAccess) {
-        toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
-        router.push(user?.isSuperAdmin ? '/admin' : '/');
+    if (user && !user.isSuperAdmin && user.role !== 'admin') {
+      toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
+      router.push('/');
     }
-  }, [user, viewingAsClientId, router, toast]);
+  }, [user, router, toast]);
 
   const { sentAnnouncements, scheduledAnnouncements } = useMemo(() => {
     if (!currentClientId) return { sentAnnouncements: [], scheduledAnnouncements: [] };
@@ -89,9 +97,9 @@ export default function AnnouncementsPage() {
   }, [announcements, currentClientId]);
 
   const clientName = useMemo(() => {
-    if (!currentClientId) return 'your';
-    return clients.find(c => c.id === currentClientId)?.name || 'your';
-  }, [clients, currentClientId]);
+    if (!client) return 'your';
+    return client.name || 'your';
+  }, [client]);
 
   const onSubmit = async (data: AnnouncementFormValues) => {
     if (!user || !currentClientId) return;
@@ -99,8 +107,17 @@ export default function AnnouncementsPage() {
     let scheduledAtISO: string | undefined = undefined;
     if (data.isScheduled && data.scheduledAtDate && data.scheduledAtTime) {
       const [hours, minutes] = data.scheduledAtTime.split(':').map(Number);
-      const scheduledDate = setMinutes(setHours(data.scheduledAtDate, hours), minutes);
-      scheduledAtISO = scheduledDate.toISOString();
+      
+      const localDate = data.scheduledAtDate;
+      const year = localDate.getFullYear();
+      const month = localDate.getMonth();
+      const day = localDate.getDate();
+
+      const dateInClientTimezone = new Date(year, month, day, hours, minutes);
+      
+      const zonedDateString = formatInTimeZone(dateInClientTimezone, clientTimezone, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+      scheduledAtISO = toDate(zonedDateString).toISOString();
+      
     } else if (data.isScheduled) {
       toast({ variant: 'destructive', title: 'Invalid Date/Time', description: 'Please provide a valid date and time for scheduling.' });
       return;
@@ -127,6 +144,9 @@ export default function AnnouncementsPage() {
 
   if (!currentClientId) {
     return <div className="container mx-auto py-2"><p>Please select a client to view announcements.</p></div>;
+  }
+   if (!user?.isSuperAdmin && user?.role !== 'admin') {
+     return <div className="container mx-auto py-2"><p>Access Denied.</p></div>;
   }
 
   return (
@@ -178,7 +198,7 @@ export default function AnnouncementsPage() {
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                         <FormLabel>Schedule for later?</FormLabel>
-                        <FormDescription>Post this announcement at a future date and time.</FormDescription>
+                        <FormDescription>Post this announcement at a future date and time in the client's timezone ({clientTimezone}).</FormDescription>
                     </div>
                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                   </FormItem>
@@ -272,7 +292,7 @@ export default function AnnouncementsPage() {
                       <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{announcement.content}</p>
                       <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
                         <Clock className="w-3 h-3"/>
-                        Scheduled for {format(new Date(announcement.scheduledAt), 'PPp')}
+                        Scheduled for {formatInTimeZone(new Date(announcement.scheduledAt), clientTimezone, 'PPp')}
                       </p>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => handleCancelScheduled(announcement.id)}>

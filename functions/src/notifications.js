@@ -72,6 +72,36 @@ async function runNotificationChecks() {
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
     const batch = db.batch();
+    const now = new Date();
+
+    // Check for scheduled announcements to be sent
+    const scheduledAnnouncementsQuery = await db.collection('announcements')
+        .where('status', '==', 'scheduled')
+        .where('scheduledAt', '<=', now.toISOString())
+        .get();
+        
+    scheduledAnnouncementsQuery.forEach(doc => {
+        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+        
+        // Queue emails for newly sent scheduled announcements
+        const announcement = doc.data();
+        if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
+            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
+            const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
+            const fromName = client?.name || announcement.senderName;
+            
+            clientTenants.forEach(tenant => {
+                const mailRef = db.collection('mail').doc();
+                batch.set(mailRef, {
+                    to: [tenant.email],
+                    message: {
+                        subject: `${fromName}: ${announcement.title}`,
+                        html: `<p>${announcement.content}</p>`,
+                    },
+                });
+            });
+        }
+    });
 
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
@@ -150,6 +180,9 @@ function createNotification(batch, tenant, client, title, content) {
         recipientUsername: tenant.username,
         createdAt: new Date().toISOString(),
         readBy: [],
+        status: 'sent',
+        isScheduled: false,
+        scheduledAt: new Date().toISOString(),
     };
     batch.set(announcementRef, announcementData);
 
