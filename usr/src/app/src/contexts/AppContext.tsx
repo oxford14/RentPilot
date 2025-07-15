@@ -306,11 +306,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (authUser.role === 'tenant') {
         return rawTechSupportRequests.filter(t => t.subscriberId === authUser.tenantId);
     }
-    // For client-side users (admin, user, technician)
+    if (authUser.role === 'technician') {
+      return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
+    }
     if (authUser.clientId) {
-      if (authUser.role === 'technician') {
-        return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
-      }
       return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
     }
     return [];
@@ -487,52 +486,64 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const batch = writeBatch(db);
 
-        // 1. Create the in-app announcement
-        const newAnnouncement = {
+        const newAnnouncement: Omit<Announcement, 'id'> = {
             ...announcementData,
-            createdAt: new Date().toISOString(),
+            createdAt: announcementData.isScheduled ? new Date().toISOString() : new Date().toISOString(), // set create time now for both
             readBy: [],
         };
         const announcementRef = doc(collection(db, 'announcements'));
         batch.set(announcementRef, newAnnouncement);
 
-        // 2. Handle email sending
-        let emailRecipients: string[] = [];
-        let emailContent = `<p>${announcementData.content}</p>`;
-
-        // Case 1: Direct message to a single tenant
-        if (announcementData.recipientId && announcementData.audience === 'tenant') {
-            const tenant = rawTenantsState.find(t => t.id === announcementData.recipientId);
-            if (tenant?.email) {
-                emailRecipients.push(tenant.email);
-            }
-        // Case 2: Broadcast to all tenants of a client
-        } else if (announcementData.scope !== 'global' && announcementData.audience === 'tenant' && !announcementData.recipientId) {
-            const tenantsForClient = rawTenantsState.filter(t => t.clientId === announcementData.scope && t.email);
-            emailRecipients = tenantsForClient.map(t => t.email);
-        }
-
-        // Add email to the batch if there are recipients
-        if (emailRecipients.length > 0) {
-            const client = rawClientsState.find(c => c.id === announcementData.scope);
-            const fromName = client?.name || announcementData.senderName;
+        if (newAnnouncement.status === 'sent') {
+            let emailRecipients: string[] = [];
             
-            const mailRef = doc(collection(db, 'mail'));
-            batch.set(mailRef, {
-                to: emailRecipients,
-                message: {
-                    subject: `${fromName}: ${announcementData.title}`,
-                    html: emailContent,
-                },
-            });
-        }
+            if (newAnnouncement.recipientId) {
+                const tenant = rawTenantsState.find(t => t.id === newAnnouncement.recipientId);
+                if (tenant?.email) emailRecipients.push(tenant.email);
+            } else if (newAnnouncement.scope !== 'global' && newAnnouncement.audience === 'tenant') {
+                const tenantsForClient = rawTenantsState.filter(t => t.clientId === newAnnouncement.scope && t.email);
+                emailRecipients = tenantsForClient.map(t => t.email);
+            }
 
+            if (emailRecipients.length > 0) {
+                const client = rawClientsState.find(c => c.id === newAnnouncement.scope);
+                const fromName = client?.name || newAnnouncement.senderName;
+                const mailRef = doc(collection(db, 'mail'));
+                batch.set(mailRef, {
+                    to: emailRecipients,
+                    message: {
+                        subject: `${fromName}: ${newAnnouncement.title}`,
+                        html: `<p>${newAnnouncement.content}</p>`,
+                    },
+                });
+            }
+        }
+        
         await batch.commit();
-        toast({ title: "Announcement Posted", description: "Your announcement has been sent." });
+        toast({ title: announcementData.isScheduled ? "Announcement Scheduled" : "Announcement Posted", description: "Your announcement has been saved." });
 
     } catch (error: any) {
       console.error("Error posting announcement:", error);
       toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
+    }
+  };
+
+  const updateAnnouncement = async (announcementId: string, announcementData: Partial<Omit<Announcement, 'id' | 'createdAt' | 'readBy'>>) => {
+    if (!authIsAuthenticated || !authUser) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const announcementRef = doc(db, 'announcements', announcementId);
+    try {
+        const dataToUpdate: any = { ...announcementData };
+        // Ensure status is correctly set when scheduling/updating
+        dataToUpdate.status = announcementData.isScheduled ? 'scheduled' : 'sent';
+
+        await updateDoc(announcementRef, dataToUpdate);
+        toast({ title: "Announcement Updated", description: "Your scheduled announcement has been updated." });
+    } catch (error: any) {
+        console.error("Error updating announcement:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to update announcement: ${error.message}` });
     }
   };
 
@@ -573,6 +584,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           senderName: authUser.username,
           recipientId: tenant.id,
           recipientUsername: tenant.username,
+          isScheduled: false,
+          scheduledAt: new Date().toISOString(),
+          status: 'sent',
         });
         toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
       }
@@ -1256,6 +1270,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               senderName: authUser.username,
               recipientId: tenant.id,
               recipientUsername: result.username,
+              isScheduled: false,
+              scheduledAt: new Date().toISOString(),
+              status: 'sent',
             });
             toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
         }
@@ -1854,6 +1871,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteWeeklyIncome,
 
     addAnnouncement,
+    updateAnnouncement,
     deleteAnnouncement,
     markAnnouncementAsRead,
     
@@ -1914,3 +1932,13 @@ export const useAppContext = (): AppContextType => {
 
 
 
+
+
+
+
+
+
+
+
+
+    
