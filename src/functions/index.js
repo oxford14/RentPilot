@@ -47,14 +47,14 @@ exports.notificationRunner = functions.https.onRequest(async (req, res) => {
 });
 
 
-// Scheduled function to run daily notification checks
-exports.dailyNotificationRunner = onSchedule("every day 01:00", async (event) => {
-    console.log("Running daily notification checks...");
+// Scheduled function to run every 5 minutes for timely notifications
+exports.timelyNotificationRunner = onSchedule("every 5 minutes", async (event) => {
+    console.log("Running timely notification checks...");
     try {
         await runNotificationChecks();
-        console.log("Successfully completed daily notification checks.");
+        console.log("Successfully completed timely notification checks.");
     } catch (error) {
-        console.error("Error running daily notification checks:", error);
+        console.error("Error running timely notification checks:", error);
     }
     return null;
 });
