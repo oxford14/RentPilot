@@ -47,8 +47,8 @@ exports.notificationRunner = functions.https.onRequest(async (req, res) => {
 });
 
 
-// Scheduled function to run every 5 minutes for timely notifications
-exports.timelyNotificationRunner = onSchedule("every 5 minutes", async (event) => {
+// Scheduled function to run every 1 minute for timely notifications
+exports.timelyNotificationRunner = onSchedule("every 1 minutes", async (event) => {
     console.log("Running timely notification checks...");
     try {
         await runNotificationChecks();
