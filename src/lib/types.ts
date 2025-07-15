@@ -6,6 +6,7 @@ export type ClientUserRole = 'admin' | 'user' | 'hub-admin' | 'technician';
 export type UserRole = ClientUserRole | 'tenant';
 
 export interface User { // For AuthContext user
+  id?: string; // Firestore document ID for ManagedUsers or SuperAdminUsers
   username: string;
   isSuperAdmin?: boolean;
   clientId?: string; // Firestore document ID of the client
@@ -250,6 +251,9 @@ export interface Announcement {
   readBy: string[]; // Array of usernames who have read it
   recipientId?: string; // NEW: Firestore document ID of the specific tenant recipient
   recipientUsername?: string; // NEW: username of the specific tenant recipient
+  isScheduled: boolean;
+  scheduledAt: string; // ISO String for scheduled time
+  status: 'sent' | 'scheduled';
 }
 
 // Navigation item types
@@ -487,4 +491,3 @@ export interface AppContextType {
   addTechSupportRequest: (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => Promise<void>;
   updateTechSupportRequest: (ticketId: string, updates: Partial<TechSupportRequest>) => Promise<void>;
 }
-
