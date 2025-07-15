@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Megaphone, PlusCircle, Trash2, CalendarClock, History, Clock } from 'lucide-react';
+import { Megaphone, PlusCircle, Trash2, CalendarClock, History, Clock, Edit } from 'lucide-react';
 import { format, formatInTimeZone, toDate, fromZonedTime } from 'date-fns-tz';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -55,11 +55,12 @@ const announcementFormSchema = z.object({
 type AnnouncementFormValues = z.infer<typeof announcementFormSchema>;
 
 export default function AnnouncementsPage() {
-  const { announcements, addAnnouncement, deleteAnnouncement, clients, viewingAsClientId } = useAppContext();
+  const { announcements, addAnnouncement, updateAnnouncement, deleteAnnouncement, clients, viewingAsClientId } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
   const currentClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
 
@@ -69,6 +70,8 @@ export default function AnnouncementsPage() {
   }, [clients, currentClientId]);
 
   const clientTimezone = client?.timezone || 'Etc/UTC';
+  
+  const isEditing = !!editingAnnouncement;
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementFormSchema),
@@ -100,6 +103,24 @@ export default function AnnouncementsPage() {
     if (!client) return 'your';
     return client.name || 'your';
   }, [client]);
+  
+  const handleEdit = (announcement: Announcement) => {
+    setEditingAnnouncement(announcement);
+    const scheduledDateTime = fromZonedTime(announcement.scheduledAt, clientTimezone);
+    form.reset({
+      title: announcement.title,
+      content: announcement.content,
+      isScheduled: true,
+      scheduledAtDate: scheduledDateTime,
+      scheduledAtTime: format(scheduledDateTime, 'HH:mm'),
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingAnnouncement(null);
+    form.reset({ title: '', content: '', isScheduled: false, scheduledAtDate: undefined, scheduledAtTime: '' });
+  }
 
   const onSubmit = async (data: AnnouncementFormValues) => {
     if (!user || !currentClientId) return;
@@ -117,7 +138,7 @@ export default function AnnouncementsPage() {
       
       const nowInClientTimezone = fromZonedTime(new Date(), clientTimezone);
 
-      if (dateInClientTimezone < nowInClientTimezone) {
+      if (dateInClientTimezone < nowInClientTimezone && !isEditing) {
           toast({
               variant: 'destructive',
               title: 'Invalid Schedule Time',
@@ -133,19 +154,26 @@ export default function AnnouncementsPage() {
       toast({ variant: 'destructive', title: 'Invalid Date/Time', description: 'Please provide a valid date and time for scheduling.' });
       return;
     }
+    
+    const baseData = {
+        title: data.title,
+        content: data.content,
+        scope: currentClientId,
+        audience: 'tenant' as const,
+        senderId: user.username,
+        senderName: user.username,
+        isScheduled: data.isScheduled,
+        scheduledAt: scheduledAtISO || new Date().toISOString(),
+        status: data.isScheduled ? 'scheduled' as const : 'sent' as const,
+    };
 
-    await addAnnouncement({
-      title: data.title,
-      content: data.content,
-      scope: currentClientId,
-      audience: 'tenant',
-      senderId: user.username,
-      senderName: user.username,
-      isScheduled: data.isScheduled,
-      scheduledAt: scheduledAtISO || new Date().toISOString(),
-      status: data.isScheduled ? 'scheduled' : 'sent',
-    });
-    form.reset({ title: '', content: '', isScheduled: false, scheduledAtDate: undefined, scheduledAtTime: '' });
+    if (isEditing && editingAnnouncement) {
+        await updateAnnouncement(editingAnnouncement.id, baseData);
+    } else {
+        await addAnnouncement(baseData);
+    }
+    
+    handleCancelEdit();
   };
   
   const handleCancelScheduled = (announcementId: string) => {
@@ -175,8 +203,8 @@ export default function AnnouncementsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <PlusCircle className="w-5 h-5 text-primary" />
-            Create New Announcement
+            {isEditing ? <Edit className="w-5 h-5 text-primary"/> : <PlusCircle className="w-5 h-5 text-primary" />}
+            {isEditing ? `Editing Scheduled Announcement` : 'Create New Announcement'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -257,9 +285,12 @@ export default function AnnouncementsPage() {
                     />
                 </div>
               )}
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {isScheduled ? 'Schedule Announcement' : 'Post Announcement Now'}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {isEditing ? 'Update Announcement' : (isScheduled ? 'Schedule Announcement' : 'Post Announcement Now')}
+                </Button>
+                {isEditing && <Button type="button" variant="outline" onClick={handleCancelEdit}>Cancel Edit</Button>}
+              </div>
             </form>
           </Form>
         </CardContent>
@@ -308,9 +339,14 @@ export default function AnnouncementsPage() {
                         Scheduled for {formatInTimeZone(new Date(announcement.scheduledAt), clientTimezone, 'PPp')}
                       </p>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleCancelScheduled(announcement.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(announcement)}>
+                            <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleCancelScheduled(announcement.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                    </div>
                   </div>
                 ))
               ) : (

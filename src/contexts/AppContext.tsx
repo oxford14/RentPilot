@@ -299,28 +299,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const techSupportRequests = useMemo(() => {
     if (!authIsAuthenticated || !authUser) return [];
-    
-    // Super Admin view
     if (authUser.isSuperAdmin) {
         const clientId = getScopedClientId();
         return clientId ? rawTechSupportRequests.filter(t => t.clientId === clientId) : rawTechSupportRequests;
     }
-    
-    // Tenant view
     if (authUser.role === 'tenant') {
         return rawTechSupportRequests.filter(t => t.subscriberId === authUser.tenantId);
     }
-    
-    // Client User views (admin, user, hub-admin, technician)
+    // For client-side users (admin, user, technician)
     if (authUser.clientId) {
-      // Technician view: only see assigned tickets
-      if (authUser.role === 'technician' && authUser.id) {
+      if (authUser.role === 'technician') {
         return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId && t.assignedTechnicianId === authUser.id);
       }
-      // Other client users see all tickets for their client
       return rawTechSupportRequests.filter(t => t.clientId === authUser.clientId);
     }
-
     return [];
   }, [rawTechSupportRequests, authIsAuthenticated, authUser, getScopedClientId]);
 
@@ -509,6 +501,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Error posting announcement:", error);
       toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
+    }
+  };
+
+  const updateAnnouncement = async (announcementId: string, announcementData: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => {
+    if (!authIsAuthenticated || !authUser) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const announcementRef = doc(db, 'announcements', announcementId);
+    try {
+        await updateDoc(announcementRef, announcementData);
+        toast({ title: "Announcement Updated", description: "Your scheduled announcement has been updated." });
+    } catch (error: any) {
+        console.error("Error updating announcement:", error);
+        toast({ variant: "destructive", title: "Error", description: `Failed to update announcement: ${error.message}` });
     }
   };
 
@@ -1836,6 +1843,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     deleteWeeklyIncome,
 
     addAnnouncement,
+    updateAnnouncement,
     deleteAnnouncement,
     markAnnouncementAsRead,
     
@@ -1890,6 +1898,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 

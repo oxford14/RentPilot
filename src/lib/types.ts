@@ -461,6 +461,7 @@ export interface AppContextType {
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
+  updateAnnouncement: (announcementId: string, data: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
   
