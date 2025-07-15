@@ -982,55 +982,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateClientNotificationSettings = async (settings: NotificationSettings) => {
-    if (!authIsAuthenticated || !authUser) {
-      throw new Error("You must be logged in.");
-    }
-
-    const clientId = getScopedClientId();
-    const canUpdate = authUser.isSuperAdmin || 
-                      (authUser.role === 'admin' && authUser.clientId === clientId) ||
-                      (authUser.role === 'hub-admin' && activeClient?.name === 'i-VirtuaTech' && authUser.clientId === clientId);
-    
-    if (!canUpdate) {
-        throw new Error("You do not have permission to update these settings.");
-    }
-    if (!clientId) {
-      throw new Error("No client context found.");
-    }
-
-    try {
-      const clientRef = doc(db, 'clients', clientId);
-      await updateDoc(clientRef, {
-        notificationSettings: settings
-      });
-    } catch (error: any) {
-      console.error("Error updating notification settings:", error);
-      throw new Error(`Failed to save notification settings: ${error.message}`);
-    }
-  };
-
-  const runNotificationTrigger = async (): Promise<{success: boolean, message: string}> => {
-    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/notificationRunner";
-    try {
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to trigger notifications: ${response.status} ${errorText}`);
-      }
-      const result = await response.json();
-      return { success: true, message: result.message };
-    } catch(error: any) {
-      console.error("Error triggering notifications:", error);
-      return { success: false, message: error.message };
-    }
-  }
-
   const deleteClient = async (clientId: string) => {
     if (!authUser?.isSuperAdmin) {
       toast({ variant: 'destructive', title: 'Unauthorized' });
@@ -1898,6 +1849,7 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 
 
