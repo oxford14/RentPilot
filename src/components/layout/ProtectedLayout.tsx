@@ -65,7 +65,8 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsCompanyFunds = pathname.startsWith('/company-funds');
     const pathIsPartnerEarnings = pathname.startsWith('/partner-earnings');
-    const pathIsClientAdminOnly = ['/users', '/announcements', '/notifications'].includes(pathname);
+    // REMOVED '/announcements' from this list
+    const pathIsClientAdminOnly = ['/users', '/notifications'].includes(pathname);
     const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
 

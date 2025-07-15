@@ -31,6 +31,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import type { Announcement } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const announcementFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters.").max(100, "Title is too long."),
@@ -52,10 +53,13 @@ const announcementFormSchema = z.object({
 type AnnouncementFormValues = z.infer<typeof announcementFormSchema>;
 
 export default function AnnouncementsPage() {
-  const { announcements, addAnnouncement, deleteAnnouncement, clients } = useAppContext();
+  const { announcements, addAnnouncement, deleteAnnouncement, clients, viewingAsClientId } = useAppContext();
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+
+  const currentClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementFormSchema),
@@ -64,25 +68,33 @@ export default function AnnouncementsPage() {
   
   const isScheduled = form.watch('isScheduled');
 
+  React.useEffect(() => {
+    const canAccess = user?.role === 'admin' || (user?.isSuperAdmin && viewingAsClientId);
+    if (!canAccess) {
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'You do not have permission to view this page.' });
+        router.push(user?.isSuperAdmin ? '/admin' : '/');
+    }
+  }, [user, viewingAsClientId, router, toast]);
+
   const { sentAnnouncements, scheduledAnnouncements } = useMemo(() => {
-    if (!user?.clientId) return { sentAnnouncements: [], scheduledAnnouncements: [] };
+    if (!currentClientId) return { sentAnnouncements: [], scheduledAnnouncements: [] };
     const all = announcements
-      .filter(a => a.scope === user.clientId && a.audience === 'tenant')
+      .filter(a => a.scope === currentClientId && a.audience === 'tenant')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     return {
       sentAnnouncements: all.filter(a => a.status === 'sent'),
       scheduledAnnouncements: all.filter(a => a.status === 'scheduled'),
     };
-  }, [announcements, user]);
+  }, [announcements, currentClientId]);
 
   const clientName = useMemo(() => {
-    if (!user?.clientId) return 'your';
-    return clients.find(c => c.id === user.clientId)?.name || 'your';
-  }, [clients, user]);
+    if (!currentClientId) return 'your';
+    return clients.find(c => c.id === currentClientId)?.name || 'your';
+  }, [clients, currentClientId]);
 
   const onSubmit = async (data: AnnouncementFormValues) => {
-    if (!user || !user.clientId) return;
+    if (!user || !currentClientId) return;
     
     let scheduledAtISO: string | undefined = undefined;
     if (data.isScheduled && data.scheduledAtDate && data.scheduledAtTime) {
@@ -97,7 +109,7 @@ export default function AnnouncementsPage() {
     await addAnnouncement({
       title: data.title,
       content: data.content,
-      scope: user.clientId,
+      scope: currentClientId,
       audience: 'tenant',
       senderId: user.username,
       senderName: user.username,
@@ -111,6 +123,10 @@ export default function AnnouncementsPage() {
   const handleCancelScheduled = (announcementId: string) => {
     deleteAnnouncement(announcementId);
     toast({ title: 'Scheduled post cancelled.' });
+  }
+
+  if (!currentClientId) {
+    return <div className="container mx-auto py-2"><p>Please select a client to view announcements.</p></div>;
   }
 
   return (
