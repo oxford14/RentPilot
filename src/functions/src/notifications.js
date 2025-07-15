@@ -72,49 +72,53 @@ async function runNotificationChecks() {
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
     const batch = db.batch();
-    const now = new Date();
-
-    // Check for scheduled announcements to be sent
-    const scheduledAnnouncementsQuery = await db.collection('announcements')
-        .where('status', '==', 'scheduled')
-        .where('scheduledAt', '<=', now.toISOString())
-        .get();
-        
-    scheduledAnnouncementsQuery.forEach(doc => {
-        batch.update(doc.ref, { status: 'sent' });
-        
-        // Queue emails for newly sent scheduled announcements
-        const announcement = doc.data();
-        if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
-            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
-            const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
-            const fromName = client?.name || announcement.senderName;
-            
-            clientTenants.forEach(tenant => {
-                const mailRef = db.collection('mail').doc();
-                batch.set(mailRef, {
-                    to: [tenant.email],
-                    message: {
-                        subject: `${fromName}: ${announcement.title}`,
-                        html: `<p>${announcement.content}</p>`,
-                    },
-                });
-            });
-        }
-    });
 
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
+        const timeZone = client.timezone || 'Etc/UTC';
+        
+        // Get the current time in the client's timezone
+        const nowInClientTimezone = new Date(new Date().toLocaleString('en-US', { timeZone }));
+
+        // Check for scheduled announcements for THIS client
+        const scheduledAnnouncementsQuery = await db.collection('announcements')
+            .where('scope', '==', client.id)
+            .where('status', '==', 'scheduled')
+            .where('scheduledAt', '<=', nowInClientTimezone.toISOString())
+            .get();
+        
+        scheduledAnnouncementsQuery.forEach(doc => {
+            batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+            
+            const announcement = doc.data();
+            if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
+                const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
+                const fromName = client.name || announcement.senderName;
+                
+                clientTenants.forEach(tenant => {
+                    const mailRef = db.collection('mail').doc();
+                    batch.set(mailRef, {
+                        to: [tenant.email],
+                        message: {
+                            subject: `${fromName}: ${announcement.title}`,
+                            html: `<p>${announcement.content}</p>`,
+                        },
+                    });
+                });
+            }
+        });
+
+        // Continue with other notification checks for this client
         const settings = client.notificationSettings;
         if (!settings || !client.hasAccount) continue;
 
-        const today = getStartOfDayInTimezone(new Date(), client.timezone || 'Etc/UTC');
+        const today = getStartOfDayInTimezone(new Date(), timeZone);
         const clientTenants = allTenants.filter(t => t.clientId === client.id && t.status === 'active' && t.hasAccount);
 
         for (const tenant of clientTenants) {
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
-                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
+                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), timeZone);
                 const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
