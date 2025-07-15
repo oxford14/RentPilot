@@ -72,7 +72,7 @@ export default function AnnouncementsPage() {
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementFormSchema),
-    defaultValues: { title: '', content: '', isScheduled: false },
+    defaultValues: { title: '', content: '', isScheduled: false, scheduledAtTime: '' },
   });
   
   const isScheduled = form.watch('isScheduled');
@@ -134,7 +134,7 @@ export default function AnnouncementsPage() {
       scheduledAt: scheduledAtISO || new Date().toISOString(),
       status: data.isScheduled ? 'scheduled' : 'sent',
     });
-    form.reset({ title: '', content: '', isScheduled: false, scheduledAtDate: undefined, scheduledAtTime: undefined });
+    form.reset({ title: '', content: '', isScheduled: false, scheduledAtDate: undefined, scheduledAtTime: '' });
   };
   
   const handleCancelScheduled = (announcementId: string) => {
