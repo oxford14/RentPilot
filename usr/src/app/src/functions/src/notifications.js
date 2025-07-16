@@ -45,7 +45,7 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
                     nextYear++;
                 }
                 const lastDayOfNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
-                const nextDueDayInMonth = Math.min(dueDay, lastDayOfNextMonth);
+                const nextDueDayInMonth = Math.min(dueDay, lastDayInMonth);
                 chargeDate = new Date(Date.UTC(nextYear, nextMonth, nextDueDayInMonth));
             }
         }
@@ -70,52 +70,55 @@ async function runNotificationChecks() {
     const allPayments = (await db.collection('payments').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allDues = (await db.collection('additionalDues').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
-
+    
     const batch = db.batch();
-    const now = new Date();
-
-    // Check for scheduled announcements to be sent
-    const scheduledAnnouncementsQuery = await db.collection('announcements')
-        .where('status', '==', 'scheduled')
-        .where('scheduledAt', '<=', now.toISOString())
-        .get();
-        
-    scheduledAnnouncementsQuery.forEach(doc => {
-        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
-        
-        // Queue emails for newly sent scheduled announcements
-        const announcement = doc.data();
-        if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
-            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
-            const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
-            const fromName = client?.name || announcement.senderName;
-            
-            clientTenants.forEach(tenant => {
-                const mailRef = db.collection('mail').doc();
-                batch.set(mailRef, {
-                    to: [tenant.email],
-                    message: {
-                        subject: `${fromName}: ${announcement.title}`,
-                        html: `<p>${announcement.content}</p>`,
-                    },
-                });
-            });
-        }
-    });
 
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
+        const timeZone = client.timezone || 'Etc/UTC';
+
+        // Check for scheduled announcements specific to this client's timezone
+        const nowInClientTimezone = new Date();
+        const scheduledAnnouncementsQuery = await db.collection('announcements')
+            .where('status', '==', 'scheduled')
+            .where('scope', '==', client.id)
+            .where('scheduledAt', '<=', nowInClientTimezone.toISOString())
+            .get();
+        
+        scheduledAnnouncementsQuery.forEach(doc => {
+            const announcement = doc.data();
+            batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+
+            // Queue emails for newly sent scheduled announcements
+            if (announcement.audience === 'tenant') {
+                const clientTenants = allTenants.filter(t => t.clientId === client.id && t.email && t.hasAccount);
+                const fromName = client.name || announcement.senderName;
+                
+                clientTenants.forEach(tenant => {
+                    const mailRef = db.collection('mail').doc();
+                    batch.set(mailRef, {
+                        to: [tenant.email],
+                        message: {
+                            subject: `${fromName}: ${announcement.title}`,
+                            html: `<p>${announcement.content}</p>`,
+                        },
+                    });
+                });
+            }
+        });
+
+        // Continue with other scheduled checks (rent, contracts)
         const settings = client.notificationSettings;
         if (!settings || !client.hasAccount) continue;
-
-        const today = getStartOfDayInTimezone(new Date(), client.timezone || 'Etc/UTC');
+        
+        const today = getStartOfDayInTimezone(new Date(), timeZone);
         const clientTenants = allTenants.filter(t => t.clientId === client.id && t.status === 'active' && t.hasAccount);
 
         for (const tenant of clientTenants) {
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
-                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
-                const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), timeZone);
+                const diffDays = Math.round((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
                     createNotification(batch, tenant, client, "Contract Expiration Reminder", message);
@@ -162,7 +165,9 @@ async function runNotificationChecks() {
         }
     }
 
-    await batch.commit();
+    if (batch._ops.length > 0) {
+        await batch.commit();
+    }
 }
 
 function createNotification(batch, tenant, client, title, content) {
