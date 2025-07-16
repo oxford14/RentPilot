@@ -73,19 +73,18 @@ async function runNotificationChecks() {
 
     const batch = db.batch();
     const now = new Date();
-    const nowISO = now.toISOString();
 
-    // Check for scheduled announcements to be sent across all clients
+    // Check for scheduled announcements to be sent
     const scheduledAnnouncementsQuery = await db.collection('announcements')
         .where('status', '==', 'scheduled')
-        .where('scheduledAt', '<=', nowISO)
+        .where('scheduledAt', '<=', now.toISOString())
         .get();
         
     scheduledAnnouncementsQuery.forEach(doc => {
-        const announcement = doc.data();
-        batch.update(doc.ref, { status: 'sent', createdAt: nowISO });
+        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
         
         // Queue emails for newly sent scheduled announcements
+        const announcement = doc.data();
         if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
             const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
             const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
@@ -163,7 +162,12 @@ async function runNotificationChecks() {
         }
     }
 
-    await batch.commit();
+    if(batch._ops.length > 0) {
+      await batch.commit();
+      console.log(`${batch._ops.length} operations committed to Firestore.`);
+    } else {
+      console.log('No pending notifications to send.');
+    }
 }
 
 function createNotification(batch, tenant, client, title, content) {
