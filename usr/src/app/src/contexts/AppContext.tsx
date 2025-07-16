@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest } from '@/lib/types';
@@ -501,7 +500,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 const tenant = rawTenantsState.find(t => t.id === newAnnouncement.recipientId);
                 if (tenant?.email) emailRecipients.push(tenant.email);
             } else if (newAnnouncement.scope !== 'global' && newAnnouncement.audience === 'tenant') {
-                const tenantsForClient = rawTenantsState.filter(t => t.clientId === newAnnouncement.scope && t.email);
+                const tenantsForClient = rawTenantsState.filter(t => t.clientId === newAnnouncement.scope && t.email && t.hasAccount);
                 emailRecipients = tenantsForClient.map(t => t.email);
             }
 
@@ -535,11 +534,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     const announcementRef = doc(db, 'announcements', announcementId);
     try {
-        const dataToUpdate: any = { ...announcementData };
-        // Ensure status is correctly set when scheduling/updating
-        dataToUpdate.status = announcementData.isScheduled ? 'scheduled' : 'sent';
-
-        await updateDoc(announcementRef, dataToUpdate);
+        await updateDoc(announcementRef, announcementData);
         toast({ title: "Announcement Updated", description: "Your scheduled announcement has been updated." });
     } catch (error: any) {
         console.error("Error updating announcement:", error);

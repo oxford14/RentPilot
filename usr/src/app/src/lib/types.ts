@@ -251,6 +251,9 @@ export interface Announcement {
   readBy: string[]; // Array of usernames who have read it
   recipientId?: string; // NEW: Firestore document ID of the specific tenant recipient
   recipientUsername?: string; // NEW: username of the specific tenant recipient
+  isScheduled: boolean;
+  scheduledAt: string; // ISO String for scheduled time
+  status: 'sent' | 'scheduled';
 }
 
 // Navigation item types
@@ -458,6 +461,7 @@ export interface AppContextType {
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
+  updateAnnouncement: (announcementId: string, data: Partial<Omit<Announcement, 'id' | 'createdAt' | 'readBy' | 'status'>>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
   

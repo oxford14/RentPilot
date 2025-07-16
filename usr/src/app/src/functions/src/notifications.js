@@ -45,7 +45,7 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
                     nextYear++;
                 }
                 const lastDayOfNextMonth = new Date(Date.UTC(nextYear, nextMonth + 1, 0)).getUTCDate();
-                const nextDueDayInMonth = Math.min(dueDay, lastDayInMonth);
+                const nextDueDayInMonth = Math.min(dueDay, lastDayOfNextMonth);
                 chargeDate = new Date(Date.UTC(nextYear, nextMonth, nextDueDayInMonth));
             }
         }
@@ -78,7 +78,7 @@ async function runNotificationChecks() {
         const timeZone = client.timezone || 'Etc/UTC';
 
         // Check for scheduled announcements specific to this client's timezone
-        const nowInClientTimezone = new Date();
+        const nowInClientTimezone = new Date(); // Use server's current time, which is UTC
         const scheduledAnnouncementsQuery = await db.collection('announcements')
             .where('status', '==', 'scheduled')
             .where('scope', '==', client.id)
@@ -167,6 +167,9 @@ async function runNotificationChecks() {
 
     if (batch._ops.length > 0) {
         await batch.commit();
+        console.log(`Committed ${batch._ops.length} notification operations to Firestore.`);
+    } else {
+        console.log('No pending notifications to send in this run.');
     }
 }
 
