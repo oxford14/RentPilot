@@ -73,16 +73,17 @@ async function runNotificationChecks() {
 
     const batch = db.batch();
     const now = new Date();
+    const nowISO = now.toISOString();
 
     // Check for scheduled announcements to be sent across all clients
     const scheduledAnnouncementsQuery = await db.collection('announcements')
         .where('status', '==', 'scheduled')
-        .where('scheduledAt', '<=', now.toISOString())
+        .where('scheduledAt', '<=', nowISO)
         .get();
         
     scheduledAnnouncementsQuery.forEach(doc => {
         const announcement = doc.data();
-        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+        batch.update(doc.ref, { status: 'sent', createdAt: nowISO });
         
         // Queue emails for newly sent scheduled announcements
         if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
