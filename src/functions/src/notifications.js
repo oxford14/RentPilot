@@ -71,45 +71,38 @@ async function runNotificationChecks() {
     const allDues = (await db.collection('additionalDues').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
 
+    const batch = db.batch();
     const now = new Date();
-    
-    // --- Step 1: Process scheduled announcements ---
+
+    // Check for scheduled announcements to be sent
     const scheduledAnnouncementsQuery = await db.collection('announcements')
         .where('status', '==', 'scheduled')
         .where('scheduledAt', '<=', now.toISOString())
         .get();
         
-    if (!scheduledAnnouncementsQuery.empty) {
-        const announcementBatch = db.batch();
-        scheduledAnnouncementsQuery.forEach(doc => {
-            const announcement = doc.data();
-            announcementBatch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+    scheduledAnnouncementsQuery.forEach(doc => {
+        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+        
+        // Queue emails for newly sent scheduled announcements
+        const announcement = doc.data();
+        if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
+            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
+            const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
+            const fromName = client?.name || announcement.senderName;
             
-            if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
-                const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
-                const fromName = client?.name || announcement.senderName;
-                const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
-
-                clientTenants.forEach(tenant => {
-                    const mailRef = db.collection('mail').doc();
-                    announcementBatch.set(mailRef, {
-                        to: [tenant.email],
-                        message: {
-                            subject: `${fromName}: ${announcement.title}`,
-                            html: `<p>${announcement.content}</p>`,
-                        },
-                    });
+            clientTenants.forEach(tenant => {
+                const mailRef = db.collection('mail').doc();
+                batch.set(mailRef, {
+                    to: [tenant.email],
+                    message: {
+                        subject: `${fromName}: ${announcement.title}`,
+                        html: `<p>${announcement.content}</p>`,
+                    },
                 });
-            }
-        });
-        await announcementBatch.commit();
-        console.log(`Processed ${scheduledAnnouncementsQuery.size} scheduled announcements.`);
-    } else {
-        console.log("No due scheduled announcements found.");
-    }
-    
-    // --- Step 2: Process other notifications (rent, contracts) ---
-    const notificationBatch = db.batch();
+            });
+        }
+    });
+
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
         const settings = client.notificationSettings;
@@ -122,10 +115,10 @@ async function runNotificationChecks() {
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
                 const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
-                const diffDays = Math.round((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
-                    createNotification(notificationBatch, tenant, client, "Contract Expiration Reminder", message);
+                    createNotification(batch, tenant, client, "Contract Expiration Reminder", message);
                 }
             }
             
@@ -154,7 +147,7 @@ async function runNotificationChecks() {
                 const diffDays = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
                 if (diffDays === settings.daysBeforeDueDate) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a friendly reminder from ${client.name} that your next rent payment is due on ${nextDueDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric' })}. Thank you!`;
-                    createNotification(notificationBatch, tenant, client, "Upcoming Due Date Reminder", message);
+                    createNotification(batch, tenant, client, "Upcoming Due Date Reminder", message);
                 }
             }
 
@@ -163,18 +156,23 @@ async function runNotificationChecks() {
                 const balance = calculateTenantBalance(tenant, allPayments, allDues, today);
                 if (balance > 0) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, just a friendly reminder from ${client.name} that you have an outstanding balance of ₱${balance.toFixed(2)}. Please let us know if you have any questions. Thank you!`;
-                    createNotification(notificationBatch, tenant, client, "Outstanding Balance Reminder", message);
+                    createNotification(batch, tenant, client, "Outstanding Balance Reminder", message);
                 }
             }
         }
     }
 
-    if(notificationBatch._ops.length > 0) {
-      await notificationBatch.commit();
-      console.log(`${notificationBatch._ops.length} rent/contract notification operations committed to Firestore.`);
-    } else {
-      console.log('No pending rent/contract notifications to send.');
-    }
+    await batch.commit();
+}
+
+// Helper to format PH numbers to the required 10-digit format
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10) return digitsOnly; // Already correct
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    return null; // Invalid format
 }
 
 function createNotification(batch, tenant, client, title, content) {
@@ -208,6 +206,22 @@ function createNotification(batch, tenant, client, title, content) {
                 html: `<p>${content}</p>`,
             },
         });
+    }
+
+    // NEW: Send SMS
+    const phoneNumber = formatPhoneNumber(tenant.phone);
+    if (phoneNumber) {
+        const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
+        const smsMessage = encodeURIComponent(content);
+        const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
+
+        // We are using fetch directly inside a Cloud Function.
+        // The function environment has node-fetch available.
+        // No need to handle the promise here, just fire and forget.
+        fetch(fullUrl)
+            .then(res => res.json())
+            .then(data => console.log(`SMS API response for ${phoneNumber}:`, data))
+            .catch(err => console.error(`Failed to send SMS to ${phoneNumber}:`, err));
     }
 }
 
