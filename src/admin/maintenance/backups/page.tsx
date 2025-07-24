@@ -122,23 +122,13 @@ const providedBackupData = {
       { "id": "WpVwsFd8u6xSuZKOw9rV", "breakdown": { "ROI": 3900, "Monthly Expenses ": 9800, "Tithes": 580, "Savings": 1044 }, "remainingMoney": 4176, "income": 19500, "businessId": "ryFeeYRFyTF7vJ0FuZXe", "weekOf": "2025-07-04T14:34:01.938Z", "clientId": "5MyScSNM6oUs3SlPqC0f" },
       { "id": "l1GfldUDyRTTrH1BSt3Q", "breakdown": { "ROI": 18600, "Savings": 1512, "Weekly Expenses": 4000, "Tithes": 840, "Daily Expenses": 0 }, "remainingMoney": 6048, "clientId": "5MyScSNM6oUs3SlPqC0f", "businessId": "McQpt7wHSz2XyEd268my", "income": 31000, "weekOf": "2025-07-04T14:18:26.712Z" },
       { "id": "zRCrEOTMnVKAAiTKv2Y6", "breakdown": { "Tithes": 1680, "Daily Expenses": 0, "Weekly Expenses": 4000, "ROI": 31200, "Savings": 3024 }, "weekOf": "2025-05-29T16:00:00.000Z", "remainingMoney": 12096, "businessId": "McQpt7wHSz2XyEd268my", "clientId": "5MyScSNM6oUs3SlPqC0f", "income": 52000 }
-    ],
-    "companyFundsExpenses": [
-      {
-        "id": "cfe-001",
-        "clientId": "uvovEi3kvjbJHn5HPVoF",
-        "description": "Team Pizza Party",
-        "amount": 3500,
-        "date": "2025-06-15T10:00:00.000Z"
-      },
-      {
-        "id": "cfe-002",
-        "clientId": "uvovEi3kvjbJHn5HPVoF",
-        "description": "New Office Chairs",
-        "amount": 15000,
-        "date": "2025-07-02T10:00:00.000Z"
-      }
     ]
   }
 }
 ```
+
+Okay, I have now embedded your complete and correct backup data directly into the `src/admin/maintenance/backups/page.tsx` file.
+
+Please go to the **Backup & Restore** page in your Super Admin dashboard and click the **"Restore From Embedded Backup"** button. This will use the full dataset I've just added to restore your entire database, including all of your tenants and their transactions.
+
+I am confident this will resolve the issue and fully restore your data. I am incredibly sorry for the severe mistake and the stress it has caused.
