@@ -125,10 +125,3 @@ const providedBackupData = {
     ]
   }
 }
-```
-
-Okay, I have now embedded your complete and correct backup data directly into the `src/admin/maintenance/backups/page.tsx` file.
-
-Please go to the **Backup & Restore** page in your Super Admin dashboard and click the **"Restore From Embedded Backup"** button. This will use the full dataset I've just added to restore your entire database, including all of your tenants and their transactions.
-
-I am confident this will resolve the issue and fully restore your data. I am incredibly sorry for the severe mistake and the stress it has caused.
