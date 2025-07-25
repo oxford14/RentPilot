@@ -63,6 +63,7 @@ const formatPhoneNumber = (phone) => {
     if (digitsOnly.length === 10) return digitsOnly; // Already correct
     if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
     if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    console.warn(`Invalid phone number format provided: ${phone}. Expected 10, 11, or 12 digits.`);
     return null; // Invalid format
 };
 
@@ -96,91 +97,75 @@ async function createNotification(batch, tenant, client, title, content) {
 
     // --- Email notification ---
     if (tenant.email) {
-        // Create the email document in the 'mail' collection
         const mailRef = db.collection('mail').doc();
-        const mailData = {
-            to: [tenant.email], // Crucial: Ensure it's an array, even for one recipient
+        batch.set(mailRef, {
+            to: [tenant.email], // Ensure array
             message: {
                 subject: `${client.name}: ${title}`,
-                html: `<p>${content}</p>`, // Simple HTML content
+                html: `<p>${content}</p>`,
             },
-            // Optional: Add delivery state if your extension uses it, though PENDING is often default
-            // delivery: {
-            //   state: 'PENDING', // Or let the extension set this
-            //   attempts: 0,
-            //   errorMessage: null,
-            //   updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            // }
-        };
-
-        // Add the email document creation to the batch
-        batch.set(mailRef, mailData);
-        console.log(`  - Email queued for ${tenant.email}`); // Log when queued
+        });
+        console.log(`  - Email queued for ${tenant.email}`);
     } else {
        console.log(`  - Skipping email (no email address) for tenant ${tenant.id}`);
     }
 
     // --- SMS notification ---
+    // 1. Format the phone number first
     const phoneNumber = formatPhoneNumber(tenant.phone);
+    console.log(`  - Processing SMS for tenant ${tenant.id}. Raw phone: ${tenant.phone}, Formatted: ${phoneNumber}`);
+
     if (phoneNumber) {
         try {
-            // Use the Free SMS API endpoint
             const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
-            // Encode the message content for URL safety
+            // 2. Encode the message content for URL safety
             const encodedMessage = encodeURIComponent(content);
-            // Construct the full API URL with parameters
+            // 3. Construct the full API URL with parameters
             const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${encodedMessage}`;
 
             console.log(`  - Attempting to send SMS to ${phoneNumber} via ${fullUrl}`);
 
-            // Make the GET request to the SMS API
+            // 4. Make the GET request to the SMS API
             const response = await fetch(fullUrl);
 
-            // --- Improved Error Handling ---
-            // Check if the HTTP response status indicates success (2xx range)
+            // 5. --- Check if the HTTP response status indicates success (2xx range) ---
             if (!response.ok) {
-                const errorText = await response.text(); // Try to get error details
-                const errorMsg = `SMS API request failed for ${phoneNumber} with status ${response.status} (${response.statusText}). Details: ${errorText}`;
+                const errorText = await response.text(); // Try to get error details from body
+                const errorMsg = `SMS API request failed for ${phoneNumber}. Status: ${response.status} (${response.statusText}). Response Body: ${errorText}`;
                 console.error(`  - SMS Error: ${errorMsg}`);
-                // Consider throwing an error here if you want the function to fail on SMS errors
+                // Depending on requirements, you might want to throw an error or just log
                 // throw new Error(errorMsg);
-                return; // Or return early if you don't want to proceed
+                return; // Stop processing SMS for this tenant
             }
 
-            // Parse the JSON response (only if response was ok)
+            // 6. --- Parse the JSON response (only if response was ok) ---
             let data;
-            try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
-            } catch (parseError) {
-                console.warn(`  - SMS Warning: Could not parse JSON response for ${phoneNumber}. Status: ${response.status}. Text: ${await response.text()}`);
-                data = {}; // Set data to empty object if parsing fails
+            } else {
+                // If not JSON, log the text content
+                const textContent = await response.text();
+                console.warn(`  - SMS Warning: Non-JSON response received for ${phoneNumber}. Content-Type: ${contentType}. Content: ${textContent}`);
+                data = { message: "Non-JSON response", content: textContent };
             }
 
-            // Log the successful response or relevant information from the API
-            console.log(`  - SMS sent successfully to ${phoneNumber}. API Response Status: ${response.status}, Data:`, data);
-
-            // Optional: Store SMS log in Firestore if needed (uncomment if desired)
-            /*
-            const smsLogRef = db.collection('smsLogs').doc(); // Example collection
-            await db.runTransaction(async (transaction) => {
-                transaction.set(smsLogRef, {
-                    tenantId: tenant.id,
-                    phoneNumber: phoneNumber,
-                    message: content,
-                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
-                    apiResponse: data,
-                    status: 'sent' // or 'failed' based on API response details
-                });
-            });
-            */
+            // 7. --- Log the successful response or relevant information from the API ---
+            console.log(`  - SMS sent successfully to ${phoneNumber}. API Response:`, data);
+            // Optional: Log to a Firestore collection for tracking
+            // await db.collection('smsLogs').add({ tenantId: tenant.id, phoneNumber, message: content, response: data, timestamp: admin.firestore.FieldValue.serverTimestamp() });
 
         } catch (err) {
-            // Log any network errors or unexpected exceptions during the fetch process
+            // 8. --- Log any network errors or unexpected exceptions during the fetch process ---
             console.error(`  - Failed to send SMS to tenant ${tenant.id} (${phoneNumber}):`, err.message);
             // Consider adding logic to retry or store failed attempts if needed
         }
     } else {
-        console.log(`  - Skipping SMS (no valid phone number) for tenant ${tenant.id}`);
+        if (tenant.phone) {
+            console.log(`  - Skipping SMS for tenant ${tenant.id} - phone number ${tenant.phone} could not be formatted correctly.`);
+        } else {
+             console.log(`  - Skipping SMS (no phone number) for tenant ${tenant.id}`);
+        }
     }
 }
 // --- End of modified createNotification function ---
@@ -302,3 +287,5 @@ async function runNotificationChecks() {
 }
 
 module.exports = { runNotificationChecks };
+
+    
