@@ -1,7 +1,7 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
-const fetch = require("node-fetch");
+const fetch = require("node-fetch").default;
 
 
 // Helper to get start of day in a specific timezone
