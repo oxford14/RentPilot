@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, UploadCloud, Save, Terminal, HardDriveUpload, ExternalLink, ShieldAlert, RotateCcw } from 'lucide-react';
+import { DatabaseBackup, Download, HardDriveDownload, Loader2, UploadCloud, Save, Terminal, HardDriveUpload, ExternalLink, ShieldAlert, RotateCcw, Server, Library } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -65,9 +65,9 @@ export default function BackupsPage() {
     }
   }, [backupScheduleSettings]);
 
-  const generateBackupData = () => {
+  const generateFullBackupData = () => {
     return {
-      backupType: "Full System Backup",
+      backupType: "Full Data Backup",
       timestamp: new Date().toISOString(),
       data: {
         clients: rawClients,
@@ -85,14 +85,28 @@ export default function BackupsPage() {
     };
   };
 
-  const handleDownloadBackup = () => {
-    const backupData = generateBackupData();
+  const generateSystemBackupData = () => {
+    return {
+      backupType: "System Data Backup",
+      timestamp: new Date().toISOString(),
+      data: {
+        clients: rawClients,
+        superAdminUsers: rawSuperAdminUsers,
+        managedUsers: rawManagedUsers,
+      }
+    };
+  };
+
+  const handleDownloadBackup = (backupType: 'full' | 'system') => {
+    const backupData = backupType === 'full' ? generateFullBackupData() : generateSystemBackupData();
+    const filenamePrefix = backupType === 'full' ? 'rentpilot-full-backup' : 'rentpilot-system-backup';
+    
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
     const link = document.createElement('a');
     link.href = jsonString;
-    link.download = `rentpilot-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
+    link.download = `${filenamePrefix}-${format(new Date(), 'yyyy-MM-dd')}.json`;
     link.click();
-    toast({ title: "Backup Downloading", description: "Your data is being downloaded as a JSON file." });
+    toast({ title: "Backup Downloading", description: `Your ${backupType} data is being downloaded as a JSON file.` });
   };
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,7 +169,7 @@ export default function BackupsPage() {
     setIsPushing(true);
     toast({ title: "Pushing backup to Google Drive...", description: "This may take a moment." });
 
-    const backupData = generateBackupData();
+    const backupData = generateFullBackupData();
     const result = await pushBackupToGoogleDrive(backupData);
 
     if (result.success && result.fileUrl) {
@@ -192,19 +206,19 @@ export default function BackupsPage() {
         <p className="text-muted-foreground">Manage your application data backups and system restore points.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="shadow-lg">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                      <HardDriveDownload className="w-5 h-5 text-primary" />
-                      Manual Local Backup
+                      <Library className="w-5 h-5 text-primary" />
+                      Full Data Backup
                   </CardTitle>
                   <CardDescription>
-                      Download a snapshot of your current data to your local machine.
+                      Download a complete snapshot of all application data including tenants, payments, and expenses.
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <Button onClick={handleDownloadBackup} className="w-full">
+                  <Button onClick={() => handleDownloadBackup('full')} className="w-full">
                       <Download className="mr-2 h-4 w-4" />
                       Download Full Backup
                   </Button>
@@ -212,6 +226,24 @@ export default function BackupsPage() {
           </Card>
           
           <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <Server className="w-5 h-5 text-primary" />
+                      System Data Backup
+                  </CardTitle>
+                  <CardDescription>
+                     Download a lightweight backup of system configurations and users (Clients, Super Admins, Managed Users).
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <Button onClick={() => handleDownloadBackup('system')} className="w-full">
+                      <Download className="mr-2 h-4 w-4" />
+                      Download System Backup
+                  </Button>
+              </CardContent>
+          </Card>
+
+           <Card className="shadow-lg">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                       <UploadCloud className="w-5 h-5 text-primary" />
@@ -237,7 +269,7 @@ export default function BackupsPage() {
                       Restore from Backup
                   </CardTitle>
                   <CardDescription>
-                      Upload a JSON backup file to restore application data.
+                      Upload a JSON backup file to restore application data. This will overwrite existing data.
                   </CardDescription>
               </CardHeader>
               <CardContent>
