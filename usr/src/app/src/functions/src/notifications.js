@@ -1,8 +1,8 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
-const fetch = require("node-fetch").default;
-
+// Import node-fetch correctly for Node.js environment
+const fetch = require("node-fetch"); // Make sure node-fetch v2 is installed
 
 // Helper to get start of day in a specific timezone
 const getStartOfDayInTimezone = (date, timeZone) => {
@@ -22,11 +22,9 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
     const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
     const joinDate = new Date(tenant.joinDate);
     const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
-
     const totalCredits = allPayments
         .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit' && p.paymentMethod !== 'From Credit')
         .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
-    
     let totalLiability = 0;
     if (joinDate < boundaryDate) {
         if (tenant.rent_history && tenant.rent_history.length > 0) {
@@ -52,13 +50,127 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
             }
         }
     }
-    
     allDues.filter(d => d.tenantId === tenant.id && new Date(d.dueDate) < boundaryDate).forEach(due => {
         totalLiability += due.amount;
     });
-
     return totalLiability - totalCredits;
 };
+
+// Helper to format PH numbers to the required 10-digit format
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10) return digitsOnly; // Already correct
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    return null; // Invalid format
+};
+
+// --- Modified createNotification function ---
+async function createNotification(batch, tenant, client, title, content) {
+    // --- In-app notification ---
+    if (tenant.username) {
+        const announcementRef = db.collection('announcements').doc();
+        const announcementData = {
+            title: title,
+            content: content,
+            scope: client.id, // Scope to the client
+            audience: 'tenant',
+            senderId: 'system',
+            senderName: 'RentPilot System',
+            recipientId: tenant.id,
+            recipientUsername: tenant.username,
+            createdAt: new Date().toISOString(),
+            readBy: [],
+            status: 'sent', // Mark as sent immediately
+            isScheduled: false,
+            scheduledAt: new Date().toISOString(), // Or could be null if not scheduled
+        };
+        batch.set(announcementRef, announcementData);
+        console.log(`In-app notification queued for tenant ${tenant.username}`);
+    } else {
+         console.log(`Skipping in-app notification for tenant ${tenant.id} - no username`);
+    }
+
+    // --- Email notification ---
+    // This part mimics the working announcement email logic
+    if (tenant.email) {
+        // Create the email document in the 'mail' collection
+        const mailRef = db.collection('mail').doc();
+        const mailData = {
+            to: [tenant.email], // Ensure it's an array
+            message: {
+                subject: `${client.name}: ${title}`, // Use client name in subject
+                html: `<p>${content}</p>`, // Simple HTML content
+            },
+            // Optional: Add delivery status tracking if needed by your extension
+            // delivery: {
+            //   state: 'PENDING',
+            //   attempts: 0,
+            //   errorMessage: null,
+            //   updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            // }
+        };
+
+        // Add the email document creation to the batch
+        batch.set(mailRef, mailData);
+        console.log(`Email queued for tenant ${tenant.email}`);
+    } else {
+         console.log(`Skipping email for tenant ${tenant.id} - no email address`);
+    }
+
+
+    // --- SMS notification ---
+    const phoneNumber = formatPhoneNumber(tenant.phone);
+    if (phoneNumber) {
+        try {
+            // Use the Free SMS API endpoint
+            const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
+            // Encode the message content for URL safety
+            const encodedMessage = encodeURIComponent(content);
+            // Construct the full API URL with parameters
+            const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${encodedMessage}`;
+
+            console.log(`Attempting to send SMS to ${phoneNumber} via ${fullUrl}`);
+
+            // Make the GET request to the SMS API
+            const response = await fetch(fullUrl);
+
+            // Check if the response is successful (status code 200-299)
+            if (!response.ok) {
+                 const errorText = await response.text(); // Get error details if possible
+                 throw new Error(`SMS API request failed with status ${response.status}: ${errorText}`);
+            }
+
+            // Parse the JSON response
+            const data = await response.json();
+
+            // Log the successful response from the API
+            console.log(`SMS sent successfully to ${phoneNumber}. API Response:`, data);
+
+            // Optional: Store SMS log in Firestore if needed
+            // const smsLogRef = db.collection('smsLogs').doc(); // Example collection
+            // await db.runTransaction(async (transaction) => {
+            //     transaction.set(smsLogRef, {
+            //         tenantId: tenant.id,
+            //         phoneNumber: phoneNumber,
+            //         message: content,
+            //         sentAt: admin.firestore.FieldValue.serverTimestamp(),
+            //         apiResponse: data,
+            //         status: 'sent' // or 'failed' based on API response
+            //     });
+            // });
+
+        } catch (err) {
+            // Log any errors that occurred during the SMS sending process
+            console.error(`Failed to send SMS to tenant ${tenant.id} (${phoneNumber}):`, err.message);
+            // Consider adding logic to retry or store failed attempts if needed
+        }
+    } else {
+        console.log(`Skipping SMS for tenant ${tenant.id} - no valid phone number`);
+    }
+}
+// --- End of modified createNotification function ---
 
 
 // Main function to check and send notifications
@@ -68,19 +180,16 @@ async function runNotificationChecks() {
         console.log("No clients found.");
         return;
     }
-
     const allPayments = (await db.collection('payments').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allDues = (await db.collection('additionalDues').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const now = new Date();
-
     // Separate batch for scheduled announcements to avoid interfering with reminder logic
     const announcementBatch = db.batch();
     const scheduledAnnouncementsQuery = await db.collection('announcements')
         .where('status', '==', 'scheduled')
         .where('scheduledAt', '<=', now.toISOString())
         .get();
-        
     scheduledAnnouncementsQuery.forEach(doc => {
         announcementBatch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
         const announcement = doc.data();
@@ -88,7 +197,6 @@ async function runNotificationChecks() {
             const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
             const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
             const fromName = client?.name || announcement.senderName;
-            
             clientTenants.forEach(tenant => {
                 const mailRef = db.collection('mail').doc();
                 announcementBatch.set(mailRef, {
@@ -98,37 +206,40 @@ async function runNotificationChecks() {
                         html: `<p>${announcement.content}</p>`,
                     },
                 });
+                 console.log(`Queued email for announcement to ${tenant.email}`);
             });
         }
     });
     await announcementBatch.commit();
-
+    console.log("Scheduled announcements processed and emails queued.");
 
     // Process reminders for each client
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
         const settings = client.notificationSettings;
-        if (!settings) continue;
-
+        if (!settings) {
+             console.log(`Skipping client ${client.id} - no notification settings`);
+             continue;
+        }
         const today = getStartOfDayInTimezone(new Date(), client.timezone || 'Etc/UTC');
         const clientTenants = allTenants.filter(t => t.clientId === client.id && t.status === 'active' && t.hasAccount);
 
+        // Process each tenant for this client
         for (const tenant of clientTenants) {
             const batch = db.batch(); // Create a new batch for each tenant's notifications
-            
-            let notificationCreated = false;
+            let notificationCreated = false; // Flag to track if any notification actions were added to the batch
 
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
                 const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
-                const diffDays = Math.round((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
                     await createNotification(batch, tenant, client, "Contract Expiration Reminder", message);
                     notificationCreated = true;
                 }
             }
-            
+
             // Rent due checks
             const getAnniversaryForMonth = (t, refDate) => {
                 const joinDate = new Date(t.joinDate);
@@ -139,7 +250,6 @@ async function runNotificationChecks() {
                 const anniversaryDay = Math.min(dueDay, lastDayInMonth);
                 return new Date(Date.UTC(refYear, refMonth, anniversaryDay));
             };
-            
             const anniversaryThisMonth = getAnniversaryForMonth(tenant, today);
             let nextDueDate;
             if (anniversaryThisMonth > today) {
@@ -148,7 +258,7 @@ async function runNotificationChecks() {
                 const nextMonthDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
                 nextDueDate = getAnniversaryForMonth(tenant, nextMonthDate);
             }
-            
+
             // Pre-due date reminder
             if (settings.daysBeforeDueDate > 0) {
                 const diffDays = Math.round((nextDueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
@@ -168,73 +278,23 @@ async function runNotificationChecks() {
                     notificationCreated = true;
                 }
             }
-            
+
+            // If any notifications were queued for this tenant, commit the batch
             if (notificationCreated) {
-                await batch.commit(); // Commit the batch for this tenant
+                try {
+                    await batch.commit();
+                    console.log(`Notifications (in-app, email, SMS) committed for tenant ${tenant.id}`);
+                } catch (commitError) {
+                    console.error(`Error committing notifications batch for tenant ${tenant.id}:`, commitError);
+                }
+            } else {
+                 console.log(`No notifications triggered for tenant ${tenant.id}`);
             }
-        }
-    }
-}
-
-// Helper to format PH numbers to the required 10-digit format
-const formatPhoneNumber = (phone) => {
-    if (!phone) return null;
-    const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length === 10) return digitsOnly; // Already correct
-    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
-    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
-    return null; // Invalid format
-}
-
-async function createNotification(batch, tenant, client, title, content) {
-    // In-app notification
-    if (tenant.username) {
-        const announcementRef = db.collection('announcements').doc();
-        const announcementData = {
-            title: title,
-            content: content,
-            scope: client.id,
-            audience: 'tenant',
-            senderId: 'system',
-            senderName: 'RentPilot System',
-            recipientId: tenant.id,
-            recipientUsername: tenant.username,
-            createdAt: new Date().toISOString(),
-            readBy: [],
-            status: 'sent',
-            isScheduled: false,
-            scheduledAt: new Date().toISOString(),
-        };
-        batch.set(announcementRef, announcementData);
-    }
-
-    // Email notification
-    if (tenant.email) {
-        const mailRef = db.collection('mail').doc();
-        batch.set(mailRef, {
-            to: [tenant.email],
-            message: {
-                subject: `${client.name}: ${title}`,
-                html: `<p>${content}</p>`,
-            },
-        });
-    }
-
-    // SMS notification
-    const phoneNumber = formatPhoneNumber(tenant.phone);
-    if (phoneNumber) {
-        const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
-        const smsMessage = encodeURIComponent(content);
-        const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
-
-        try {
-            console.log(`Sending SMS to ${phoneNumber}: ${content}`);
-            await fetch(fullUrl);
-            console.log(`SMS API call successful for ${phoneNumber}`);
-        } catch (err) {
-            console.error(`Failed to send SMS to ${phoneNumber}:`, err);
-        }
-    }
+        } // End tenant loop for this client
+    } // End client loop
+    console.log("All client reminder checks completed.");
 }
 
 module.exports = { runNotificationChecks };
+
+    
