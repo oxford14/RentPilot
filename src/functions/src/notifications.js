@@ -1,6 +1,8 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
+const fetch = require("node-fetch");
+
 
 // Helper to get start of day in a specific timezone
 const getStartOfDayInTimezone = (date, timeZone) => {
@@ -216,7 +218,6 @@ function createNotification(batch, tenant, client, title, content) {
         const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
 
         // We are using fetch directly inside a Cloud Function.
-        // The function environment has node-fetch available.
         // No need to handle the promise here, just fire and forget.
         fetch(fullUrl)
             .then(res => res.json())
