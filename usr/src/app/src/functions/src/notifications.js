@@ -1,6 +1,8 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
+const fetch = require("node-fetch").default;
+
 
 // Helper to get start of day in a specific timezone
 const getStartOfDayInTimezone = (date, timeZone) => {
@@ -70,55 +72,52 @@ async function runNotificationChecks() {
     const allPayments = (await db.collection('payments').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allDues = (await db.collection('additionalDues').get()).docs.map(d => ({ id: d.id, ...d.data() }));
     const allTenants = (await db.collection('tenants').get()).docs.map(d => ({ id: d.id, ...d.data() }));
-    
+
     const batch = db.batch();
+    const now = new Date();
+
+    // Check for scheduled announcements to be sent
+    const scheduledAnnouncementsQuery = await db.collection('announcements')
+        .where('status', '==', 'scheduled')
+        .where('scheduledAt', '<=', now.toISOString())
+        .get();
+        
+    scheduledAnnouncementsQuery.forEach(doc => {
+        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
+        
+        // Queue emails for newly sent scheduled announcements
+        const announcement = doc.data();
+        if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
+            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
+            const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
+            const fromName = client?.name || announcement.senderName;
+            
+            clientTenants.forEach(tenant => {
+                const mailRef = db.collection('mail').doc();
+                batch.set(mailRef, {
+                    to: [tenant.email],
+                    message: {
+                        subject: `${fromName}: ${announcement.title}`,
+                        html: `<p>${announcement.content}</p>`,
+                    },
+                });
+            });
+        }
+    });
 
     for (const clientDoc of clientsSnapshot.docs) {
         const client = { id: clientDoc.id, ...clientDoc.data() };
-        const timeZone = client.timezone || 'Etc/UTC';
-
-        // Check for scheduled announcements specific to this client's timezone
-        const nowInClientTimezone = new Date(); // Use server's current time, which is UTC
-        const scheduledAnnouncementsQuery = await db.collection('announcements')
-            .where('status', '==', 'scheduled')
-            .where('scope', '==', client.id)
-            .where('scheduledAt', '<=', nowInClientTimezone.toISOString())
-            .get();
-        
-        scheduledAnnouncementsQuery.forEach(doc => {
-            const announcement = doc.data();
-            batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
-
-            // Queue emails for newly sent scheduled announcements
-            if (announcement.audience === 'tenant') {
-                const clientTenants = allTenants.filter(t => t.clientId === client.id && t.email && t.hasAccount);
-                const fromName = client.name || announcement.senderName;
-                
-                clientTenants.forEach(tenant => {
-                    const mailRef = db.collection('mail').doc();
-                    batch.set(mailRef, {
-                        to: [tenant.email],
-                        message: {
-                            subject: `${fromName}: ${announcement.title}`,
-                            html: `<p>${announcement.content}</p>`,
-                        },
-                    });
-                });
-            }
-        });
-
-        // Continue with other scheduled checks (rent, contracts)
         const settings = client.notificationSettings;
         if (!settings || !client.hasAccount) continue;
-        
-        const today = getStartOfDayInTimezone(new Date(), timeZone);
+
+        const today = getStartOfDayInTimezone(new Date(), client.timezone || 'Etc/UTC');
         const clientTenants = allTenants.filter(t => t.clientId === client.id && t.status === 'active' && t.hasAccount);
 
         for (const tenant of clientTenants) {
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
-                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), timeZone);
-                const diffDays = Math.round((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
+                const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
                     createNotification(batch, tenant, client, "Contract Expiration Reminder", message);
@@ -165,12 +164,17 @@ async function runNotificationChecks() {
         }
     }
 
-    if (batch._ops.length > 0) {
-        await batch.commit();
-        console.log(`Committed ${batch._ops.length} notification operations to Firestore.`);
-    } else {
-        console.log('No pending notifications to send in this run.');
-    }
+    await batch.commit();
+}
+
+// Helper to format PH numbers to the required 10-digit format
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10) return digitsOnly; // Already correct
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    return null; // Invalid format
 }
 
 function createNotification(batch, tenant, client, title, content) {
@@ -204,6 +208,21 @@ function createNotification(batch, tenant, client, title, content) {
                 html: `<p>${content}</p>`,
             },
         });
+    }
+
+    // NEW: Send SMS
+    const phoneNumber = formatPhoneNumber(tenant.phone);
+    if (phoneNumber) {
+        const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
+        const smsMessage = encodeURIComponent(content);
+        const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
+
+        // We are using fetch directly inside a Cloud Function.
+        // No need to handle the promise here, just fire and forget.
+        fetch(fullUrl)
+            .then(res => res.json())
+            .then(data => console.log(`SMS API response for ${phoneNumber}:`, data))
+            .catch(err => console.error(`Failed to send SMS to ${phoneNumber}:`, err));
     }
 }
 
