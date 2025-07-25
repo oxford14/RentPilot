@@ -121,7 +121,7 @@ async function runNotificationChecks() {
             // Check contract expiry
             if (settings.daysBeforeContractExpiry > 0 && tenant.contractEndDate) {
                 const endDate = getStartOfDayInTimezone(new Date(tenant.contractEndDate), client.timezone || 'Etc/UTC');
-                const diffDays = (endDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+                const diffDays = Math.round((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
                 if (diffDays === settings.daysBeforeContractExpiry) {
                     const message = `Hi ${tenant.name.split(' ')[0]}, this is a reminder from ${client.name} that your contract is expiring in ${diffDays} days on ${endDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' })}.`;
                     await createNotification(batch, tenant, client, "Contract Expiration Reminder", message);
@@ -228,9 +228,9 @@ async function createNotification(batch, tenant, client, title, content) {
         const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
 
         try {
-            const response = await fetch(fullUrl);
-            const data = await response.json();
-            console.log(`SMS API response for ${phoneNumber}:`, data);
+            console.log(`Sending SMS to ${phoneNumber}: ${content}`);
+            await fetch(fullUrl);
+            console.log(`SMS API call successful for ${phoneNumber}`);
         } catch (err) {
             console.error(`Failed to send SMS to ${phoneNumber}:`, err);
         }
@@ -238,5 +238,3 @@ async function createNotification(batch, tenant, client, title, content) {
 }
 
 module.exports = { runNotificationChecks };
-
-    
