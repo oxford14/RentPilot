@@ -1,8 +1,8 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
-const fetch = require("node-fetch").default;
-
+// Ensure node-fetch v2 is used for CommonJS
+const fetch = require('node-fetch'); // Make sure node-fetch@^2.6.7 is in your package.json
 
 // Helper to get start of day in a specific timezone
 const getStartOfDayInTimezone = (date, timeZone) => {
@@ -22,11 +22,9 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
     const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
     const joinDate = new Date(tenant.joinDate);
     const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
-
     const totalCredits = allPayments
         .filter(p => p.tenantId === tenant.id && new Date(p.date) < boundaryDate && p.paymentMethod !== 'Security Deposit' && p.paymentMethod !== 'From Credit')
         .reduce((sum, p) => sum + (p.amount || 0) + (p.discountApplied || 0), 0);
-    
     let totalLiability = 0;
     if (joinDate < boundaryDate) {
         if (tenant.rent_history && tenant.rent_history.length > 0) {
@@ -52,13 +50,140 @@ const calculateTenantBalance = (tenant, allPayments, allDues, upToDate) => {
             }
         }
     }
-    
     allDues.filter(d => d.tenantId === tenant.id && new Date(d.dueDate) < boundaryDate).forEach(due => {
         totalLiability += due.amount;
     });
-
     return totalLiability - totalCredits;
 };
+
+// Helper to format PH numbers to the required 10-digit format
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10) return digitsOnly; // Already correct
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    return null; // Invalid format
+};
+
+// --- Modified createNotification function ---
+async function createNotification(batch, tenant, client, title, content) {
+    console.log(`Creating notifications for tenant ${tenant.id} (${tenant.username || 'no username'}, ${tenant.email || 'no email'}, ${tenant.phone || 'no phone'}): ${title}`);
+
+    // --- In-app notification ---
+    if (tenant.username) {
+        const announcementRef = db.collection('announcements').doc();
+        const announcementData = {
+            title: title,
+            content: content,
+            scope: client.id,
+            audience: 'tenant',
+            senderId: 'system',
+            senderName: 'RentPilot System',
+            recipientId: tenant.id,
+            recipientUsername: tenant.username,
+            createdAt: new Date().toISOString(),
+            readBy: [],
+            status: 'sent',
+            isScheduled: false,
+            scheduledAt: new Date().toISOString(),
+        };
+        batch.set(announcementRef, announcementData);
+        console.log(`  - In-app notification queued for ${tenant.username}`);
+    } else {
+        console.log(`  - Skipping in-app (no username) for tenant ${tenant.id}`);
+    }
+
+    // --- Email notification ---
+    if (tenant.email) {
+        // Create the email document in the 'mail' collection
+        const mailRef = db.collection('mail').doc();
+        const mailData = {
+            to: [tenant.email], // Crucial: Ensure it's an array, even for one recipient
+            message: {
+                subject: `${client.name}: ${title}`,
+                html: `<p>${content}</p>`, // Simple HTML content
+            },
+            // Optional: Add delivery state if your extension uses it, though PENDING is often default
+            // delivery: {
+            //   state: 'PENDING', // Or let the extension set this
+            //   attempts: 0,
+            //   errorMessage: null,
+            //   updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            // }
+        };
+
+        // Add the email document creation to the batch
+        batch.set(mailRef, mailData);
+        console.log(`  - Email queued for ${tenant.email}`); // Log when queued
+    } else {
+       console.log(`  - Skipping email (no email address) for tenant ${tenant.id}`);
+    }
+
+    // --- SMS notification ---
+    const phoneNumber = formatPhoneNumber(tenant.phone);
+    if (phoneNumber) {
+        try {
+            // Use the Free SMS API endpoint
+            const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
+            // Encode the message content for URL safety
+            const encodedMessage = encodeURIComponent(content);
+            // Construct the full API URL with parameters
+            const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${encodedMessage}`;
+
+            console.log(`  - Attempting to send SMS to ${phoneNumber} via ${fullUrl}`);
+
+            // Make the GET request to the SMS API
+            const response = await fetch(fullUrl);
+
+            // --- Improved Error Handling ---
+            // Check if the HTTP response status indicates success (2xx range)
+            if (!response.ok) {
+                const errorText = await response.text(); // Try to get error details
+                const errorMsg = `SMS API request failed for ${phoneNumber} with status ${response.status} (${response.statusText}). Details: ${errorText}`;
+                console.error(`  - SMS Error: ${errorMsg}`);
+                // Consider throwing an error here if you want the function to fail on SMS errors
+                // throw new Error(errorMsg);
+                return; // Or return early if you don't want to proceed
+            }
+
+            // Parse the JSON response (only if response was ok)
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                console.warn(`  - SMS Warning: Could not parse JSON response for ${phoneNumber}. Status: ${response.status}. Text: ${await response.text()}`);
+                data = {}; // Set data to empty object if parsing fails
+            }
+
+            // Log the successful response or relevant information from the API
+            console.log(`  - SMS sent successfully to ${phoneNumber}. API Response Status: ${response.status}, Data:`, data);
+
+            // Optional: Store SMS log in Firestore if needed (uncomment if desired)
+            /*
+            const smsLogRef = db.collection('smsLogs').doc(); // Example collection
+            await db.runTransaction(async (transaction) => {
+                transaction.set(smsLogRef, {
+                    tenantId: tenant.id,
+                    phoneNumber: phoneNumber,
+                    message: content,
+                    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+                    apiResponse: data,
+                    status: 'sent' // or 'failed' based on API response details
+                });
+            });
+            */
+
+        } catch (err) {
+            // Log any network errors or unexpected exceptions during the fetch process
+            console.error(`  - Failed to send SMS to tenant ${tenant.id} (${phoneNumber}):`, err.message);
+            // Consider adding logic to retry or store failed attempts if needed
+        }
+    } else {
+        console.log(`  - Skipping SMS (no valid phone number) for tenant ${tenant.id}`);
+    }
+}
+// --- End of modified createNotification function ---
 
 
 // Main function to check and send notifications
@@ -172,67 +297,6 @@ async function runNotificationChecks() {
             if (notificationCreated) {
                 await batch.commit(); // Commit the batch for this tenant
             }
-        }
-    }
-}
-
-// Helper to format PH numbers to the required 10-digit format
-const formatPhoneNumber = (phone) => {
-    if (!phone) return null;
-    const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length === 10) return digitsOnly; // Already correct
-    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
-    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
-    return null; // Invalid format
-}
-
-async function createNotification(batch, tenant, client, title, content) {
-    // In-app notification
-    if (tenant.username) {
-        const announcementRef = db.collection('announcements').doc();
-        const announcementData = {
-            title: title,
-            content: content,
-            scope: client.id,
-            audience: 'tenant',
-            senderId: 'system',
-            senderName: 'RentPilot System',
-            recipientId: tenant.id,
-            recipientUsername: tenant.username,
-            createdAt: new Date().toISOString(),
-            readBy: [],
-            status: 'sent',
-            isScheduled: false,
-            scheduledAt: new Date().toISOString(),
-        };
-        batch.set(announcementRef, announcementData);
-    }
-
-    // Email notification
-    if (tenant.email) {
-        const mailRef = db.collection('mail').doc();
-        batch.set(mailRef, {
-            to: [tenant.email],
-            message: {
-                subject: `${client.name}: ${title}`,
-                html: `<p>${content}</p>`,
-            },
-        });
-    }
-
-    // SMS notification
-    const phoneNumber = formatPhoneNumber(tenant.phone);
-    if (phoneNumber) {
-        const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
-        const smsMessage = encodeURIComponent(content);
-        const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
-
-        try {
-            console.log(`Sending SMS to ${phoneNumber}: ${content}`);
-            await fetch(fullUrl);
-            console.log(`SMS API call successful for ${phoneNumber}`);
-        } catch (err) {
-            console.error(`Failed to send SMS to ${phoneNumber}:`, err);
         }
     }
 }
