@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { DatabaseBackup, Download, HardDriveDownload, Loader2, UploadCloud, Save, Terminal, HardDriveUpload, ExternalLink, ShieldAlert, RotateCcw, Server, Library } from 'lucide-react';
+import { DatabaseBackup, Download, Loader2, UploadCloud, HardDriveUpload, ExternalLink, ShieldAlert, Users, Server } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -21,9 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import type { BackupScheduleSettings } from '@/lib/types';
 import { pushBackupToGoogleDrive } from '@/actions/backup-actions';
 
 export default function BackupsPage() {
@@ -39,31 +37,15 @@ export default function BackupsPage() {
     rawWeeklyIncomes,
     rawAnnouncements,
     rawCompanyFundsExpenses,
-    backupScheduleSettings, 
-    updateBackupScheduleSettings, 
     restoreFromBackup 
   } = useAppContext();
   const { toast } = useToast();
-  const [schedule, setSchedule] = useState<BackupScheduleSettings>({
-    isScheduleEnabled: false,
-    frequency: 'daily',
-    weeklyDay: 1, // Monday
-    dayOfMonth: 1,
-    backupTime: '02:00',
-  });
-  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [fileToRestore, setFileToRestore] = useState<any>(null);
   const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
-
-
-  useEffect(() => {
-    if (backupScheduleSettings) {
-      setSchedule(backupScheduleSettings);
-    }
-  }, [backupScheduleSettings]);
+  const [isPushingFull, setIsPushingFull] = useState(false);
+  const [isPushingSystem, setIsPushingSystem] = useState(false);
 
   const generateFullBackupData = () => {
     return {
@@ -106,7 +88,7 @@ export default function BackupsPage() {
     link.href = jsonString;
     link.download = `${filenamePrefix}-${format(new Date(), 'yyyy-MM-dd')}.json`;
     link.click();
-    toast({ title: "Backup Downloading", description: `Your ${backupType} data is being downloaded as a JSON file.` });
+    toast({ title: "Backup Downloading", description: `Your ${backupType} data is being downloaded.` });
   };
   
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,29 +135,27 @@ export default function BackupsPage() {
     if (result.success) {
         toast({ title: 'Restore Complete', description: 'Your application data has been restored.' });
     }
-    // Error toast is handled inside the context function
     
     setIsRestoring(false);
     setFileToRestore(null);
   };
 
-  const handleSaveSchedule = async () => {
-    setIsSaving(true);
-    await updateBackupScheduleSettings(schedule);
-    setIsSaving(false);
-  };
-
-  const handlePushBackup = async () => {
-    setIsPushing(true);
+  const handlePushBackup = async (backupType: 'full' | 'system') => {
+    if (backupType === 'full') {
+        setIsPushingFull(true);
+    } else {
+        setIsPushingSystem(true);
+    }
+    
     toast({ title: "Pushing backup to Google Drive...", description: "This may take a moment." });
 
-    const backupData = generateFullBackupData();
+    const backupData = backupType === 'full' ? generateFullBackupData() : generateSystemBackupData();
     const result = await pushBackupToGoogleDrive(backupData);
 
     if (result.success && result.fileUrl) {
       toast({
           title: "Backup Successful!",
-          description: "Your data has been pushed to Google Drive.",
+          description: `Your ${backupType} data has been pushed to Google Drive.`,
           action: (
               <a href={result.fileUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
                   <ExternalLink className="mr-2 h-4 w-4" />
@@ -191,14 +171,18 @@ export default function BackupsPage() {
             duration: 9000,
         });
     }
-    setIsPushing(false);
+
+    if (backupType === 'full') {
+        setIsPushingFull(false);
+    } else {
+        setIsPushingSystem(false);
+    }
   };
   
-
   return (
     <>
-    <div className="container mx-auto py-2 space-y-6">
-      <div className="mb-6">
+    <div className="container mx-auto py-2 space-y-8">
+      <div className="mb-2">
         <h1 className="text-3xl font-bold font-headline flex items-center">
           <DatabaseBackup className="mr-3 h-8 w-8 text-primary" />
           Backup & Restore
@@ -206,118 +190,114 @@ export default function BackupsPage() {
         <p className="text-muted-foreground">Manage your application data backups and system restore points.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="shadow-lg">
+      {/* Client Data Backup Section */}
+      <div className="space-y-4">
+        <div className="pl-2">
+            <h2 className="text-2xl font-semibold font-headline flex items-center gap-2"><Users className="h-6 w-6 text-primary"/>Client Data Backup</h2>
+            <p className="text-muted-foreground">Manage backups for tenants, transactions, and other client-related data.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-base">Manual Local Backup</CardTitle>
+                    <CardDescription className="text-xs">Download a snapshot of your current client data to your local machine.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={() => handleDownloadBackup('full')} className="w-full">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Full Backup
+                    </Button>
+                </CardContent>
+            </Card>
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-base">Manual Cloud Backup</CardTitle>
+                    <CardDescription className="text-xs">Push a complete data snapshot to your configured cloud storage.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={() => handlePushBackup('full')} disabled={isPushingFull} className="w-full">
+                        {isPushingFull ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        Push Full Backup
+                    </Button>
+                </CardContent>
+            </Card>
+            <Card className="shadow-lg">
               <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <Library className="w-5 h-5 text-primary" />
-                      Full Data Backup
-                  </CardTitle>
-                  <CardDescription>
-                      Download a complete snapshot of all application data including tenants, payments, and expenses.
-                  </CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <Button onClick={() => handleDownloadBackup('full')} className="w-full">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download Full Backup
-                  </Button>
-              </CardContent>
-          </Card>
-          
-          <Card className="shadow-lg">
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <Server className="w-5 h-5 text-primary" />
-                      System Data Backup
-                  </CardTitle>
-                  <CardDescription>
-                     Download a lightweight backup of system configurations and users (Clients, Super Admins, Managed Users).
-                  </CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <Button onClick={() => handleDownloadBackup('system')} className="w-full">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download System Backup
-                  </Button>
-              </CardContent>
-          </Card>
-
-           <Card className="shadow-lg">
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <UploadCloud className="w-5 h-5 text-primary" />
-                      Manual Cloud Backup
-                  </CardTitle>
-                  <CardDescription>
-                      Push a complete data snapshot to your configured Google Drive.
-                  </CardDescription>
-              </CardHeader>
-              <CardContent>
-                  <Button onClick={handlePushBackup} disabled={isPushing} className="w-full">
-                      {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UploadCloud className="mr-2 h-4 w-4" />}
-                      Push to Google Drive
-                  </Button>
-              </CardContent>
-          </Card>
-
-
-          <Card className="shadow-lg">
-              <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <HardDriveUpload className="w-5 h-5 text-primary" />
-                      Restore from Backup
-                  </CardTitle>
-                  <CardDescription>
-                      Upload a JSON backup file to restore application data. This will overwrite existing data.
-                  </CardDescription>
+                  <CardTitle className="text-base">Restore from Backup</CardTitle>
+                  <CardDescription className="text-xs">Upload a JSON backup file to restore client data. This will overwrite all existing data.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-4">
                     <div className="space-y-1">
-                        <Label htmlFor="backup-file">Backup File (.json)</Label>
+                        <Label htmlFor="backup-file" className="sr-only">Backup File</Label>
                         <Input id="backup-file" type="file" accept=".json" onChange={handleFileSelect} ref={fileInputRef} disabled={isRestoring} />
                     </div>
                     {isRestoring && (
                         <div className="flex items-center text-sm text-muted-foreground">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Restoring data... Please do not navigate away.
+                            Restoring data... Please wait.
                         </div>
                     )}
                 </div>
               </CardContent>
-          </Card>
+            </Card>
+        </div>
       </div>
+      
+       {/* System Backup Section */}
+       <div className="space-y-4">
+        <div className="pl-2">
+            <h2 className="text-2xl font-semibold font-headline flex items-center gap-2"><Server className="h-6 w-6 text-primary"/>System Data Backup</h2>
+            <p className="text-muted-foreground">Manage backups for system functionality and user configurations.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-base">Manual Local Backup</CardTitle>
+                    <CardDescription className="text-xs">Download a snapshot of system configurations and users.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={() => handleDownloadBackup('system')} className="w-full">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download System Backup
+                    </Button>
+                </CardContent>
+            </Card>
+             <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="text-base">Manual Cloud Backup</CardTitle>
+                    <CardDescription className="text-xs">Push a system data snapshot to your configured cloud storage.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={() => handlePushBackup('system')} disabled={isPushingSystem} className="w-full">
+                        {isPushingSystem ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UploadCloud className="mr-2 h-4 w-4" />}
+                        Push System Backup
+                    </Button>
+                </CardContent>
+            </Card>
+            <Card className="shadow-lg opacity-50 cursor-not-allowed">
+              <CardHeader>
+                  <CardTitle className="text-base">Restore System Data</CardTitle>
+                  <CardDescription className="text-xs">System restore is handled via full restore. This option is disabled.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button disabled className="w-full">
+                    <HardDriveUpload className="mr-2 h-4 w-4" />
+                    Restore
+                </Button>
+              </CardContent>
+            </Card>
+        </div>
+      </div>
+      
+       <Alert>
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Important Note on Restoring</AlertTitle>
+          <AlertDescription>
+            Restoring a backup is an "all or nothing" operation. It will completely overwrite all existing data in your application with the data from the selected backup file. This action cannot be undone.
+          </AlertDescription>
+      </Alert>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UploadCloud className="w-5 h-5 text-primary" />
-            Automated Backups
-          </CardTitle>
-          <CardDescription>
-            Configure a schedule for automatic cloud backups to Google Drive.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Alert>
-              <Terminal className="h-4 w-4" />
-              <AlertTitle>Developer Note</AlertTitle>
-              <AlertDescription>
-                The automated scheduling UI is for demonstration. The background function to execute these scheduled backups via your Google Apps Script is not yet implemented. Manual cloud backups are functional.
-              </AlertDescription>
-          </Alert>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="schedule-enabled"
-              checked={schedule.isScheduleEnabled}
-              onCheckedChange={(checked) => setSchedule(p => ({...p, isScheduleEnabled: checked}))}
-              disabled
-            />
-            <Label htmlFor="schedule-enabled" className="text-muted-foreground">Enable Automatic Backups (Coming Soon)</Label>
-          </div>
-        </CardContent>
-      </Card>
     </div>
     <AlertDialog open={isRestoreConfirmOpen} onOpenChange={setIsRestoreConfirmOpen}>
         <AlertDialogContent>
