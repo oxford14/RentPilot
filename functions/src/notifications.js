@@ -1,6 +1,8 @@
 
 const admin = require("firebase-admin");
 const db = admin.firestore();
+const fetch = require("node-fetch");
+
 
 // Helper to get start of day in a specific timezone
 const getStartOfDayInTimezone = (date, timeZone) => {
@@ -165,6 +167,16 @@ async function runNotificationChecks() {
     await batch.commit();
 }
 
+// Helper to format PH numbers to the required 10-digit format
+const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10) return digitsOnly; // Already correct
+    if (digitsOnly.length === 11 && digitsOnly.startsWith('0')) return digitsOnly.substring(1); // Remove leading 0
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('63')) return digitsOnly.substring(2); // Remove country code
+    return null; // Invalid format
+}
+
 function createNotification(batch, tenant, client, title, content) {
     if (!tenant.username) return; // Can't send in-app notification without a username
 
@@ -196,6 +208,21 @@ function createNotification(batch, tenant, client, title, content) {
                 html: `<p>${content}</p>`,
             },
         });
+    }
+
+    // NEW: Send SMS
+    const phoneNumber = formatPhoneNumber(tenant.phone);
+    if (phoneNumber) {
+        const smsApiUrl = 'https://free-sms-api.svxtract.workers.dev/';
+        const smsMessage = encodeURIComponent(content);
+        const fullUrl = `${smsApiUrl}?number=${phoneNumber}&message=${smsMessage}`;
+
+        // We are using fetch directly inside a Cloud Function.
+        // No need to handle the promise here, just fire and forget.
+        fetch(fullUrl)
+            .then(res => res.json())
+            .then(data => console.log(`SMS API response for ${phoneNumber}:`, data))
+            .catch(err => console.error(`Failed to send SMS to ${phoneNumber}:`, err));
     }
 }
 
