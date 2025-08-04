@@ -73,9 +73,6 @@ export default function PartnerEarningsPage() {
   const profitToShare = netOperatingIncome - companyFundsContribution;
 
   const partnerShares = useMemo(() => {
-    if (profitToShare <= 0) {
-      return { Andrew: 0, Abie: 0, Crispulo: 0 };
-    }
     const andrewShare = profitToShare * 0.60;
     const remainingForSplit = profitToShare * 0.40;
     const abieShare = remainingForSplit * 0.666;
