@@ -76,8 +76,9 @@ const baseAppNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
     isGroup: true,
     icon: BarChart3,
     items: [
-      { href: '/reports', label: 'Financial Summary', icon: FileText },
-      { href: '/reports/earnings', label: 'Earnings Report', icon: TrendingUp },
+      { href: '/reports', label: 'Summary', icon: FileText },
+      { href: '/reports/earnings', label: 'Earnings', icon: TrendingUp },
+      { href: '/reports/payments', label: 'Payment Log', icon: CreditCard },
     ]
   },
   { isGroup: false, href: '/users', icon: UserCog, clientAdminOnly: true },
