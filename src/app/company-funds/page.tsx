@@ -112,7 +112,7 @@ export default function CompanyFundsPage() {
     while(loopDate <= endDate) {
         const monthKey = processDate(loopDate);
         if(!dataByMonth[monthKey]) {
-            dataByMonth[monthKey] = {};
+            dataByMonth[monthKey] = {}; // Initialize if it doesn't exist
         }
         loopDate = addMonths(loopDate, 1);
     }
