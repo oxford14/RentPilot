@@ -75,81 +75,71 @@ export default function CompanyFundsPage() {
     const dataByMonth: { [key: string]: Partial<MonthlyFundsData> & { fundsOut?: number, income?: number, mainExpenses?: number } } = {};
     const processDate = (date: Date) => format(date, 'yyyy-MM');
 
-    // 1. Process all existing data, respecting the start date for each transaction type.
+    // --- Strict Data Filtering ---
     payments.forEach(p => {
-      const paymentDate = new Date(p.date);
-      if (paymentDate < companyFundsStartDate) return;
-      const monthKey = processDate(paymentDate);
-      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
-      dataByMonth[monthKey].income = (dataByMonth[monthKey].income || 0) + p.amount;
+        const paymentDate = new Date(p.date);
+        if (paymentDate < companyFundsStartDate) return; // Ignore data before start date
+        const monthKey = processDate(paymentDate);
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
+        dataByMonth[monthKey].income = (dataByMonth[monthKey].income || 0) + p.amount;
     });
 
     expenses.forEach(e => {
-      const expenseDate = new Date(e.date);
-      if (expenseDate < companyFundsStartDate) return;
-      const monthKey = processDate(expenseDate);
-      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
-      dataByMonth[monthKey].mainExpenses = (dataByMonth[monthKey].mainExpenses || 0) + e.amount;
+        const expenseDate = new Date(e.date);
+        if (expenseDate < companyFundsStartDate) return; // Ignore data before start date
+        const monthKey = processDate(expenseDate);
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
+        dataByMonth[monthKey].mainExpenses = (dataByMonth[monthKey].mainExpenses || 0) + e.amount;
     });
 
     companyFundsExpenses.forEach(e => {
         const expenseDate = new Date(e.date);
-        if (expenseDate < companyFundsStartDate) return;
+        if (expenseDate < companyFundsStartDate) return; // Ignore data before start date
         const monthKey = processDate(expenseDate);
         if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
         dataByMonth[monthKey].fundsOut = (dataByMonth[monthKey].fundsOut || 0) + e.amount;
     });
 
-    // 2. Determine the full range of months to display and create placeholders if needed.
-    let loopDate = new Date(companyFundsStartDate);
+    // --- Generate Month Range and Calculate ---
+    const finalData: MonthlyFundsData[] = [];
+    let openingBalance = client?.companyFundsStartingBalance || 0;
+    
+    // Start looping from the specified start date
+    let loopDate = new Date(companyFundsStartDate); 
     const endDate = endOfMonth(new Date());
+
     while(loopDate <= endDate) {
         const monthKey = processDate(loopDate);
-        if(!dataByMonth[monthKey]) {
-            dataByMonth[monthKey] = {}; 
-        }
+        const monthData = dataByMonth[monthKey] || {};
+
+        const income = monthData?.income || 0;
+        const mainExpenses = monthData?.mainExpenses || 0;
+        const netIncome = income - mainExpenses;
+        const fundsIn = netIncome > 0 ? netIncome * 0.10 : 0;
+        const fundsOut = monthData?.fundsOut || 0;
+        const closingBalance = openingBalance + fundsIn - fundsOut;
+
+        finalData.push({
+            month: format(loopDate, 'MMMM yyyy'),
+            year: loopDate.getFullYear(),
+            monthDate: new Date(loopDate),
+            income,
+            mainExpenses,
+            netIncome,
+            fundsIn,
+            fundsOut,
+            openingBalance,
+            closingBalance,
+        });
+
+        openingBalance = closingBalance;
         loopDate = addMonths(loopDate, 1);
     }
-    
-    // 3. Sort the months and perform the final calculation.
-    const finalSortedMonths = Object.keys(dataByMonth).sort();
-    
-    const startingBalance = client?.companyFundsStartingBalance || 0;
-    let openingBalance = startingBalance;
-    
-    const finalData: MonthlyFundsData[] = finalSortedMonths.map(monthKey => {
-      const monthData = dataByMonth[monthKey];
-      const income = monthData?.income || 0;
-      const mainExpenses = monthData?.mainExpenses || 0;
-      const netIncome = income - mainExpenses;
-      const fundsIn = netIncome > 0 ? netIncome * 0.10 : 0;
-      const fundsOut = monthData?.fundsOut || 0;
-      const closingBalance = openingBalance + fundsIn - fundsOut;
-
-      const [year, monthNum] = monthKey.split('-').map(Number);
-      const monthDate = new Date(year, monthNum - 1);
-      
-      const result: MonthlyFundsData = {
-        month: format(monthDate, 'MMMM yyyy'),
-        year,
-        monthDate,
-        income,
-        mainExpenses,
-        netIncome,
-        fundsIn,
-        fundsOut,
-        openingBalance,
-        closingBalance,
-      };
-      
-      openingBalance = closingBalance; // The next month's opening balance is this month's closing
-      return result;
-    });
     
     if (finalData.length > 0) {
         setAvailableCompanyFunds(finalData[finalData.length - 1].closingBalance);
     } else {
-        setAvailableCompanyFunds(startingBalance);
+        setAvailableCompanyFunds(openingBalance); // Use starting balance if no data yet
     }
 
     return finalData.reverse(); // Show most recent first
