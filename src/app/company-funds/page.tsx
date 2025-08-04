@@ -17,7 +17,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { PiggyBank, PlusCircle, TrendingUp, TrendingDown, MinusCircle, Edit, Trash2, Banknote, Wallet } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, isBefore, parseISO } from 'date-fns';
 import { CompanyFundsExpenseForm } from '@/components/company-funds/CompanyFundsExpenseForm';
 import {
   AlertDialog,
@@ -68,77 +68,82 @@ export default function CompanyFundsPage() {
   }, [clients, user, viewingAsClientId]);
 
   const monthlyFundsData = useMemo(() => {
-    if (!client || !client.companyFundsStartDate) return [];
-  
-    const companyFundsStartDate = startOfMonth(new Date(client.companyFundsStartDate));
-  
+    if (!client || !client.companyFundsStartDate) {
+        setAvailableCompanyFunds(0);
+        return [];
+    }
+
+    const companyFundsStartDate = startOfMonth(parseISO(client.companyFundsStartDate));
+
     // 1. Filter all transactions to strictly include only those on or after the start date.
-    const filteredPayments = payments.filter(p => new Date(p.date) >= companyFundsStartDate);
-    const filteredExpenses = expenses.filter(e => new Date(e.date) >= companyFundsStartDate);
-    const filteredCompanyExpenses = companyFundsExpenses.filter(e => new Date(e.date) >= companyFundsStartDate);
-  
+    const filteredPayments = payments.filter(p => !isBefore(parseISO(p.date), companyFundsStartDate));
+    const filteredExpenses = expenses.filter(e => !isBefore(parseISO(e.date), companyFundsStartDate));
+    const filteredCompanyExpenses = companyFundsExpenses.filter(e => !isBefore(parseISO(e.date), companyFundsStartDate));
+    
     // 2. Aggregate filtered data by month key ('YYYY-MM').
     const dataByMonth: { [key: string]: { income: number; mainExpenses: number; fundsOut: number } } = {};
-    const processDate = (date: Date) => format(date, 'yyyy-MM');
+    const processDate = (dateStr: string) => format(parseISO(dateStr), 'yyyy-MM');
   
     filteredPayments.forEach(p => {
-      const monthKey = processDate(new Date(p.date));
-      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
-      dataByMonth[monthKey].income += p.amount;
+        const monthKey = processDate(p.date);
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        if (p.paymentMethod !== 'Security Deposit') {
+            dataByMonth[monthKey].income += p.amount;
+        }
     });
-  
+
     filteredExpenses.forEach(e => {
-      const monthKey = processDate(new Date(e.date));
-      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
-      dataByMonth[monthKey].mainExpenses += e.amount;
+        const monthKey = processDate(e.date);
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        dataByMonth[monthKey].mainExpenses += e.amount;
     });
-  
+
     filteredCompanyExpenses.forEach(e => {
-      const monthKey = processDate(new Date(e.date));
-      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
-      dataByMonth[monthKey].fundsOut += e.amount;
+        const monthKey = processDate(e.date);
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        dataByMonth[monthKey].fundsOut += e.amount;
     });
-  
+
     // 3. Generate the final report starting from the correct date and using the correct opening balance.
     const finalData: MonthlyFundsData[] = [];
     let currentBalance = client.companyFundsStartingBalance || 0;
-    const endDate = endOfMonth(new Date());
+    const today = new Date();
+    const endDate = endOfMonth(today);
     let loopDate = new Date(companyFundsStartDate);
   
     while (loopDate <= endDate) {
-      const monthKey = processDate(loopDate);
-      const monthData = dataByMonth[monthKey] || { income: 0, mainExpenses: 0, fundsOut: 0 };
-  
-      const income = monthData.income;
-      const mainExpenses = monthData.mainExpenses;
-      const netIncome = income - mainExpenses;
-      const fundsIn = netIncome > 0 ? netIncome * 0.10 : 0;
-      const fundsOut = monthData.fundsOut;
-  
-      const openingBalanceForThisMonth = currentBalance;
-      const closingBalance = openingBalanceForThisMonth + fundsIn - fundsOut;
-  
-      finalData.push({
-        month: format(loopDate, 'MMMM yyyy'),
-        year: loopDate.getFullYear(),
-        monthDate: new Date(loopDate),
-        income,
-        mainExpenses,
-        netIncome,
-        fundsIn,
-        fundsOut,
-        openingBalance: openingBalanceForThisMonth,
-        closingBalance,
-      });
-  
-      currentBalance = closingBalance;
-      loopDate = addMonths(loopDate, 1);
+        const monthKey = format(loopDate, 'yyyy-MM');
+        const monthData = dataByMonth[monthKey] || { income: 0, mainExpenses: 0, fundsOut: 0 };
+    
+        const openingBalanceForThisMonth = currentBalance;
+        
+        const netIncome = monthData.income - monthData.mainExpenses;
+        const fundsIn = netIncome > 0 ? netIncome * 0.10 : 0;
+        const fundsOut = monthData.fundsOut;
+    
+        const closingBalance = openingBalanceForThisMonth + fundsIn - fundsOut;
+    
+        finalData.push({
+            month: format(loopDate, 'MMMM yyyy'),
+            year: loopDate.getFullYear(),
+            monthDate: new Date(loopDate),
+            income: monthData.income,
+            mainExpenses: monthData.mainExpenses,
+            netIncome,
+            fundsIn,
+            fundsOut,
+            openingBalance: openingBalanceForThisMonth,
+            closingBalance,
+        });
+    
+        currentBalance = closingBalance;
+        loopDate = addMonths(loopDate, 1);
     }
   
     setAvailableCompanyFunds(currentBalance);
   
     return finalData.reverse();
-  }, [payments, expenses, companyFundsExpenses, client]);
+}, [payments, expenses, companyFundsExpenses, client]);
 
 
   const expenseMonths = useMemo(() => {
@@ -218,7 +223,7 @@ export default function CompanyFundsPage() {
         <CardHeader>
           <CardTitle>Monthly Funds Summary</CardTitle>
           <CardDescription>
-            10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'the configured start date'}.
+            10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(parseISO(client.companyFundsStartDate), 'MMMM yyyy') : 'the configured start date'}.
           </CardDescription>
         </CardHeader>
         <CardContent>
