@@ -69,16 +69,16 @@ export default function CompanyFundsPage() {
 
   const monthlyFundsData = useMemo(() => {
     if (!client || !client.companyFundsStartDate) return [];
-    
+
     const companyFundsStartDate = startOfMonth(new Date(client.companyFundsStartDate));
     const dataByMonth: { [key: string]: { income: number; mainExpenses: number; fundsOut: number } } = {};
     const processDate = (date: Date) => format(date, 'yyyy-MM');
 
-    // 1. Filter all transactions to only include dates on or after the start date.
+    // 1. Strictly filter all transactions to only include dates on or after the start date.
     const filteredPayments = payments.filter(p => new Date(p.date) >= companyFundsStartDate);
     const filteredExpenses = expenses.filter(e => new Date(e.date) >= companyFundsStartDate);
     const filteredCompanyExpenses = companyFundsExpenses.filter(e => new Date(e.date) >= companyFundsStartDate);
-
+    
     // 2. Aggregate filtered data by month.
     filteredPayments.forEach(p => {
         const monthKey = processDate(new Date(p.date));
@@ -96,7 +96,7 @@ export default function CompanyFundsPage() {
         dataByMonth[monthKey].fundsOut += e.amount;
     });
     
-    // 3. Generate the monthly summary report.
+    // 3. Generate the monthly summary report, starting from the correct date.
     const finalData: MonthlyFundsData[] = [];
     let currentBalance = client.companyFundsStartingBalance || 0;
     
