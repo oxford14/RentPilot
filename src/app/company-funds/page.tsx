@@ -70,53 +70,49 @@ export default function CompanyFundsPage() {
 
   const monthlyFundsData = useMemo(() => {
     if (!client || client.name !== 'i-VirtuaTech') return [];
-    const dataByMonth: { [key: string]: Partial<MonthlyFundsData> } = {};
-
+    
+    const dataByMonth: { [key: string]: Partial<MonthlyFundsData> & { fundsOut?: number, income?: number, mainExpenses?: number } } = {};
     const processDate = (date: Date) => format(date, 'yyyy-MM');
-
     const companyFundsStartDate = client?.companyFundsStartDate ? new Date(client.companyFundsStartDate) : new Date('2025-06-01T00:00:00.000Z');
 
+    // 1. First, process all existing data
     payments.forEach(p => {
       const paymentDate = new Date(p.date);
       if (paymentDate < companyFundsStartDate) return;
       const monthKey = processDate(paymentDate);
-      dataByMonth[monthKey] = {
-        ...dataByMonth[monthKey],
-        income: (dataByMonth[monthKey]?.income || 0) + p.amount,
-      };
+      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
+      dataByMonth[monthKey].income = (dataByMonth[monthKey].income || 0) + p.amount;
     });
 
     expenses.forEach(e => {
       const expenseDate = new Date(e.date);
       if (expenseDate < companyFundsStartDate) return;
       const monthKey = processDate(expenseDate);
-      dataByMonth[monthKey] = {
-        ...dataByMonth[monthKey],
-        mainExpenses: (dataByMonth[monthKey]?.mainExpenses || 0) + e.amount,
-      };
+      if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
+      dataByMonth[monthKey].mainExpenses = (dataByMonth[monthKey].mainExpenses || 0) + e.amount;
     });
 
     companyFundsExpenses.forEach(e => {
         const expenseDate = new Date(e.date);
         if (expenseDate < companyFundsStartDate) return;
         const monthKey = processDate(expenseDate);
-        dataByMonth[monthKey] = {
-            ...dataByMonth[monthKey],
-            fundsOut: (dataByMonth[monthKey]?.fundsOut || 0) + e.amount,
-        };
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
+        dataByMonth[monthKey].fundsOut = (dataByMonth[monthKey].fundsOut || 0) + e.amount;
     });
 
+    // 2. Then, fill in any missing months within the range to ensure continuity
     let loopDate = new Date(companyFundsStartDate);
     const endDate = endOfMonth(new Date());
 
     while(loopDate <= endDate) {
         const monthKey = processDate(loopDate);
         if(!dataByMonth[monthKey]) {
-            dataByMonth[monthKey] = {}; // Initialize if it doesn't exist
+            dataByMonth[monthKey] = {}; // Initialize only if it doesn't exist
         }
         loopDate = addMonths(loopDate, 1);
     }
 
+    // 3. Finally, calculate balances and generate the final array
     const finalSortedMonths = Object.keys(dataByMonth).sort();
     if (finalSortedMonths.length === 0) return [];
     
