@@ -69,54 +69,53 @@ export default function CompanyFundsPage() {
   }, [clients, user, viewingAsClientId]);
 
   const monthlyFundsData = useMemo(() => {
-    if (!client || client.name !== 'i-VirtuaTech' || !client.companyFundsStartDate) return [];
+    if (!client || !client.companyFundsStartDate) return [];
 
     const companyFundsStartDate = new Date(client.companyFundsStartDate);
-    const dataByMonth: { [key: string]: Partial<MonthlyFundsData> & { fundsOut?: number, income?: number, mainExpenses?: number } } = {};
+    const dataByMonth: { [key: string]: { income: number; mainExpenses: number; fundsOut: number } } = {};
+    
+    // --- Step 1: Filter all transactions to only include dates on or after the start date ---
+    const filteredPayments = payments.filter(p => new Date(p.date) >= companyFundsStartDate);
+    const filteredExpenses = expenses.filter(e => new Date(e.date) >= companyFundsStartDate);
+    const filteredCompanyExpenses = companyFundsExpenses.filter(e => new Date(e.date) >= companyFundsStartDate);
+
     const processDate = (date: Date) => format(date, 'yyyy-MM');
 
-    // --- Strict Data Filtering ---
-    payments.forEach(p => {
-        const paymentDate = new Date(p.date);
-        if (paymentDate < companyFundsStartDate) return; // Ignore data before start date
-        const monthKey = processDate(paymentDate);
-        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
-        dataByMonth[monthKey].income = (dataByMonth[monthKey].income || 0) + p.amount;
+    // --- Step 2: Aggregate the filtered data by month ---
+    filteredPayments.forEach(p => {
+        const monthKey = processDate(new Date(p.date));
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        dataByMonth[monthKey].income += p.amount;
     });
 
-    expenses.forEach(e => {
-        const expenseDate = new Date(e.date);
-        if (expenseDate < companyFundsStartDate) return; // Ignore data before start date
-        const monthKey = processDate(expenseDate);
-        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
-        dataByMonth[monthKey].mainExpenses = (dataByMonth[monthKey].mainExpenses || 0) + e.amount;
+    filteredExpenses.forEach(e => {
+        const monthKey = processDate(new Date(e.date));
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        dataByMonth[monthKey].mainExpenses += e.amount;
     });
 
-    companyFundsExpenses.forEach(e => {
-        const expenseDate = new Date(e.date);
-        if (expenseDate < companyFundsStartDate) return; // Ignore data before start date
-        const monthKey = processDate(expenseDate);
-        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = {};
-        dataByMonth[monthKey].fundsOut = (dataByMonth[monthKey].fundsOut || 0) + e.amount;
+    filteredCompanyExpenses.forEach(e => {
+        const monthKey = processDate(new Date(e.date));
+        if (!dataByMonth[monthKey]) dataByMonth[monthKey] = { income: 0, mainExpenses: 0, fundsOut: 0 };
+        dataByMonth[monthKey].fundsOut += e.amount;
     });
 
-    // --- Generate Month Range and Calculate ---
+    // --- Step 3: Generate the monthly summary report starting from the correct date ---
     const finalData: MonthlyFundsData[] = [];
     let openingBalance = client?.companyFundsStartingBalance || 0;
     
-    // Start looping from the specified start date
-    let loopDate = new Date(companyFundsStartDate); 
     const endDate = endOfMonth(new Date());
+    let loopDate = new Date(companyFundsStartDate);
 
     while(loopDate <= endDate) {
         const monthKey = processDate(loopDate);
-        const monthData = dataByMonth[monthKey] || {};
+        const monthData = dataByMonth[monthKey] || { income: 0, mainExpenses: 0, fundsOut: 0 };
 
-        const income = monthData?.income || 0;
-        const mainExpenses = monthData?.mainExpenses || 0;
+        const income = monthData.income;
+        const mainExpenses = monthData.mainExpenses;
         const netIncome = income - mainExpenses;
         const fundsIn = netIncome > 0 ? netIncome * 0.10 : 0;
-        const fundsOut = monthData?.fundsOut || 0;
+        const fundsOut = monthData.fundsOut;
         const closingBalance = openingBalance + fundsIn - fundsOut;
 
         finalData.push({
@@ -136,11 +135,7 @@ export default function CompanyFundsPage() {
         loopDate = addMonths(loopDate, 1);
     }
     
-    if (finalData.length > 0) {
-        setAvailableCompanyFunds(finalData[finalData.length - 1].closingBalance);
-    } else {
-        setAvailableCompanyFunds(openingBalance); // Use starting balance if no data yet
-    }
+    setAvailableCompanyFunds(openingBalance); // Final running balance
 
     return finalData.reverse(); // Show most recent first
   }, [payments, expenses, companyFundsExpenses, client]);
@@ -221,7 +216,9 @@ export default function CompanyFundsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Monthly Funds Summary</CardTitle>
-          <CardDescription>10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'the configured start date'}.</CardDescription>
+          <CardDescription>
+            10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'the configured start date'}.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
