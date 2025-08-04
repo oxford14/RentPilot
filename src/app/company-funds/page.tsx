@@ -75,7 +75,7 @@ export default function CompanyFundsPage() {
     const processDate = (date: Date) => format(date, 'yyyy-MM');
     const companyFundsStartDate = client?.companyFundsStartDate ? new Date(client.companyFundsStartDate) : new Date('2025-06-01T00:00:00.000Z');
 
-    // 1. First, process all existing data
+    // 1. Process all existing data, respecting the start date for each transaction type.
     payments.forEach(p => {
       const paymentDate = new Date(p.date);
       if (paymentDate < companyFundsStartDate) return;
