@@ -69,11 +69,11 @@ export default function CompanyFundsPage() {
   }, [clients, user, viewingAsClientId]);
 
   const monthlyFundsData = useMemo(() => {
-    if (!client || client.name !== 'i-VirtuaTech') return [];
-    
+    if (!client || client.name !== 'i-VirtuaTech' || !client.companyFundsStartDate) return [];
+
+    const companyFundsStartDate = new Date(client.companyFundsStartDate);
     const dataByMonth: { [key: string]: Partial<MonthlyFundsData> & { fundsOut?: number, income?: number, mainExpenses?: number } } = {};
     const processDate = (date: Date) => format(date, 'yyyy-MM');
-    const companyFundsStartDate = client?.companyFundsStartDate ? new Date(client.companyFundsStartDate) : new Date('2025-06-01T00:00:00.000Z');
 
     // 1. Process all existing data, respecting the start date for each transaction type.
     payments.forEach(p => {
@@ -100,24 +100,23 @@ export default function CompanyFundsPage() {
         dataByMonth[monthKey].fundsOut = (dataByMonth[monthKey].fundsOut || 0) + e.amount;
     });
 
-    // 2. Then, fill in any missing months within the range to ensure continuity
+    // 2. Determine the full range of months to display and create placeholders if needed.
     let loopDate = new Date(companyFundsStartDate);
     const endDate = endOfMonth(new Date());
-
     while(loopDate <= endDate) {
         const monthKey = processDate(loopDate);
         if(!dataByMonth[monthKey]) {
-            dataByMonth[monthKey] = {}; // Initialize only if it doesn't exist
+            dataByMonth[monthKey] = {}; 
         }
         loopDate = addMonths(loopDate, 1);
     }
-
-    // 3. Finally, calculate balances and generate the final array
+    
+    // 3. Sort the months and perform the final calculation.
     const finalSortedMonths = Object.keys(dataByMonth).sort();
-    if (finalSortedMonths.length === 0) return [];
     
     const startingBalance = client?.companyFundsStartingBalance || 0;
     let openingBalance = startingBalance;
+    
     const finalData: MonthlyFundsData[] = finalSortedMonths.map(monthKey => {
       const monthData = dataByMonth[monthKey];
       const income = monthData?.income || 0;
@@ -143,7 +142,7 @@ export default function CompanyFundsPage() {
         closingBalance,
       };
       
-      openingBalance = closingBalance;
+      openingBalance = closingBalance; // The next month's opening balance is this month's closing
       return result;
     });
     
@@ -232,7 +231,7 @@ export default function CompanyFundsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Monthly Funds Summary</CardTitle>
-          <CardDescription>10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'June 2025'}.</CardDescription>
+          <CardDescription>10% of monthly net income is allocated to the company fund, starting from {client.companyFundsStartDate ? format(new Date(client.companyFundsStartDate), 'MMMM yyyy') : 'the configured start date'}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
