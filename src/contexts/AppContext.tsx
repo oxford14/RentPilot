@@ -332,12 +332,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
 
-    const currentTenantCount = rawTenantsState.filter(t => t.clientId === determinedClientId).length;
+    const currentTenantCount = rawTenantsState.filter(t => t.clientId === determinedClientId && t.status === 'active').length;
     
-    let tenantLimit = Infinity; // Default to unlimited for 'Pro' or undefined plans
-    if (client.subscriptionPlanName === 'Trial') {
+    let tenantLimit = Infinity; // Default to unlimited
+    const planName = (client.subscriptionPlanName || '').toLowerCase();
+
+    if (planName === 'trial') {
         tenantLimit = 3;
-    } else if (client.subscriptionPlanName === 'Basic') {
+    } else if (planName === 'basic') {
         tenantLimit = 50;
     }
 
@@ -345,7 +347,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({
             variant: "destructive",
             title: "Tenant Limit Reached",
-            description: `You have reached the limit of ${tenantLimit} tenants for the ${client.subscriptionPlanName || 'current'} plan. Please upgrade your plan to add more.`,
+            description: `You have reached the limit of ${tenantLimit} active tenants for your '${client.subscriptionPlanName || 'current'}' plan. Please upgrade your plan to add more.`,
             duration: 9000,
         });
         return;
@@ -1955,5 +1957,6 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
 

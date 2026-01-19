@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { TenantForm } from '@/components/tenants/TenantForm';
 import { TenantsTable } from '@/components/tenants/TenantsTable';
@@ -12,14 +11,56 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import Link from 'next/link';
 
 export default function TenantsPage() {
-  const { terminology } = useAppContext();
+  const { terminology, tenants, clients, viewingAsClientId } = useAppContext();
+  const { user } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [showInactiveTenants, setShowInactiveTenants] = useState(false);
+  const [isUpgradeAlertOpen, setIsUpgradeAlertOpen] = useState(false);
+
+  const currentClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+
+  const client = useMemo(() => {
+    if (!currentClientId) return null;
+    return clients.find(c => c.id === currentClientId);
+  }, [clients, currentClientId]);
+
+  const clientTenants = useMemo(() => {
+    if (!currentClientId) return [];
+    // Important: only filter active tenants for the count against the limit.
+    return tenants.filter(t => t.clientId === currentClientId && t.status === 'active');
+  }, [tenants, currentClientId]);
+
+  const tenantLimit = useMemo(() => {
+    if (!client || !client.subscriptionPlanName) return Infinity; // Default to allow if no plan
+    if (client.subscriptionPlanName.toLowerCase() === 'trial') return 3;
+    if (client.subscriptionPlanName.toLowerCase() === 'basic') return 50;
+    return Infinity;
+  }, [client]);
+
+  const isLimitReached = clientTenants.length >= tenantLimit;
+
 
   const handleOpenForm = (tenant?: Tenant) => {
+    // If adding a new tenant (not editing) and the limit is reached
+    if (!tenant && isLimitReached) {
+      setIsUpgradeAlertOpen(true);
+      return;
+    }
     setEditingTenant(tenant || null);
     setIsFormOpen(true);
   };
@@ -69,6 +110,23 @@ export default function TenantsPage() {
             tenant={editingTenant}
           />
       )}
+
+      <AlertDialog open={isUpgradeAlertOpen} onOpenChange={setIsUpgradeAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tenant Limit Reached</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have reached the maximum of {tenantLimit} active tenants for your '{client?.subscriptionPlanName || 'current'}' plan. Please upgrade your subscription to add more tenants.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Link href="/subscription">Upgrade Plan</Link>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
