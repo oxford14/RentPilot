@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -114,6 +113,12 @@ function LoginBox() {
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || authLoading}>
                 <LogIn className="mr-2 h-4 w-4" /> Sign In
               </Button>
+              <div className="text-sm">
+                Don't have an account?{" "}
+                <Link href="/signup" className="underline text-primary">
+                  Sign up for a trial
+                </Link>
+              </div>
                <div className="mt-4 text-center text-xs text-muted-foreground w-full">
                 <p>By signing in, you agree to our</p>
                 <div className="flex items-center justify-center gap-2 mt-1">

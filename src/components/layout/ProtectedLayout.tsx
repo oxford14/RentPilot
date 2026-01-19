@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -21,7 +19,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const publicRoutes = ['/login', '/terms', '/privacy-policy'];
+    const publicRoutes = ['/login', '/terms', '/privacy-policy', '/signup'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     const isForcePasswordChangeRoute = pathname.startsWith('/force-password-change');
 
@@ -65,9 +63,8 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const pathIsAdmin = pathname.startsWith('/admin');
     const pathIsCompanyFunds = pathname.startsWith('/company-funds');
     const pathIsPartnerEarnings = pathname.startsWith('/partner-earnings');
-    // REMOVED '/announcements' from this list
-    const pathIsClientAdminOnly = ['/users', '/notifications'].includes(pathname);
-    const allowedTenantRoutes = ['/', '/profile', '/contract/sign'];
+    const pathIsClientAdminOnly = ['/users', '/notifications'].includes(pathname) && !pathname.startsWith('/announcements');
+    const allowedTenantRoutes = ['/', '/profile', '/contract/sign', '/request-support'];
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
 
     if ((isHubAdmin || isRegularUser) && pathname.startsWith('/tracking')) {
@@ -96,7 +93,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
         router.push('/');
     }
-    else if (isTenant && !allowedTenantRoutes.some(p => pathname.startsWith(p))) {
+    else if (isTenant && !allowedTenantRoutes.some(p => pathname.startsWith(p) || pathname.startsWith('/ticket-support/'))) {
          toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
          router.push('/');
     }
@@ -120,7 +117,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
      );
   }
 
-  const isAuthRoute = ['/login', '/terms', '/privacy-policy', '/force-password-change'].some(route => pathname.startsWith(route));
+  const isAuthRoute = ['/login', '/terms', '/privacy-policy', '/force-password-change', '/signup'].some(route => pathname.startsWith(route));
   if (isAuthRoute) {
     return <>{children}</>;
   }
