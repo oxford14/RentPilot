@@ -139,6 +139,12 @@ export default function SignUpPage() {
                                 description="Ideal for growing businesses that need more capacity."
                                 features={["Up to 50 tenants", "Advanced Reporting", "AI Delinquency Prediction", "Priority Support"]}
                             />
+                             <PlanCard 
+                                title="Pro Plan"
+                                price="₱500 / month"
+                                description="For large-scale operations with unlimited needs."
+                                features={["Unlimited tenants", "Advanced Reporting", "AI Delinquency Prediction", "Data Backup & Restore", "Phone & Chat Support"]}
+                            />
                         </div>
                         {/* Signup Form */}
                         <div className="p-6 border rounded-lg bg-background">
