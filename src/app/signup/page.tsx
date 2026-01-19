@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -136,13 +137,13 @@ export default function SignUpPage() {
                              <PlanCard 
                                 title="Basic Plan"
                                 price="₱200 / month"
-                                description="Ideal for growing businesses that need more capacity."
+                                description="Ideal for growing businesses, supporting up to 50 tenants."
                                 features={["Up to 50 tenants", "Advanced Reporting", "AI Delinquency Prediction", "Priority Support"]}
                             />
                              <PlanCard 
                                 title="Pro Plan"
                                 price="₱500 / month"
-                                description="For large-scale operations with unlimited needs."
+                                description="For large-scale operations with unlimited tenants."
                                 features={["Unlimited tenants", "Advanced Reporting", "AI Delinquency Prediction", "Data Backup & Restore", "Phone & Chat Support"]}
                             />
                         </div>

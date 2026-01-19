@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest } from '@/lib/types';
@@ -319,6 +320,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     const determinedClientId: string | undefined = getScopedClientId();
+
+    if (!determinedClientId) {
+        toast({ variant: "destructive", title: "Error", description: "Could not determine client context." });
+        return;
+    }
+
+    const client = rawClientsState.find(c => c.id === determinedClientId);
+    if (!client) {
+        toast({ variant: "destructive", title: "Error", description: "Client data not found." });
+        return;
+    }
+
+    const currentTenantCount = rawTenantsState.filter(t => t.clientId === determinedClientId).length;
+    
+    let tenantLimit = Infinity; // Default to unlimited for 'Pro' or undefined plans
+    if (client.subscriptionPlanName === 'Trial') {
+        tenantLimit = 3;
+    } else if (client.subscriptionPlanName === 'Basic') {
+        tenantLimit = 50;
+    }
+
+    if (currentTenantCount >= tenantLimit) {
+        toast({
+            variant: "destructive",
+            title: "Tenant Limit Reached",
+            description: `You have reached the limit of ${tenantLimit} tenants for the ${client.subscriptionPlanName || 'current'} plan. Please upgrade your plan to add more.`,
+            duration: 9000,
+        });
+        return;
+    }
     
     try {
       const batch = writeBatch(db);
@@ -581,7 +612,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           senderId: authUser.username,
           senderName: authUser.username,
           recipientId: tenant.id,
-          recipientUsername: tenant.username,
+          recipientUsername: result.username,
           isScheduled: false,
           scheduledAt: new Date().toISOString(),
           status: 'sent',
@@ -1924,4 +1955,5 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
 
