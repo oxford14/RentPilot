@@ -45,7 +45,7 @@ export async function handleSignUp(data: SignUpData): Promise<{ success: boolean
       businessType: data.businessType,
       subscriptionStatus: 'active',
       subscriptionPlanName: 'Trial',
-      subscriptionRate: 200,
+      subscriptionRate: 0,
       subscriptionEndDate: addMonths(new Date(), 1).toISOString(),
       timezone: data.timezone,
     };

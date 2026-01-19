@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -91,12 +90,16 @@ export default function SubscriptionPage() {
       'Inactive': { variant: 'secondary', icon: AlertTriangle, color: '' },
     };
 
+    const isTrial = (client.subscriptionPlanName || '').toLowerCase() === 'trial';
+
     return {
       status,
       statusInfo: infoMap[status],
       formattedEndDate: client.subscriptionEndDate ? format(new Date(client.subscriptionEndDate), 'MMMM dd, yyyy') : 'N/A',
       planName: client.subscriptionPlanName || 'Standard Plan',
-      rate: client.subscriptionRate?.toLocaleString() || 'N/A',
+      rate: isTrial
+        ? 'Free'
+        : (client.subscriptionRate !== undefined ? `₱${client.subscriptionRate.toLocaleString()}/month` : 'N/A'),
     };
   }, [client]);
 
@@ -129,7 +132,7 @@ export default function SubscriptionPage() {
           <CardContent className="space-y-4">
              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
               <span className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4" /> Rate</span>
-              <span className="font-medium">₱{rate}/month</span>
+              <span className="font-medium">{rate}</span>
             </div>
             <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
               <span className="font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Valid Until</span>
