@@ -10,7 +10,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { format, isPast, differenceInDays } from 'date-fns';
-import { Award, CheckCircle2, AlertTriangle, ScanLine, Clock, DollarSign, CalendarDays } from 'lucide-react';
+import { Award, CheckCircle2, AlertTriangle, ScanLine, Clock, DollarSign, CalendarDays, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 
@@ -27,6 +27,27 @@ const GcashLogo = () => (
   </svg>
 );
 
+function PlanCard({ title, price, description, features, isFeatured = false }: { title: string, price: string, description: string, features: string[], isFeatured?: boolean }) {
+    return (
+        <Card className={cn(isFeatured && 'border-primary ring-2 ring-primary shadow-lg')}>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription className="text-2xl font-bold">{price}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="mb-4">{description}</p>
+                <ul className="space-y-2">
+                    {features.map((feature, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                            <Check className="h-4 w-4 text-green-500" />
+                            <span>{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function SubscriptionPage() {
   const { user, isLoading: authIsLoading } = useAuth();
@@ -88,7 +109,7 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="container mx-auto py-2 space-y-6">
+    <div className="container mx-auto py-2 space-y-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline flex items-center">
           <Award className="mr-3 h-8 w-8 text-primary" />
@@ -164,6 +185,33 @@ export default function SubscriptionPage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold font-headline mb-4 mt-8">Available Plans</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+            <PlanCard 
+                title="Trial"
+                price="Free"
+                description="Get started with all the essential features for 1 month."
+                features={["Manage up to 3 tenants", "Payment Tracking", "Basic Reporting", "Email Support"]}
+                isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'trial'}
+            />
+            <PlanCard 
+                title="Basic Plan"
+                price="₱200 / month"
+                description="Ideal for growing businesses, supporting up to 50 tenants."
+                features={["Up to 50 tenants", "Advanced Reporting", "AI Delinquency Prediction", "Priority Support"]}
+                isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'basic'}
+            />
+            <PlanCard 
+                title="Pro Plan"
+                price="₱500 / month"
+                description="For large-scale operations with unlimited tenants."
+                features={["Unlimited tenants", "Advanced Reporting", "AI Delinquency Prediction", "Data Backup & Restore", "Phone & Chat Support"]}
+                isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
+            />
+        </div>
       </div>
     </div>
   );
