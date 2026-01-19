@@ -46,6 +46,14 @@ const businessTypes: { value: BusinessType; label: string }[] = [
     { value: 'Vehicle_Rental', label: 'Vehicle Rental' },
 ];
 
+const subscriptionPlans = [
+    { name: 'Trial', rate: 0 },
+    { name: 'Basic', rate: 200 },
+    { name: 'Pro', rate: 500 },
+    { name: 'Individual', rate: 1500 },
+    { name: 'Company', rate: 500 },
+];
+
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
   logoFile: z.any().optional(),
@@ -309,9 +317,31 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subscription Plan Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Pro, Basic" {...field} autoComplete="off" />
-                      </FormControl>
+                       <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          const selectedPlan = subscriptionPlans.find(
+                            (p) => p.name === value
+                          );
+                          if (selectedPlan) {
+                            form.setValue('subscriptionRate', selectedPlan.rate);
+                          }
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a plan" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subscriptionPlans.map((plan) => (
+                            <SelectItem key={plan.name} value={plan.name}>
+                              {plan.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
