@@ -50,8 +50,7 @@ const subscriptionPlans = [
     { name: 'Trial', rate: 0 },
     { name: 'Basic', rate: 200 },
     { name: 'Pro', rate: 500 },
-    { name: 'Individual', rate: 1500 },
-    { name: 'Company', rate: 500 },
+    { name: 'Custom Price', rate: null },
 ];
 
 const clientFormSchema = z.object({
@@ -144,6 +143,8 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       timezone: client?.timezone || 'Asia/Manila',
     },
   });
+
+  const watchedPlanName = form.watch("subscriptionPlanName");
 
   useEffect(() => {
     if (isOpen) {
@@ -316,15 +317,17 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   name="subscriptionPlanName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Subscription Plan Name</FormLabel>
+                      <FormLabel>Subscription Plan</FormLabel>
                        <Select
                         onValueChange={(value) => {
                           field.onChange(value);
-                          const selectedPlan = subscriptionPlans.find(
-                            (p) => p.name === value
-                          );
-                          if (selectedPlan) {
-                            form.setValue('subscriptionRate', selectedPlan.rate);
+                          if (value !== 'Custom Price') {
+                            const selectedPlan = subscriptionPlans.find(
+                              (p) => p.name === value
+                            );
+                            if (selectedPlan && selectedPlan.rate !== null) {
+                              form.setValue('subscriptionRate', selectedPlan.rate);
+                            }
                           }
                         }}
                         defaultValue={field.value}
@@ -351,9 +354,9 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                   name="subscriptionRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monthly/Annual Rate (₱)</FormLabel>
+                      <FormLabel>Rate (₱)</FormLabel>
                       <FormControl>
-                         <Input type="number" placeholder="e.g. 1500" {...field} />
+                         <Input type="number" placeholder="e.g. 1500" {...field} disabled={watchedPlanName !== 'Custom Price'} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
