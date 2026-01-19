@@ -130,7 +130,7 @@ export default function SignUpPage() {
                                 title="Trial Plan"
                                 price="Free"
                                 description="Get started with all the essential features for 1 month."
-                                features={["Manage up to 10 tenants", "Payment Tracking", "Basic Reporting", "Email Support"]}
+                                features={["Manage up to 3 tenants", "Payment Tracking", "Basic Reporting", "Email Support"]}
                                 isFeatured={true}
                             />
                              <PlanCard 
