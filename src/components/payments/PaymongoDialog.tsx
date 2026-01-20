@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2, QrCode } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 
 interface PaymongoDialogProps {
@@ -18,26 +18,26 @@ interface PaymongoDialogProps {
 
 export function PaymongoDialog({ isOpen, onClose, tenant, amount }: PaymongoDialogProps) {
   const { toast } = useToast();
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && tenant && amount > 0) {
-      createPaymongoLink();
+      createPaymongoQrCode();
     } else {
-      setCheckoutUrl(null);
+      setQrCodeUrl(null);
       setIsLoading(false);
       setError(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, tenant, amount]);
 
-  const createPaymongoLink = async () => {
+  const createPaymongoQrCode = async () => {
     if (!tenant) return;
     setIsLoading(true);
     setError(null);
-    setCheckoutUrl(null);
+    setQrCodeUrl(null);
     
     try {
       const response = await fetch('/api/paymongo/create-source', {
@@ -57,10 +57,10 @@ export function PaymongoDialog({ isOpen, onClose, tenant, amount }: PaymongoDial
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to create payment link.');
+        throw new Error(responseData.error || 'Failed to create QR code.');
       }
 
-      setCheckoutUrl(responseData.checkoutUrl);
+      setQrCodeUrl(responseData.qrCodeUrl);
     } catch (err: any) {
       setError(err.message);
       toast({
@@ -77,36 +77,33 @@ export function PaymongoDialog({ isOpen, onClose, tenant, amount }: PaymongoDial
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pay Online</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><QrCode/>Pay with QR Ph</DialogTitle>
           <DialogDescription>
-            You are about to pay a due of <strong>₱{amount.toFixed(2)}</strong>. Click below to proceed to a secure payment page.
+            You are about to pay a due of <strong>₱{amount.toFixed(2)}</strong>. Scan the QR code below using your mobile banking or e-wallet app.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 flex items-center justify-center min-h-[250px]">
+        <div className="py-4 flex items-center justify-center min-h-[300px]">
           {isLoading && (
             <div className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <p className="mt-2 text-muted-foreground">Generating payment link...</p>
+              <p className="mt-2 text-muted-foreground">Generating QR code...</p>
             </div>
           )}
           {error && (
              <div className="text-center text-destructive">
               <AlertTriangle className="h-12 w-12 mx-auto" />
-              <p className="mt-2 font-semibold">Could not create payment link</p>
+              <p className="mt-2 font-semibold">Could not generate QR code</p>
               <p className="text-xs mt-1">{error}</p>
             </div>
           )}
-          {checkoutUrl && (
+          {qrCodeUrl && (
             <div className="text-center space-y-4">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
-              <p className="font-semibold">Your secure payment link is ready.</p>
-              <Button asChild size="lg">
-                <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" onClick={onClose}>
-                  Proceed to Payment <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
+              <div className="bg-white p-4 rounded-lg border shadow-md">
+                 <Image src={qrCodeUrl} alt="QR Code for Payment" width={250} height={250} />
+              </div>
+              <p className="font-semibold text-lg">Scan to Pay</p>
                <div className="p-3 bg-blue-500/10 text-blue-700 border-l-4 border-blue-500 rounded-r-md text-left text-sm">
-                 <p className="text-xs">You will be redirected to PayMongo's secure website. You can choose QR Ph or other available methods there.</p>
+                 <p className="text-xs">Once payment is complete, your records will be updated automatically. You may close this window after paying.</p>
                </div>
             </div>
           )}

@@ -31,6 +31,10 @@ export async function POST(request: Request) {
 
     const authString = Buffer.from(`${secretKey}:`).toString('base64');
     
+    // Set expiry for the payment intent (e.g., 1 hour from now)
+    const expiryTime = new Date();
+    expiryTime.setHours(expiryTime.getHours() + 1);
+    
     const options = {
       method: 'POST',
       headers: {
@@ -42,15 +46,21 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
+            payment_method_allowed: ['qrph'],
+            payment_method_options: {
+              qrph: {
+                expires_at: expiryTime.toISOString(),
+              },
+            },
             description: description,
-            remarks: JSON.stringify(metadata), // Use remarks for metadata as it supports objects
-            payment_method_types: ["card", "gcash", "paymaya", "qrph"] // Explicitly allow QR Ph
+            statement_descriptor: 'RentPilot',
+            metadata: metadata
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/links', options);
+    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
     const data = await response.json();
     
     if (!response.ok || data.errors) {
@@ -58,16 +68,17 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
-    const checkoutUrl = data.data.attributes.checkout_url;
+    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
     
-    if (!checkoutUrl) {
-      throw new Error('Checkout URL not found in PayMongo response.');
+    if (!qrCodeUrl) {
+      console.error("PayMongo response did not contain QR Code URL:", data);
+      throw new Error('QR Code URL not found in PayMongo response.');
     }
 
-    return NextResponse.json({ checkoutUrl });
+    return NextResponse.json({ qrCodeUrl });
 
   } catch (error: any) {
-    console.error('[PayMongo Create Link Error]:', error.message);
+    console.error('[PayMongo Create QR Intent Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
