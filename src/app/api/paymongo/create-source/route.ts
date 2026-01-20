@@ -42,15 +42,22 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
+            payment_method_allowed: ['qrph'],
+            payment_method_options: {
+                qrph: {
+                    expires_at: new Date(Date.now() + 3600 * 1000).toISOString() // 1 hour expiry
+                }
+            },
+            currency: 'PHP',
             description: description,
-            remarks: JSON.stringify(metadata), // Use remarks to pass metadata
-            payment_method_types: ["card", "gcash", "grab_pay", "paymaya", "dob_ubp", "qrph"] // Explicitly include qrph
+            statement_descriptor: 'RentPilot',
+            metadata: metadata
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/links', options);
+    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
     const data = await response.json();
     
     if (!response.ok || data.errors) {
@@ -58,17 +65,17 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
-    const paymentUrl = data.data.attributes.checkout_url;
-    
-    if (!paymentUrl) {
-      console.error("PayMongo response did not contain checkout_url:", data);
-      throw new Error('Payment URL not found in PayMongo response.');
+    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
+
+    if (!qrCodeUrl) {
+      console.error("QR Code URL not found in PayMongo response:", JSON.stringify(data, null, 2));
+      throw new Error('QR Code URL not found in PayMongo response.');
     }
 
-    return NextResponse.json({ paymentUrl });
+    return NextResponse.json({ qrCodeUrl });
 
   } catch (error: any) {
-    console.error('[PayMongo Create Link Error]:', error.message);
+    console.error('[PayMongo Create Source Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
