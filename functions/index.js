@@ -5,6 +5,7 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { runNotificationChecks } = require("./src/notifications");
+const crypto = require('crypto');
 
 
 // Initialize Firebase Admin SDK
@@ -139,4 +140,103 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
         res.status(500).send("An internal error occurred while processing the PDF.");
     }
   }
+});
+
+
+exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+  
+    // It's recommended to store secrets in environment configuration
+    // For this example, we'll assume it's set up in Firebase Functions config
+    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error("PayMongo webhook secret is not set in function config.");
+      res.status(500).send("Webhook configuration error.");
+      return;
+    }
+  
+    // --- Signature Verification ---
+    const signatureHeader = req.get("Paymongo-Signature") || "";
+    const signatureParts = signatureHeader.split(',').reduce((acc, part) => {
+        const [key, value] = part.split('=');
+        acc[key.trim()] = value;
+        return acc;
+    }, {});
+    
+    const timestamp = signatureParts.t;
+    const liveSignature = signatureParts.li;
+    const testSignature = signatureParts.te;
+    const signature = liveSignature || testSignature; // Use live or test signature
+  
+    if (!timestamp || !signature) {
+      console.error("Missing signature parts.");
+      res.status(400).send("Invalid signature header.");
+      return;
+    }
+  
+    const payload = JSON.stringify(req.body);
+    const signedPayload = `${timestamp}.${payload}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(signedPayload)
+      .digest('hex');
+  
+    if (signature !== expectedSignature) {
+      console.error("Signature verification failed.");
+      res.status(403).send("Signature verification failed.");
+      return;
+    }
+    
+    // --- Handle Event ---
+    const event = req.body.data;
+  
+    if (event.attributes.type === 'payment.paid') {
+      const payment = event.attributes.data;
+      const source = payment.attributes.source;
+  
+      if (source && source.type === 'source' && payment.attributes.status === 'paid') {
+        const metadata = source.attributes.metadata;
+        const { tenantId, clientId } = metadata;
+        const amountPaid = payment.attributes.amount / 100; // Convert back from centavos
+  
+        if (!tenantId || !clientId) {
+          console.error("Webhook received without tenantId or clientId in metadata.");
+          res.status(400).send("Missing metadata.");
+          return;
+        }
+        
+        try {
+          const paymentData = {
+            tenantId,
+            clientId,
+            date: new Date(payment.attributes.paid_at * 1000).toISOString(),
+            amount: amountPaid,
+            paymentMethod: 'Paymongo',
+            checkNumber: `Paymongo Source: ${source.id}`,
+            discountApplied: 0,
+            discountDescription: '',
+          };
+  
+          const paymentsRef = admin.firestore().collection('payments');
+          const q = paymentsRef.where('checkNumber', '==', `Paymongo Source: ${source.id}`).limit(1);
+          const existingPayment = await q.get();
+  
+          if (existingPayment.empty) {
+              await paymentsRef.add(paymentData);
+              console.log(`Payment of ${amountPaid} for tenant ${tenantId} successfully recorded.`);
+          } else {
+              console.log(`Duplicate webhook for source ${source.id} ignored.`);
+          }
+        } catch (dbError) {
+          console.error("Error writing payment to Firestore:", dbError);
+          res.status(500).send("Internal server error while processing payment.");
+          return;
+        }
+      }
+    }
+  
+    res.status(200).send("Webhook received.");
 });

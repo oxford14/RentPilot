@@ -10,10 +10,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PaymentsTable } from '@/components/payments/PaymentsTable';
 import { calculateTenantBalance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock } from 'lucide-react';
+import { DollarSign, CheckCircle2, FileText, Info, ShieldCheck, Banknote, CalendarClock, ListChecks, Home, Calendar, Clock, QrCode } from 'lucide-react';
 import { startOfDay, format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
+import { PaymongoDialog } from '@/components/payments/PaymongoDialog';
+import type { Tenant } from '@/lib/types';
+
 
 export function TenantDashboard() {
   const { user } = useAuth();
@@ -21,6 +24,7 @@ export function TenantDashboard() {
   const [balance, setBalance] = useState<number | null>(null);
   const [clientToday, setClientToday] = useState<Date | null>(null);
   const [nextDueDate, setNextDueDate] = useState<Date | null>(null);
+  const [isPaymongoOpen, setIsPaymongoOpen] = useState(false);
 
   const currentTenant = useMemo(() => {
     if (!user?.tenantId) return null;
@@ -129,9 +133,17 @@ export function TenantDashboard() {
   return (
     <>
       <div className="container mx-auto py-2 space-y-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold font-headline">My Dashboard</h1>
-          <p className="text-muted-foreground">Welcome, {currentTenant.name}. Here is your payment summary.</p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h1 className="text-3xl font-bold font-headline">My Dashboard</h1>
+                <p className="text-muted-foreground">Welcome, {currentTenant.name}. Here is your payment summary.</p>
+            </div>
+             {balance !== null && balance > 0 && (
+                <Button onClick={() => setIsPaymongoOpen(true)} className="shadow-lg hover:shadow-xl transition-shadow w-full sm:w-auto">
+                    <QrCode className="mr-2 h-5 w-5" />
+                    Pay Online
+                </Button>
+            )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -319,6 +331,12 @@ export function TenantDashboard() {
           </CardContent>
         </Card>
       </div>
+      <PaymongoDialog
+        isOpen={isPaymongoOpen}
+        onClose={() => setIsPaymongoOpen(false)}
+        tenant={currentTenant}
+        amount={balance !== null && balance > 0 ? balance : 0}
+      />
     </>
   );
 }

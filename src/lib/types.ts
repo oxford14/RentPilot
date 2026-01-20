@@ -61,7 +61,7 @@ export interface Tenant {
   clientId?: string;
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Paymongo' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID
@@ -461,7 +461,7 @@ export interface AppContextType {
   deleteWeeklyIncome: (weeklyIncomeId: string) => Promise<void>;
 
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
-  updateAnnouncement: (announcementId: string, data: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => Promise<void>;
+  updateAnnouncement: (announcementId: string, data: Partial<Omit<Announcement, 'id' | 'createdAt' | 'readBy' | 'status'>>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
   

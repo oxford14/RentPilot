@@ -343,7 +343,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
         for (const superAdminDoc of superAdminSnapshot.docs) {
             const superAdminData = superAdminDoc.data() as SuperAdminUser;
             if (await verifyPasswordAndMigrate(superAdminDoc.ref, passwordInput, superAdminData.password)) {
-                return { username: superAdminData.username, isSuperAdmin: true };
+                return { id: superAdminDoc.id, username: superAdminData.username, isSuperAdmin: true };
             }
         }
     }
@@ -365,6 +365,7 @@ export async function serverVerifyCredentials(usernameInput: string, passwordInp
             const managedUserData = managedUserDoc.data() as ManagedUser;
             if (await verifyPasswordAndMigrate(managedUserDoc.ref, passwordInput, managedUserData.password)) {
                 return {
+                    id: managedUserDoc.id,
                     username: managedUserData.username,
                     email: managedUserData.email,
                     clientId: managedUserData.clientId,
