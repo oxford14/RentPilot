@@ -2,12 +2,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, CheckCircle2, QrCode } from 'lucide-react';
+import { Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import type { Client } from '@/lib/types';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface PaymongoSubscriptionDialogProps {
   isOpen: boolean;
@@ -19,26 +19,26 @@ interface PaymongoSubscriptionDialogProps {
 
 export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, planName }: PaymongoSubscriptionDialogProps) {
   const { toast } = useToast();
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && client && amount > 0 && planName) {
-      createPaymongoQrCode();
+      createPaymongoLink();
     } else {
-      setQrCodeUrl(null);
+      setPaymentUrl(null);
       setIsLoading(false);
       setError(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, client, amount, planName]);
 
-  const createPaymongoQrCode = async () => {
+  const createPaymongoLink = async () => {
     if (!client) return;
     setIsLoading(true);
     setError(null);
-    setQrCodeUrl(null);
+    setPaymentUrl(null);
     
     try {
       const response = await fetch('/api/paymongo/create-source', {
@@ -58,10 +58,10 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, pl
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to create QR code.');
+        throw new Error(responseData.error || 'Failed to create payment link.');
       }
 
-      setQrCodeUrl(responseData.qrCodeUrl);
+      setPaymentUrl(responseData.paymentUrl);
     } catch (err: any) {
       setError(err.message);
       toast({
@@ -74,38 +74,49 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, pl
     }
   };
 
+  const handleProceed = () => {
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank');
+      onClose();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><QrCode/>Pay {planName} Subscription</DialogTitle>
+          <DialogTitle>Pay {planName} Subscription</DialogTitle>
           <DialogDescription>
-            You are about to pay <strong>₱{amount.toFixed(2)}</strong> for your subscription. Scan the QR code below.
+            You are about to pay <strong>₱{amount.toFixed(2)}</strong> for your subscription. You will be redirected to PayMongo's secure payment page.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 flex items-center justify-center min-h-[300px]">
+        <div className="py-4 flex items-center justify-center min-h-[150px]">
           {isLoading && (
             <div className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <p className="mt-2 text-muted-foreground">Generating QR code...</p>
+              <p className="mt-2 text-muted-foreground">Generating payment link...</p>
             </div>
           )}
           {error && (
              <div className="text-center text-destructive">
               <AlertTriangle className="h-12 w-12 mx-auto" />
-              <p className="mt-2 font-semibold">Could not generate QR code</p>
+              <p className="mt-2 font-semibold">Could not create payment link</p>
               <p className="text-xs mt-1">{error}</p>
             </div>
           )}
-          {qrCodeUrl && (
+          {paymentUrl && (
             <div className="text-center space-y-4">
-              <div className="bg-white p-4 rounded-lg border shadow-md">
-                 <Image src={qrCodeUrl} alt="QR Code for Payment" width={250} height={250} />
-              </div>
-              <p className="font-semibold text-lg">Scan to Pay</p>
-               <div className="p-3 bg-blue-500/10 text-blue-700 border-l-4 border-blue-500 rounded-r-md text-left text-sm">
-                 <p className="text-xs">Once payment is complete, your subscription will be updated automatically. You may close this window after paying.</p>
-               </div>
+               <Alert>
+                <AlertTriangle className="h-4 w-4"/>
+                <AlertTitle>Ready to Pay?</AlertTitle>
+                <AlertDescription>
+                  Click the button below to open the secure payment page in a new tab.
+                </AlertDescription>
+              </Alert>
+              <Button onClick={handleProceed} className="w-full">
+                 <ExternalLink className="mr-2 h-4 w-4"/>
+                 Proceed to Payment
+              </Button>
             </div>
           )}
         </div>

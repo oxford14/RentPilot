@@ -187,85 +187,7 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
     const event = req.body.data;
     const eventType = event.attributes.type;
 
-    if (eventType === 'payment_intent.succeeded') {
-        const paymentIntent = event.attributes.data;
-        const metadata = paymentIntent.attributes.metadata;
-        const paymentType = metadata?.paymentType;
-
-        if (paymentType === 'subscription') {
-            const { clientId, clientName, planName, amount: amountStr } = metadata;
-            const amount = parseFloat(amountStr);
-
-            if (!clientId) {
-                console.error("Subscription webhook (PI) received without clientId.");
-                return res.status(400).send("Missing clientId for subscription.");
-            }
-
-             try {
-                const clientRef = admin.firestore().collection('clients').doc(clientId);
-                
-                await admin.firestore().runTransaction(async (transaction) => {
-                    const clientDoc = await transaction.get(clientRef);
-                    if (!clientDoc.exists) throw new Error(`Client ${clientId} not found.`);
-                    
-                    const clientData = clientDoc.data();
-                    const monthsPaid = 1;
-                    const currentEndDate = clientData.subscriptionEndDate ? new Date(clientData.subscriptionEndDate) : new Date();
-                    const newBaseDate = new Date(Math.max(currentEndDate.getTime(), Date.now()));
-                    newBaseDate.setMonth(newBaseDate.getMonth() + monthsPaid);
-
-                    transaction.update(clientRef, {
-                        subscriptionEndDate: newBaseDate.toISOString(),
-                        subscriptionStatus: 'active',
-                        subscriptionPlanName: planName,
-                        subscriptionRate: amount,
-                    });
-                });
-                
-                console.log(`Subscription (PI) for client ${clientId} (${clientName}) updated to ${planName} and extended successfully.`);
-                
-            } catch (dbError) {
-                console.error("Error updating client subscription (PI):", dbError);
-                return res.status(500).send("Internal server error while processing subscription.");
-            }
-
-        } else if (paymentType === 'rent') {
-            const { tenantId, clientId } = metadata;
-            const amountPaid = paymentIntent.attributes.amount / 100;
-    
-            if (!tenantId || !clientId) {
-              console.error("Rent webhook (PI) received without tenantId or clientId.");
-              return res.status(400).send("Missing metadata.");
-            }
-            
-            try {
-              const paymentRecord = {
-                tenantId,
-                clientId,
-                date: new Date(paymentIntent.attributes.paid_at * 1000).toISOString(),
-                amount: amountPaid,
-                paymentMethod: 'Paymongo',
-                checkNumber: `Paymongo PI: ${paymentIntent.id}`,
-                discountApplied: 0,
-                discountDescription: '',
-              };
-      
-              const paymentsRef = admin.firestore().collection('payments');
-              const q = paymentsRef.where('checkNumber', '==', `Paymongo PI: ${paymentIntent.id}`).limit(1);
-              const existingPayment = await q.get();
-      
-              if (existingPayment.empty) {
-                  await paymentsRef.add(paymentRecord);
-                  console.log(`Payment (PI) of ${amountPaid} for tenant ${tenantId} successfully recorded.`);
-              } else {
-                  console.log(`Duplicate webhook for Payment Intent ${paymentIntent.id} ignored.`);
-              }
-            } catch (dbError) {
-              console.error("Error writing payment (PI) to Firestore:", dbError);
-              return res.status(500).send("Internal server error while processing payment.");
-            }
-        }
-    } else if (eventType === 'link.payment.paid') {
+    if (eventType === 'link.payment.paid') {
         const paymentData = event.attributes.data;
         const payment = paymentData.attributes.payments[0];
         if (!payment || payment.attributes.status !== 'paid') {
@@ -275,6 +197,7 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
         
         let metadata;
         try {
+            // Data is now in the remarks field of the link object
             metadata = JSON.parse(paymentData.attributes.remarks);
         } catch (e) {
             console.error("Error parsing metadata from remarks:", paymentData.attributes.remarks, e);

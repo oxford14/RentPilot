@@ -42,16 +42,15 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
-            payment_method_allowed: ['qrph'],
-            currency: 'PHP',
             description: description,
-            metadata: metadata
+            remarks: JSON.stringify(metadata), // Use remarks to pass metadata
+            payment_method_types: ["card", "gcash", "grab_pay", "paymaya", "dob_ubp", "qrph"] // Explicitly include qrph
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
+    const response = await fetch('https://api.paymongo.com/v1/links', options);
     const data = await response.json();
     
     if (!response.ok || data.errors) {
@@ -59,17 +58,17 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
-    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
+    const paymentUrl = data.data.attributes.checkout_url;
     
-    if (!qrCodeUrl) {
-      console.error("PayMongo response did not contain QR Code URL:", data);
-      throw new Error('QR Code URL not found in PayMongo response.');
+    if (!paymentUrl) {
+      console.error("PayMongo response did not contain checkout_url:", data);
+      throw new Error('Payment URL not found in PayMongo response.');
     }
 
-    return NextResponse.json({ qrCodeUrl });
+    return NextResponse.json({ paymentUrl });
 
   } catch (error: any) {
-    console.error('[PayMongo Create QR Intent Error]:', error.message);
+    console.error('[PayMongo Create Link Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
