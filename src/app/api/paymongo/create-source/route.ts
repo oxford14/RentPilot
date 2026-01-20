@@ -22,32 +22,36 @@ export async function POST(request: Request) {
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
         metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(amount) };
         description = `RentPilot Subscription: ${planName} Plan`;
-    } else {
+    } else { // 'rent'
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
         metadata = { tenantId, tenantName, clientId, paymentType: 'rent' };
         description = `Rent Payment for ${tenantName}`;
     }
 
+    const authString = Buffer.from(`${secretKey}:`).toString('base64');
+    
     const options = {
       method: 'POST',
       headers: {
         accept: 'application/json',
         'Content-Type': 'application/json',
-        authorization: `Basic ${btoa(secretKey)}` 
+        authorization: `Basic ${authString}`
       },
       body: JSON.stringify({
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
+            payment_method_allowed: ['qrph'],
+            currency: 'PHP',
             description: description,
-            remarks: JSON.stringify(metadata) // Using remarks to pass metadata
+            metadata: metadata
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/links', options);
+    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
     const data = await response.json();
     
     if (!response.ok || data.errors) {
@@ -55,17 +59,16 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
-    const checkoutUrl = data.data.attributes.checkout_url;
+    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
     
-    if (!checkoutUrl) {
-      throw new Error('Checkout URL not found in PayMongo response.');
+    if (!qrCodeUrl) {
+      throw new Error('QR Code URL not found in PayMongo response.');
     }
 
-    // The component now expects the URL directly.
-    return NextResponse.json({ checkout_url: checkoutUrl });
+    return NextResponse.json({ qrCodeUrl: qrCodeUrl });
 
   } catch (error: any) {
-    console.error('[PayMongo Create Payment Link Error]:', error.message);
+    console.error('[PayMongo Create QR Code Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
