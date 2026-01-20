@@ -46,6 +46,7 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
+            currency: 'PHP', // Add the required currency field
             payment_method_allowed: ['qrph'],
             payment_method_options: {
               qrph: {
