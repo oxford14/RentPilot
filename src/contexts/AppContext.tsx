@@ -406,10 +406,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
         let historyWasModified = false;
         
-        // Unassign from PC if status changes to inactive
-        if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive' && originalTenant?.pcNumber) {
-            dataToUpdate.pcNumber = deleteField() as any;
-            toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
+        if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive') {
+            if (originalTenant?.pcNumber) {
+                dataToUpdate.pcNumber = deleteField() as any;
+                toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
+            }
+            if (originalTenant?.roomNumber) {
+                dataToUpdate.roomNumber = deleteField() as any;
+                toast({title: "Room Unassigned", description: `${updatedTenant.name} has been unassigned from their room.`});
+            }
         }
         
         if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate) {
@@ -1770,6 +1775,83 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
+  
+  const updateClientRoomCount = async (clientId: string, count: number) => {
+    if (!authUser?.isSuperAdmin && authUser?.clientId !== clientId) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'clients', clientId), { roomCount: count });
+      toast({ title: "Success", description: "Number of rooms has been updated." });
+    } catch (e: any) {
+      console.error("Error updating room count:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const assignTenantToRoom = async (tenantId: string, roomNumber: number) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      const batch = writeBatch(db);
+      
+      const currentOccupant = rawTenantsState.find(t => t.roomNumber === roomNumber);
+      if (currentOccupant) {
+        batch.update(doc(db, 'tenants', currentOccupant.id), { roomNumber: deleteField() });
+      }
+
+      batch.update(doc(db, 'tenants', tenantId), { roomNumber: roomNumber });
+      
+      await batch.commit();
+
+      toast({ title: "Success", description: `Tenant assigned to Room ${roomNumber}.` });
+    } catch (e: any) {
+      console.error("Error assigning tenant to room:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const unassignTenantFromRoom = async (tenantId: string) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'tenants', tenantId), { roomNumber: deleteField() });
+      toast({ title: "Success", description: "Tenant has been unassigned." });
+    } catch (e: any) {
+      console.error("Error unassigning tenant from room:", e);
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const updateClientRoomIssue = async (clientId: string, roomNumber: number, newIssues: PcIssue) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const clientRef = doc(db, 'clients', clientId);
+    try {
+        const clientDoc = await getDoc(clientRef);
+        const currentIssues = clientDoc.data()?.roomIssues || {};
+
+        if (Object.keys(newIssues).length > 0) {
+            currentIssues[roomNumber] = newIssues;
+        } else {
+            delete currentIssues[roomNumber];
+        }
+
+        await updateDoc(clientRef, { roomIssues: currentIssues });
+        toast({ title: "Success", description: `Issue for Room ${roomNumber} has been updated.` });
+
+    } catch (e: any) {
+        console.error("Error updating room issue:", e);
+        toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
 
   const addTechSupportRequest = async (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => {
     if (!authIsAuthenticated || !authUser || !authUser.tenantId || !authUser.clientId) {
@@ -1864,6 +1946,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     unassignTenantFromPc,
     updateClientPcIssue,
 
+    updateClientRoomCount,
+    assignTenantToRoom,
+    unassignTenantFromRoom,
+    updateClientRoomIssue,
+
     addPayment,
     updatePayment,
     deletePayment,
@@ -1957,6 +2044,8 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
+
 
 
 

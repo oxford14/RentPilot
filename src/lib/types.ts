@@ -58,6 +58,7 @@ export interface Tenant {
   signedContractUrl?: string;
   contractEndDate?: string;
   pcNumber?: number;
+  roomNumber?: number;
   clientId?: string;
 }
 
@@ -71,7 +72,7 @@ export interface Payment {
   paymentMethod?: PaymentMethod;
   checkNumber?: string;
   discountApplied?: number;
-  discountDescription?: string; 
+  discountDescription?: string;
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
 }
 
@@ -103,6 +104,8 @@ export interface Client {
   subscriptionRate?: number;
   pcCount?: number;
   pcIssues?: Record<number, PcIssue>;
+  roomCount?: number;
+  roomIssues?: Record<number, PcIssue>;
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
@@ -116,24 +119,24 @@ export interface DeletedClientBackup {
     deletedAt: string; // ISO string
 }
 
-export type ExpenseCategory = 
-  | 'Maintenance' 
-  | 'Utilities' 
-  | 'Administrative' 
-  | 'Marketing' 
-  | 'Supplies' 
-  | 'Repairs' 
-  | 'Taxes & Fees' 
+export type ExpenseCategory =
+  | 'Maintenance'
+  | 'Utilities'
+  | 'Administrative'
+  | 'Marketing'
+  | 'Supplies'
+  | 'Repairs'
+  | 'Taxes & Fees'
   | 'Other';
 
 export const expenseCategories: ExpenseCategory[] = [
-  'Maintenance', 
-  'Utilities', 
-  'Administrative', 
-  'Marketing', 
-  'Supplies', 
-  'Repairs', 
-  'Taxes & Fees', 
+  'Maintenance',
+  'Utilities',
+  'Administrative',
+  'Marketing',
+  'Supplies',
+  'Repairs',
+  'Taxes & Fees',
   'Other'
 ];
 
@@ -385,7 +388,7 @@ export interface AppContextType {
   clients: Client[];
   managedUsers: ManagedUser[]; // Filtered for current client context if applicable
   rawSuperAdminUsers: SuperAdminUser[]; // Full list for super admins
-  expenses: Expense[]; 
+  expenses: Expense[];
   companyFundsExpenses: CompanyFundsExpense[];
   expenseCategories: ExpenseCategory[];
   additionalDues: AdditionalDue[];
@@ -422,6 +425,11 @@ export interface AppContextType {
   assignTenantToPc: (tenantId: string, pcNumber: number) => Promise<void>;
   unassignTenantFromPc: (tenantId: string) => Promise<void>;
   updateClientPcIssue: (clientId: string, pcNumber: number, newIssues: PcIssue) => Promise<void>;
+
+  updateClientRoomCount: (clientId: string, count: number) => Promise<void>;
+  assignTenantToRoom: (tenantId: string, roomNumber: number) => Promise<void>;
+  unassignTenantFromRoom: (tenantId: string) => Promise<void>;
+  updateClientRoomIssue: (clientId: string, roomNumber: number, newIssues: PcIssue) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;

@@ -421,7 +421,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
             return { ...item, label };
         });
 
-        if (activeClientForDisplay?.businessType === 'PC_Rental') {
+        if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
             };
@@ -430,6 +430,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
                 currentAppNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
             } else {
                 currentAppNavItems.push(pcManagementItem);
+            }
+        }
+
+        if (activeClientForDisplay?.businessType === 'Standard' || activeClientForDisplay?.businessType === 'Vehicle_Rental') {
+            const roomManagementItem: AppSidebarNavItem = {
+                isGroup: false, href: '/room-management', label: 'Room Management', icon: Home,
+            };
+            const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+            if (tenantsIndex !== -1) {
+                currentAppNavItems.splice(tenantsIndex + 1, 0, roomManagementItem);
+            } else {
+                currentAppNavItems.push(roomManagementItem);
             }
         }
         

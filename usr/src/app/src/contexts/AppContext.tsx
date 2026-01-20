@@ -578,7 +578,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           senderId: authUser.username,
           senderName: authUser.username,
           recipientId: tenant.id,
-          recipientUsername: tenant.username,
+          recipientUsername: result.username,
           isScheduled: false,
           scheduledAt: new Date().toISOString(),
           status: 'sent',
@@ -1937,3 +1937,4 @@ export const useAppContext = (): AppContextType => {
 
 
     
+
