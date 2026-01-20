@@ -199,41 +199,95 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
   
       if (source && source.type === 'source' && payment.attributes.status === 'paid') {
         const metadata = source.attributes.metadata;
-        const { tenantId, clientId } = metadata;
-        const amountPaid = payment.attributes.amount / 100; // Convert back from centavos
-  
-        if (!tenantId || !clientId) {
-          console.error("Webhook received without tenantId or clientId in metadata.");
-          res.status(400).send("Missing metadata.");
-          return;
-        }
         
-        try {
-          const paymentData = {
-            tenantId,
-            clientId,
-            date: new Date(payment.attributes.paid_at * 1000).toISOString(),
-            amount: amountPaid,
-            paymentMethod: 'Paymongo',
-            checkNumber: `Paymongo Source: ${source.id}`,
-            discountApplied: 0,
-            discountDescription: '',
-          };
-  
-          const paymentsRef = admin.firestore().collection('payments');
-          const q = paymentsRef.where('checkNumber', '==', `Paymongo Source: ${source.id}`).limit(1);
-          const existingPayment = await q.get();
-  
-          if (existingPayment.empty) {
-              await paymentsRef.add(paymentData);
-              console.log(`Payment of ${amountPaid} for tenant ${tenantId} successfully recorded.`);
-          } else {
-              console.log(`Duplicate webhook for source ${source.id} ignored.`);
-          }
-        } catch (dbError) {
-          console.error("Error writing payment to Firestore:", dbError);
-          res.status(500).send("Internal server error while processing payment.");
-          return;
+        if (metadata && metadata.paymentType === 'subscription') {
+            const { clientId, clientName } = metadata;
+            const amountPaid = payment.attributes.amount / 100;
+
+            if (!clientId) {
+                console.error("Subscription webhook received without clientId in metadata.");
+                res.status(400).send("Missing clientId for subscription.");
+                return;
+            }
+
+            try {
+                const clientRef = admin.firestore().collection('clients').doc(clientId);
+                
+                await admin.firestore().runTransaction(async (transaction) => {
+                    const clientDoc = await transaction.get(clientRef);
+                    if (!clientDoc.exists) {
+                        throw new Error(`Client ${clientId} not found.`);
+                    }
+
+                    const clientData = clientDoc.data();
+                    const subRate = clientData.subscriptionRate || 0;
+                    if (subRate <= 0) {
+                       console.log(`Client ${clientId} has a free plan. No subscription extension needed.`);
+                       return;
+                    }
+                    
+                    const monthsPaid = Math.floor(amountPaid / subRate);
+                    if (monthsPaid <= 0) {
+                        console.log(`Payment of ${amountPaid} is less than subscription rate of ${subRate}. No extension applied.`);
+                        return;
+                    }
+
+                    const currentEndDate = clientData.subscriptionEndDate ? new Date(clientData.subscriptionEndDate) : new Date();
+                    const newBaseDate = new Date(Math.max(currentEndDate.getTime(), Date.now())); // Start from today if expired
+                    
+                    newBaseDate.setMonth(newBaseDate.getMonth() + monthsPaid);
+
+                    transaction.update(clientRef, {
+                        subscriptionEndDate: newBaseDate.toISOString(),
+                        subscriptionStatus: 'active'
+                    });
+                });
+                
+                console.log(`Subscription for client ${clientId} (${clientName}) extended successfully.`);
+                
+            } catch (dbError) {
+                console.error("Error updating client subscription:", dbError);
+                res.status(500).send("Internal server error while processing subscription.");
+                return;
+            }
+
+        } else {
+            const { tenantId, clientId } = metadata;
+            const amountPaid = payment.attributes.amount / 100; // Convert back from centavos
+    
+            if (!tenantId || !clientId) {
+              console.error("Webhook received without tenantId or clientId in metadata.");
+              res.status(400).send("Missing metadata.");
+              return;
+            }
+            
+            try {
+              const paymentData = {
+                tenantId,
+                clientId,
+                date: new Date(payment.attributes.paid_at * 1000).toISOString(),
+                amount: amountPaid,
+                paymentMethod: 'Paymongo',
+                checkNumber: `Paymongo Source: ${source.id}`,
+                discountApplied: 0,
+                discountDescription: '',
+              };
+      
+              const paymentsRef = admin.firestore().collection('payments');
+              const q = paymentsRef.where('checkNumber', '==', `Paymongo Source: ${source.id}`).limit(1);
+              const existingPayment = await q.get();
+      
+              if (existingPayment.empty) {
+                  await paymentsRef.add(paymentData);
+                  console.log(`Payment of ${amountPaid} for tenant ${tenantId} successfully recorded.`);
+              } else {
+                  console.log(`Duplicate webhook for source ${source.id} ignored.`);
+              }
+            } catch (dbError) {
+              console.error("Error writing payment to Firestore:", dbError);
+              res.status(500).send("Internal server error while processing payment.");
+              return;
+            }
         }
       }
     }

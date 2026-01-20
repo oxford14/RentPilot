@@ -3,15 +3,26 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { amount, tenantId, tenantName, clientId } = await request.json();
+    const { amount, paymentType, details } = await request.json();
     const secretKey = process.env.PAYMONGO_SECRET_KEY;
 
     if (!secretKey) {
       throw new Error('PayMongo secret key is not configured.');
     }
     
-    if (!amount || amount <= 0 || !tenantId || !clientId) {
-      throw new Error('Missing required payment details: amount, tenantId, clientId.');
+    if (!amount || amount <= 0 || !details) {
+      throw new Error('Missing required payment details.');
+    }
+
+    let metadata = {};
+    if (paymentType === 'subscription') {
+        const { clientId, clientName } = details;
+        if (!clientId || !clientName) throw new Error('Client details are required for subscription payment.');
+        metadata = { clientId, clientName, paymentType: 'subscription' };
+    } else { // Default to 'rent' payment for tenants
+        const { tenantId, tenantName, clientId } = details;
+        if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
+        metadata = { tenantId, tenantName, clientId };
     }
 
     const options = {
@@ -27,7 +38,7 @@ export async function POST(request: Request) {
             amount: Math.round(amount * 100), // Ensure it's an integer in centavos
             type: 'qr_ph',
             currency: 'PHP',
-            metadata: { tenantId, clientId, tenantName }
+            metadata
           }
         }
       })
