@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,11 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { format, isPast, differenceInDays } from 'date-fns';
-import { Award, CheckCircle2, AlertTriangle, QrCode, Clock, DollarSign, CalendarDays, Check } from 'lucide-react';
+import { Award, CheckCircle2, AlertTriangle, Clock, DollarSign, CalendarDays, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
-import { PaymongoSubscriptionDialog } from '@/components/payments/PaymongoSubscriptionDialog';
 
-function PlanCard({ title, price, description, features, isCurrentPlan = false, onUpgrade, disabled = false, planName, upgradeAmount }: { title: string, price: string, description: string, features: string[], isCurrentPlan?: boolean, onUpgrade?: (planName: string, amount: number) => void, disabled?: boolean, planName?: string, upgradeAmount?: number }) {
+function PlanCard({ title, price, description, features, isCurrentPlan = false, upgradeUrl, disabled = false }: { title: string; price: string; description: string; features: string[]; isCurrentPlan?: boolean; upgradeUrl?: string; disabled?: boolean; }) {
     return (
         <Card className={cn(isCurrentPlan && 'border-primary ring-2 ring-primary shadow-lg')}>
             <CardHeader>
@@ -33,13 +32,15 @@ function PlanCard({ title, price, description, features, isCurrentPlan = false, 
                 </ul>
             </CardContent>
             <CardFooter>
-                 {onUpgrade && planName && upgradeAmount !== undefined ? (
-                    <Button className="w-full" onClick={() => onUpgrade(planName, upgradeAmount)} disabled={disabled}>
-                        {isCurrentPlan ? 'Renew Plan' : 'Upgrade Plan'}
+                {upgradeUrl ? (
+                    <Button asChild className="w-full" disabled={disabled}>
+                        <a href={upgradeUrl} target="_blank" rel="noopener noreferrer">
+                            {isCurrentPlan ? 'Renew Plan' : 'Upgrade Plan'}
+                        </a>
                     </Button>
-                ) : isCurrentPlan ? (
-                     <Button className="w-full" variant="outline" disabled>Current Plan</Button>
-                ): null }
+                ) : (
+                    isCurrentPlan && <Button className="w-full" variant="outline" disabled>Current Plan</Button>
+                )}
             </CardFooter>
         </Card>
     );
@@ -49,8 +50,6 @@ export default function SubscriptionPage() {
   const { user, isLoading: authIsLoading } = useAuth();
   const { clients } = useAppContext();
   const router = useRouter();
-  const [paymentDetails, setPaymentDetails] = useState<{ planName: string; amount: number } | null>(null);
-
 
   const client = React.useMemo(() => {
     if (!user || !user.clientId) return null;
@@ -88,7 +87,7 @@ export default function SubscriptionPage() {
       'Expired': { variant: 'destructive', icon: AlertTriangle, color: 'bg-red-500/20 text-red-700 border-red-400' },
       'Inactive': { variant: 'secondary', icon: AlertTriangle, color: '' },
     };
-
+    
     const isTrial = (client.subscriptionPlanName || '').toLowerCase() === 'trial';
 
     return {
@@ -101,12 +100,6 @@ export default function SubscriptionPage() {
         : (client.subscriptionRate !== undefined ? `₱${client.subscriptionRate.toLocaleString()}/month` : 'N/A'),
     };
   }, [client]);
-
-  const handleUpgradeClick = (planName: string, amount: number) => {
-    if (amount > 0) {
-      setPaymentDetails({ planName, amount });
-    }
-  };
 
   if (authIsLoading || !client) {
     return (
@@ -174,9 +167,7 @@ export default function SubscriptionPage() {
                   description="Ideal for growing businesses, supporting up to 50 tenants."
                   features={["Up to 50 tenants", "Advanced Reporting", "AI Delinquency Prediction", "Priority Support"]}
                   isCurrentPlan={(client?.subscriptionPlanName || '').toLowerCase() === 'basic'}
-                  onUpgrade={handleUpgradeClick}
-                  planName="Basic"
-                  upgradeAmount={200}
+                  upgradeUrl="https://pm.link/org-xAn5Cwc5YEotiM3M3bpHfoTb/uvgvjex"
                   disabled={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
               />
               <PlanCard 
@@ -185,21 +176,12 @@ export default function SubscriptionPage() {
                   description="For large-scale operations with unlimited tenants."
                   features={["Unlimited tenants", "Advanced Reporting", "AI Delinquency Prediction", "Data Backup & Restore", "Phone & Chat Support"]}
                   isCurrentPlan={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
-                  onUpgrade={handleUpgradeClick}
-                  planName="Pro"
-                  upgradeAmount={500}
+                  upgradeUrl="https://pm.link/org-xAn5Cwc5YEotiM3M3bpHfoTb/5y91VFt"
                   disabled={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
               />
           </div>
         </div>
       </div>
-      <PaymongoSubscriptionDialog
-        isOpen={!!paymentDetails}
-        onClose={() => setPaymentDetails(null)}
-        client={client}
-        amount={paymentDetails?.amount || 0}
-        planName={paymentDetails?.planName || ''}
-      />
     </>
   );
 }
