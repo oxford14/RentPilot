@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
 import type { Client } from '@/lib/types';
 
 interface PaymongoSubscriptionDialogProps {
@@ -19,26 +19,26 @@ interface PaymongoSubscriptionDialogProps {
 
 export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, planName }: PaymongoSubscriptionDialogProps) {
   const { toast } = useToast();
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && client && amount > 0 && planName) {
-      createPaymongoQr();
+      createPaymongoLink();
     } else {
-      setQrCodeUrl(null);
+      setCheckoutUrl(null);
       setIsLoading(false);
       setError(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, client, amount, planName]);
 
-  const createPaymongoQr = async () => {
+  const createPaymongoLink = async () => {
     if (!client) return;
     setIsLoading(true);
     setError(null);
-    setQrCodeUrl(null);
+    setCheckoutUrl(null);
     
     try {
       const response = await fetch('/api/paymongo/create-source', {
@@ -58,10 +58,10 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, pl
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to create QR Code.');
+        throw new Error(responseData.error || 'Failed to create payment link.');
       }
 
-      setQrCodeUrl(responseData.qrCodeUrl);
+      setCheckoutUrl(responseData.checkoutUrl);
     } catch (err: any) {
       setError(err.message);
       toast({
@@ -80,37 +80,35 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, pl
         <DialogHeader>
           <DialogTitle>Pay {planName} Subscription</DialogTitle>
           <DialogDescription>
-            Scan the QR code to pay <strong>₱{amount.toFixed(2)}</strong> for your subscription.
+            You are about to pay <strong>₱{amount.toFixed(2)}</strong> for your subscription. Click below to proceed to a secure payment page.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 flex items-center justify-center min-h-[250px]">
           {isLoading && (
             <div className="text-center">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <p className="mt-2 text-muted-foreground">Generating QR Code...</p>
+              <p className="mt-2 text-muted-foreground">Generating payment link...</p>
             </div>
           )}
           {error && (
              <div className="text-center text-destructive">
               <AlertTriangle className="h-12 w-12 mx-auto" />
-              <p className="mt-2 font-semibold">Could not generate QR</p>
+              <p className="mt-2 font-semibold">Could not create payment link</p>
               <p className="text-xs mt-1">{error}</p>
             </div>
           )}
-          {qrCodeUrl && (
+          {checkoutUrl && (
             <div className="text-center space-y-4">
-               <div className="p-4 bg-white rounded-lg inline-block shadow-md">
-                <Image src={qrCodeUrl} alt="Payment QR Code" width={200} height={200} />
-              </div>
-              <div className="p-3 bg-green-500/10 text-green-700 border-l-4 border-green-500 rounded-r-md text-left text-sm">
-                <div className="flex items-start">
-                  <CheckCircle2 className="h-5 w-5 mr-2 mt-0.5" />
-                  <div>
-                    <p className="font-semibold">Payment will be automatically processed.</p>
-                    <p className="text-xs">Once your payment is confirmed, your subscription will be extended. You can close this window after paying.</p>
-                  </div>
-                </div>
-              </div>
+              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
+              <p className="font-semibold">Your secure payment link is ready.</p>
+              <Button asChild size="lg">
+                <a href={checkoutUrl} target="_blank" rel="noopener noreferrer" onClick={onClose}>
+                  Proceed to Payment <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+               <div className="p-3 bg-blue-500/10 text-blue-700 border-l-4 border-blue-500 rounded-r-md text-left text-sm">
+                 <p className="text-xs">You will be redirected to PayMongo's secure website. You can choose QR Ph or other available methods there.</p>
+               </div>
             </div>
           )}
         </div>

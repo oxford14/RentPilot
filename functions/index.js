@@ -144,11 +144,6 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
 
 
 exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).send("Method Not Allowed");
-      return;
-    }
-  
     const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
     if (!webhookSecret) {
       console.error("PayMongo webhook secret is not set in function config.");
@@ -160,12 +155,14 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
     const signatureHeader = req.get("Paymongo-Signature") || "";
     const signatureParts = signatureHeader.split(',').reduce((acc, part) => {
         const [key, value] = part.split('=');
-        acc[key.trim()] = value;
+        if (key && value) {
+            acc[key.trim()] = value;
+        }
         return acc;
     }, {});
     
     const timestamp = signatureParts.t;
-    const signature = signatureParts.li || signatureParts.te;
+    const signature = signatureParts.li || signatureParts.te; // li for live, te for test
   
     if (!timestamp || !signature) {
       console.error("Missing signature parts.");
@@ -278,9 +275,9 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
         
         let metadata;
         try {
-            metadata = JSON.parse(payment.attributes.remarks);
+            metadata = JSON.parse(paymentData.attributes.remarks);
         } catch (e) {
-            console.error("Error parsing metadata from remarks:", payment.attributes.remarks);
+            console.error("Error parsing metadata from remarks:", paymentData.attributes.remarks, e);
             return res.status(400).send("Invalid metadata format.");
         }
         
