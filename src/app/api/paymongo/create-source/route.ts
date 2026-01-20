@@ -41,23 +41,16 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         data: {
           attributes: {
-            amount: Math.round(amount * 100), // Amount in centavos
-            payment_method_allowed: ['qrph'],
-            payment_method_options: {
-                qrph: {
-                    expires_at: new Date(Date.now() + 3600 * 1000).toISOString() // 1 hour expiry
-                }
-            },
-            currency: 'PHP',
+            amount: Math.round(amount * 100),
             description: description,
-            statement_descriptor: 'RentPilot',
-            metadata: metadata
+            remarks: JSON.stringify(metadata), // Use remarks to pass metadata for links
+            payment_method_types: ['card', 'gcash', 'grab_pay', 'qrph', 'paymaya']
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
+    const response = await fetch('https://api.paymongo.com/v1/links', options);
     const data = await response.json();
     
     if (!response.ok || data.errors) {
@@ -65,17 +58,17 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
-    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
+    const checkoutUrl = data.data.attributes.checkout_url;
 
-    if (!qrCodeUrl) {
-      console.error("QR Code URL not found in PayMongo response:", JSON.stringify(data, null, 2));
-      throw new Error('QR Code URL not found in PayMongo response.');
+    if (!checkoutUrl) {
+      console.error("Checkout URL not found in PayMongo response:", JSON.stringify(data, null, 2));
+      throw new Error('Checkout URL not found in PayMongo response.');
     }
 
-    return NextResponse.json({ qrCodeUrl });
+    return NextResponse.json({ checkoutUrl });
 
   } catch (error: any) {
-    console.error('[PayMongo Create Source Error]:', error.message);
+    console.error('[PayMongo Create Link Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
