@@ -16,9 +16,9 @@ export async function POST(request: Request) {
 
     let metadata = {};
     if (paymentType === 'subscription') {
-        const { clientId, clientName, planName } = details;
+        const { clientId, clientName, planName, amount: planAmount } = details;
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
-        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(amount) };
+        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(planAmount) };
     } else { // Default to 'rent' payment for tenants
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Ensure it's an integer in centavos
-            type: 'qr_ph',
+            type: 'qrph', // Corrected from qr_ph to qrph
             currency: 'PHP',
             metadata
           }
