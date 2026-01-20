@@ -201,8 +201,7 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
         const metadata = source.attributes.metadata;
         
         if (metadata && metadata.paymentType === 'subscription') {
-            const { clientId, clientName } = metadata;
-            const amountPaid = payment.attributes.amount / 100;
+            const { clientId, clientName, planName, amount } = metadata;
 
             if (!clientId) {
                 console.error("Subscription webhook received without clientId in metadata.");
@@ -220,30 +219,25 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
                     }
 
                     const clientData = clientDoc.data();
-                    const subRate = clientData.subscriptionRate || 0;
-                    if (subRate <= 0) {
-                       console.log(`Client ${clientId} has a free plan. No subscription extension needed.`);
-                       return;
-                    }
                     
-                    const monthsPaid = Math.floor(amountPaid / subRate);
-                    if (monthsPaid <= 0) {
-                        console.log(`Payment of ${amountPaid} is less than subscription rate of ${subRate}. No extension applied.`);
-                        return;
-                    }
+                    // For any subscription payment (new or renewal), we add 1 month.
+                    const monthsPaid = 1;
 
                     const currentEndDate = clientData.subscriptionEndDate ? new Date(clientData.subscriptionEndDate) : new Date();
-                    const newBaseDate = new Date(Math.max(currentEndDate.getTime(), Date.now())); // Start from today if expired
+                    // If subscription is expired, start new period from today. Otherwise, extend from the current end date.
+                    const newBaseDate = new Date(Math.max(currentEndDate.getTime(), Date.now()));
                     
                     newBaseDate.setMonth(newBaseDate.getMonth() + monthsPaid);
 
                     transaction.update(clientRef, {
                         subscriptionEndDate: newBaseDate.toISOString(),
-                        subscriptionStatus: 'active'
+                        subscriptionStatus: 'active',
+                        subscriptionPlanName: planName, // Set the new plan name from metadata
+                        subscriptionRate: amount, // Set the new rate from metadata
                     });
                 });
                 
-                console.log(`Subscription for client ${clientId} (${clientName}) extended successfully.`);
+                console.log(`Subscription for client ${clientId} (${clientName}) updated to ${planName} and extended successfully.`);
                 
             } catch (dbError) {
                 console.error("Error updating client subscription:", dbError);

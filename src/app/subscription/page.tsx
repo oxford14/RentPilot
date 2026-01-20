@@ -14,9 +14,9 @@ import { cn } from '@/lib/utils';
 import type { Client } from '@/lib/types';
 import { PaymongoSubscriptionDialog } from '@/components/payments/PaymongoSubscriptionDialog';
 
-function PlanCard({ title, price, description, features, isFeatured = false }: { title: string, price: string, description: string, features: string[], isFeatured?: boolean }) {
+function PlanCard({ title, price, description, features, isCurrentPlan = false, onUpgrade, disabled = false, planName, upgradeAmount }: { title: string, price: string, description: string, features: string[], isCurrentPlan?: boolean, onUpgrade?: (planName: string, amount: number) => void, disabled?: boolean, planName?: string, upgradeAmount?: number }) {
     return (
-        <Card className={cn(isFeatured && 'border-primary ring-2 ring-primary shadow-lg')}>
+        <Card className={cn(isCurrentPlan && 'border-primary ring-2 ring-primary shadow-lg')}>
             <CardHeader>
                 <CardTitle>{title}</CardTitle>
                 <CardDescription className="text-2xl font-bold">{price}</CardDescription>
@@ -32,6 +32,15 @@ function PlanCard({ title, price, description, features, isFeatured = false }: {
                     ))}
                 </ul>
             </CardContent>
+            <CardFooter>
+                 {onUpgrade && planName && upgradeAmount !== undefined ? (
+                    <Button className="w-full" onClick={() => onUpgrade(planName, upgradeAmount)} disabled={disabled}>
+                        {isCurrentPlan ? 'Renew Plan' : 'Upgrade Plan'}
+                    </Button>
+                ) : isCurrentPlan ? (
+                     <Button className="w-full" variant="outline" disabled>Current Plan</Button>
+                ): null }
+            </CardFooter>
         </Card>
     );
 }
@@ -40,7 +49,8 @@ export default function SubscriptionPage() {
   const { user, isLoading: authIsLoading } = useAuth();
   const { clients } = useAppContext();
   const router = useRouter();
-  const [isPaymongoOpen, setIsPaymongoOpen] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState<{ planName: string; amount: number } | null>(null);
+
 
   const client = React.useMemo(() => {
     if (!user || !user.clientId) return null;
@@ -92,6 +102,12 @@ export default function SubscriptionPage() {
     };
   }, [client]);
 
+  const handleUpgradeClick = (planName: string, amount: number) => {
+    if (amount > 0) {
+      setPaymentDetails({ planName, amount });
+    }
+  };
+
   if (authIsLoading || !client) {
     return (
       <div className="container mx-auto py-2">
@@ -113,8 +129,7 @@ export default function SubscriptionPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <Card className="shadow-lg">
+        <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>{planName}</CardTitle>
               <CardDescription>Your current subscription status with RentPilot.</CardDescription>
@@ -137,38 +152,12 @@ export default function SubscriptionPage() {
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground pt-4">
-                For any questions about your subscription or to make changes to your plan, please contact our support team.
-              </p>
             </CardContent>
-            <CardFooter>
+             <CardFooter>
                <Button variant="outline">Contact Support</Button>
             </CardFooter>
           </Card>
-
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-6 w-6 text-primary" />
-                Pay Subscription
-              </CardTitle>
-              <CardDescription>
-                Pay your subscription fee using QR Ph to extend your plan.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Click the button below to generate a QR code for your subscription payment of <span className="font-bold">{rate}</span>.
-                </p>
-                <Button className="w-full" onClick={() => setIsPaymongoOpen(true)} disabled={rate === 'Free' || !client?.subscriptionRate}>
-                  Pay {rate} with QR Ph
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+        
         <div>
           <h2 className="text-2xl font-bold font-headline mb-4 mt-8">Available Plans</h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -177,30 +166,39 @@ export default function SubscriptionPage() {
                   price="Free"
                   description="Get started with all the essential features for 1 month."
                   features={["Manage up to 3 tenants", "Payment Tracking", "Basic Reporting", "Email Support"]}
-                  isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'trial'}
+                  isCurrentPlan={(client?.subscriptionPlanName || '').toLowerCase() === 'trial'}
               />
               <PlanCard 
                   title="Basic Plan"
                   price="₱200 / month"
                   description="Ideal for growing businesses, supporting up to 50 tenants."
                   features={["Up to 50 tenants", "Advanced Reporting", "AI Delinquency Prediction", "Priority Support"]}
-                  isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'basic'}
+                  isCurrentPlan={(client?.subscriptionPlanName || '').toLowerCase() === 'basic'}
+                  onUpgrade={handleUpgradeClick}
+                  planName="Basic"
+                  upgradeAmount={200}
+                  disabled={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
               />
               <PlanCard 
                   title="Pro Plan"
                   price="₱500 / month"
                   description="For large-scale operations with unlimited tenants."
                   features={["Unlimited tenants", "Advanced Reporting", "AI Delinquency Prediction", "Data Backup & Restore", "Phone & Chat Support"]}
-                  isFeatured={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
+                  isCurrentPlan={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
+                  onUpgrade={handleUpgradeClick}
+                  planName="Pro"
+                  upgradeAmount={500}
+                  disabled={(client?.subscriptionPlanName || '').toLowerCase() === 'pro'}
               />
           </div>
         </div>
       </div>
       <PaymongoSubscriptionDialog
-        isOpen={isPaymongoOpen}
-        onClose={() => setIsPaymongoOpen(false)}
+        isOpen={!!paymentDetails}
+        onClose={() => setPaymentDetails(null)}
         client={client}
-        amount={client.subscriptionRate || 0}
+        amount={paymentDetails?.amount || 0}
+        planName={paymentDetails?.planName || ''}
       />
     </>
   );

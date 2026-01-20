@@ -14,16 +14,17 @@ interface PaymongoSubscriptionDialogProps {
   onClose: () => void;
   client: Client | null;
   amount: number;
+  planName: string;
 }
 
-export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount }: PaymongoSubscriptionDialogProps) {
+export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount, planName }: PaymongoSubscriptionDialogProps) {
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen && client && amount > 0) {
+    if (isOpen && client && amount > 0 && planName) {
       createPaymongoSource();
     } else {
       setQrCodeUrl(null);
@@ -31,7 +32,7 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount }: 
       setError(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, client, amount]);
+  }, [isOpen, client, amount, planName]);
 
   const createPaymongoSource = async () => {
     if (!client) return;
@@ -49,6 +50,7 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount }: 
           details: {
             clientId: client.id,
             clientName: client.name,
+            planName: planName,
           }
         }),
       });
@@ -76,9 +78,9 @@ export function PaymongoSubscriptionDialog({ isOpen, onClose, client, amount }: 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pay Subscription with QR Ph</DialogTitle>
+          <DialogTitle>Pay {planName} Subscription with QR Ph</DialogTitle>
           <DialogDescription>
-            Scan the QR code below using your preferred banking or e-wallet app to pay your subscription of <strong>₱{amount.toFixed(2)}</strong>.
+            Scan the QR code below to pay <strong>₱{amount.toFixed(2)}</strong> for your subscription.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 flex items-center justify-center min-h-[300px]">
