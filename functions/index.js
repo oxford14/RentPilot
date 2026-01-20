@@ -201,7 +201,8 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
         const metadata = source.attributes.metadata;
         
         if (metadata && metadata.paymentType === 'subscription') {
-            const { clientId, clientName, planName, amount } = metadata;
+            const { clientId, clientName, planName, amount: amountStr } = metadata;
+            const amount = parseFloat(amountStr);
 
             if (!clientId) {
                 console.error("Subscription webhook received without clientId in metadata.");

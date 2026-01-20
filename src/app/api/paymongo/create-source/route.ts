@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (paymentType === 'subscription') {
         const { clientId, clientName, planName } = details;
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
-        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount };
+        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(amount) };
     } else { // Default to 'rent' payment for tenants
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
