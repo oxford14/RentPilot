@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async (
     usernameInput: string,
     passwordInput: string,
-  ) => {
+  ): Promise<boolean> => {
     setIsLoading(true);
     try {
         const validatedUser = await serverVerifyCredentials(usernameInput, passwordInput);
@@ -78,14 +78,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else {
                 router.push('/');
             }
+            setIsLoading(false);
+            return true;
         } else {
-            toast({ variant: "destructive", title: "Login Failed", description: "Invalid username/email or password." });
+            setIsLoading(false);
+            return false;
         }
     } catch (error) {
         console.error("Login error:", error);
         toast({ variant: "destructive", title: "Login Error", description: "An unexpected error occurred during login." });
+        setIsLoading(false);
+        return false;
     }
-    setIsLoading(false);
   }, [router, toast]);
 
   const logout = useCallback(() => {

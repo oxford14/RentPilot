@@ -12,10 +12,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, ArrowLeft } from 'lucide-react';
+import { LogIn, Eye, EyeOff, BarChart, Clock, User, DollarSign, Facebook, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatWidget } from '@/components/chat/ChatWidget';
 import { DemoBookingDialog } from '@/components/book-demo/DemoBookingDialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const loginFormSchema = z.object({
   username: z.string().min(1, { message: "Username is required." }),
@@ -39,6 +40,7 @@ function Feature({ icon: Icon, text }: { icon: React.ElementType, text: string }
 function LoginBox() {
   const { login: authLogin, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -49,7 +51,11 @@ function LoginBox() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    await authLogin(data.username, data.password);
+    setError(null);
+    const success = await authLogin(data.username, data.password);
+    if (!success) {
+        setError("Invalid username/email or password. Please try again.");
+    }
   };
   
   return (
@@ -70,7 +76,16 @@ function LoginBox() {
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Login Failed</AlertTitle>
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
               <FormField
                 control={form.control}
                 name="username"

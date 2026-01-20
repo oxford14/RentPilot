@@ -335,7 +335,7 @@ export interface AuthContextType {
   login: (
     usernameInput: string,
     passwordInput: string
-  ) => Promise<void>; // Removed unused parameters
+  ) => Promise<boolean>;
   logout: () => void;
 }
 
