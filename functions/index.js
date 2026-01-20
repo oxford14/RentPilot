@@ -149,8 +149,6 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
       return;
     }
   
-    // It's recommended to store secrets in environment configuration
-    // For this example, we'll assume it's set up in Firebase Functions config
     const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
     if (!webhookSecret) {
       console.error("PayMongo webhook secret is not set in function config.");
@@ -167,9 +165,7 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
     }, {});
     
     const timestamp = signatureParts.t;
-    const liveSignature = signatureParts.li;
-    const testSignature = signatureParts.te;
-    const signature = liveSignature || testSignature; // Use live or test signature
+    const signature = signatureParts.li || signatureParts.te;
   
     if (!timestamp || !signature) {
       console.error("Missing signature parts.");
@@ -192,15 +188,15 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
     
     // --- Handle Event ---
     const event = req.body.data;
-  
-    if (event.attributes.type === 'payment.paid') {
-      const payment = event.attributes.data;
-      const source = payment.attributes.source;
-  
-      if (source && source.type === 'source' && payment.attributes.status === 'paid') {
-        const metadata = source.attributes.metadata;
-        
-        if (metadata && metadata.paymentType === 'subscription') {
+    const eventType = event.attributes.type;
+
+    // Handle Payment Intent events
+    if (eventType === 'payment_intent.succeeded') {
+        const paymentIntent = event.attributes.data;
+        const metadata = paymentIntent.attributes.metadata;
+        const paymentType = metadata?.paymentType;
+
+        if (paymentType === 'subscription') {
             const { clientId, clientName, planName, amount: amountStr } = metadata;
             const amount = parseFloat(amountStr);
 
@@ -218,23 +214,17 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
                     if (!clientDoc.exists) {
                         throw new Error(`Client ${clientId} not found.`);
                     }
-
                     const clientData = clientDoc.data();
-                    
-                    // For any subscription payment (new or renewal), we add 1 month.
                     const monthsPaid = 1;
-
                     const currentEndDate = clientData.subscriptionEndDate ? new Date(clientData.subscriptionEndDate) : new Date();
-                    // If subscription is expired, start new period from today. Otherwise, extend from the current end date.
                     const newBaseDate = new Date(Math.max(currentEndDate.getTime(), Date.now()));
-                    
                     newBaseDate.setMonth(newBaseDate.getMonth() + monthsPaid);
 
                     transaction.update(clientRef, {
                         subscriptionEndDate: newBaseDate.toISOString(),
                         subscriptionStatus: 'active',
-                        subscriptionPlanName: planName, // Set the new plan name from metadata
-                        subscriptionRate: amount, // Set the new rate from metadata
+                        subscriptionPlanName: planName,
+                        subscriptionRate: amount,
                     });
                 });
                 
@@ -246,9 +236,9 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
                 return;
             }
 
-        } else {
+        } else if (paymentType === 'rent') {
             const { tenantId, clientId } = metadata;
-            const amountPaid = payment.attributes.amount / 100; // Convert back from centavos
+            const amountPaid = paymentIntent.attributes.amount / 100;
     
             if (!tenantId || !clientId) {
               console.error("Webhook received without tenantId or clientId in metadata.");
@@ -260,23 +250,23 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
               const paymentData = {
                 tenantId,
                 clientId,
-                date: new Date(payment.attributes.paid_at * 1000).toISOString(),
+                date: new Date(paymentIntent.attributes.paid_at * 1000).toISOString(),
                 amount: amountPaid,
                 paymentMethod: 'Paymongo',
-                checkNumber: `Paymongo Source: ${source.id}`,
+                checkNumber: `Paymongo PI: ${paymentIntent.id}`,
                 discountApplied: 0,
                 discountDescription: '',
               };
       
               const paymentsRef = admin.firestore().collection('payments');
-              const q = paymentsRef.where('checkNumber', '==', `Paymongo Source: ${source.id}`).limit(1);
+              const q = paymentsRef.where('checkNumber', '==', `Paymongo PI: ${paymentIntent.id}`).limit(1);
               const existingPayment = await q.get();
       
               if (existingPayment.empty) {
                   await paymentsRef.add(paymentData);
                   console.log(`Payment of ${amountPaid} for tenant ${tenantId} successfully recorded.`);
               } else {
-                  console.log(`Duplicate webhook for source ${source.id} ignored.`);
+                  console.log(`Duplicate webhook for Payment Intent ${paymentIntent.id} ignored.`);
               }
             } catch (dbError) {
               console.error("Error writing payment to Firestore:", dbError);
@@ -284,7 +274,6 @@ exports.paymongoWebhook = functions.https.onRequest(async (req, res) => {
               return;
             }
         }
-      }
     }
   
     res.status(200).send("Webhook received.");

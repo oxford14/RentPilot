@@ -16,13 +16,13 @@ export async function POST(request: Request) {
 
     let metadata = {};
     if (paymentType === 'subscription') {
-        const { clientId, clientName, planName, amount: planAmount } = details;
+        const { clientId, clientName, planName } = details;
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
-        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(planAmount) };
-    } else { // Default to 'rent' payment for tenants
+        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(amount) };
+    } else {
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
-        metadata = { tenantId, tenantName, clientId };
+        metadata = { tenantId, tenantName, clientId, paymentType: 'rent' };
     }
 
     const options = {
@@ -30,31 +30,41 @@ export async function POST(request: Request) {
       headers: {
         accept: 'application/json',
         'Content-Type': 'application/json',
-        authorization: `Basic ${btoa(secretKey + ':')}`
+        authorization: `Basic ${btoa(secretKey)}` 
       },
       body: JSON.stringify({
         data: {
           attributes: {
-            amount: Math.round(amount * 100), // Ensure it's an integer in centavos
-            type: 'qrph', // Corrected from qr_ph to qrph
+            amount: Math.round(amount * 100), // Amount in centavos
+            payment_method_allowed: ['qrph'],
             currency: 'PHP',
-            metadata
+            description: `Payment for RentPilot`,
+            statement_descriptor: 'RentPilot',
+            metadata: metadata,
           }
         }
       })
     };
 
-    const response = await fetch('https://api.paymongo.com/v1/sources', options);
+    const response = await fetch('https://api.paymongo.com/v1/payment_intents', options);
     const data = await response.json();
 
-    if (!response.ok) {
+    if (!response.ok || data.errors) {
         const errorDetails = data.errors?.map((e: any) => e.detail).join(', ') || 'Unknown PayMongo API error';
         throw new Error(errorDetails);
     }
+    
+    const qrCodeUrl = data.data.attributes.next_action?.redirect?.url;
+    
+    if (!qrCodeUrl) {
+      throw new Error('QR Code URL not found in PayMongo response.');
+    }
 
-    return NextResponse.json({ source: data.data });
+    // The component expects the URL in this nested structure
+    return NextResponse.json({ source: { redirect: { checkout_url: qrCodeUrl } } });
+
   } catch (error: any) {
-    console.error('[PayMongo Create Source Error]:', error.message);
+    console.error('[PayMongo Create Payment Intent Error]:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
