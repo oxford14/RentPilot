@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       headers: {
         accept: 'application/json',
         'Content-Type': 'application/json',
-        authorization: `Basic ${btoa(secretKey)}` 
+        authorization: `Basic ${btoa(secretKey + ':')}` 
       },
       body: JSON.stringify({
         data: {

@@ -44,11 +44,14 @@ export function PaymongoDialog({ isOpen, onClose, tenant, amount }: PaymongoDial
       const response = await fetch('/api/paymongo/create-source', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           amount: amount,
-          tenantId: tenant.id,
-          tenantName: tenant.name,
-          clientId: tenant.clientId
+          paymentType: 'rent',
+          details: {
+            tenantId: tenant.id,
+            tenantName: tenant.name,
+            clientId: tenant.clientId
+          }
         }),
       });
 
