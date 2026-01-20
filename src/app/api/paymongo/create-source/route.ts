@@ -31,10 +31,6 @@ export async function POST(request: Request) {
 
     const authString = Buffer.from(`${secretKey}:`).toString('base64');
     
-    // Set expiry for the payment intent (e.g., 1 hour from now)
-    const expiryTime = new Date();
-    expiryTime.setHours(expiryTime.getHours() + 1);
-    
     const options = {
       method: 'POST',
       headers: {
@@ -46,15 +42,9 @@ export async function POST(request: Request) {
         data: {
           attributes: {
             amount: Math.round(amount * 100), // Amount in centavos
-            currency: 'PHP',
             payment_method_allowed: ['qrph'],
-            payment_method_options: {
-              qrph: {
-                expires_at: expiryTime.toISOString(),
-              },
-            },
+            currency: 'PHP',
             description: description,
-            statement_descriptor: 'RentPilot',
             metadata: metadata
           }
         }
