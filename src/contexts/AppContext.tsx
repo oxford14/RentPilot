@@ -577,55 +577,60 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
-
-    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/addSignatureToPdf";
-    const newPdfPath = `signed_contracts/${tenantId}/contract-${Date.now()}.pdf`;
-
+  
+    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/generateContract";
+    const outputPath = `signed_contracts/${tenantId}/contract-${Date.now()}.pdf`;
+  
     try {
-        // For simplicity, we are not using a template PDF. We generate a new PDF on the fly.
-        // A real app would use a template PDF. Here we just log the action.
-        console.log("Simulating PDF generation and signing for:", tenantId);
-
-        // Upload signature image
-        const signaturePath = `signatures/${tenantId}/${Date.now()}.png`;
-        const signatureRef = ref(storage, signaturePath);
-        await uploadString(signatureRef, signatureDataUrl, 'data_url');
-        const signatureUrl = await getDownloadURL(signatureRef);
-        console.log("Signature uploaded to:", signatureUrl);
-
-        // This is a placeholder. A real implementation would now generate a PDF
-        // with the contractText and signatureUrl, but for this demo, we'll
-        // just update the tenant record as if a PDF was created and signed.
-        const placeholderPdfUrl = `https://firebasestorage.googleapis.com/v0/b/placeholder.appspot.com/o/placeholder.pdf?alt=media`;
-        const tenantRef = doc(db, 'tenants', tenantId);
-        await updateDoc(tenantRef, {
-            signedContractUrl: placeholderPdfUrl, // In real app, this would be the newly generated PDF URL
-            contractEndDate: contractEndDate,
+      toast({ title: "Generating PDF...", description: "Please wait while we create and sign your contract." });
+  
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractText, signatureDataUrl, outputPath }),
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate contract: ${errorText}`);
+      }
+  
+      const result = await response.json();
+      const downloadURL = result.downloadURL;
+  
+      if (!downloadURL) {
+        throw new Error("Cloud function did not return a download URL.");
+      }
+  
+      const tenantRef = doc(db, 'tenants', tenantId);
+      await updateDoc(tenantRef, {
+        signedContractUrl: downloadURL,
+        contractEndDate: contractEndDate,
+      });
+  
+      toast({ title: "Contract Signed & Saved", description: "The contract has been digitally signed and is now on file." });
+  
+      const tenant = rawTenantsState.find(t => t.id === tenantId);
+      if (tenant && tenant.hasAccount && tenant.username && tenant.clientId) {
+        await addAnnouncement({
+          title: "Your Contract is Available",
+          content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
+          scope: tenant.clientId,
+          audience: 'tenant',
+          senderId: authUser.username,
+          senderName: authUser.username,
+          recipientId: tenant.id,
+          recipientUsername: tenant.username,
+          isScheduled: false,
+          scheduledAt: new Date().toISOString(),
+          status: 'sent',
         });
-
-        toast({ title: "Contract Signed & Saved", description: "The contract has been digitally signed and is now on file." });
-
-        const tenant = rawTenantsState.find(t => t.id === tenantId);
-        if (tenant && tenant.hasAccount && tenant.username && tenant.clientId) {
-            await addAnnouncement({
-              title: "Your Contract is Available",
-              content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
-              scope: tenant.clientId,
-              audience: 'tenant',
-              senderId: authUser.username,
-              senderName: authUser.username,
-              recipientId: tenant.id,
-              recipientUsername: tenant.username,
-              isScheduled: false,
-              scheduledAt: new Date().toISOString(),
-              status: 'sent',
-            });
-            toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
-        }
-
+        toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
+      }
+  
     } catch (error: any) {
-        console.error("Error in digital signing process:", error);
-        toast({ variant: "destructive", title: "Signing Failed", description: error.message });
+      console.error("Error in digital signing process:", error);
+      toast({ variant: "destructive", title: "Signing Failed", description: error.message });
     }
   };
 
@@ -2152,3 +2157,4 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+

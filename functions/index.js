@@ -60,6 +60,104 @@ exports.timelyNotificationRunner = onSchedule("every 1 minutes", async (event) =
     return null;
 });
 
+exports.generateContract = functions.https.onRequest(async (req, res) => {
+    // Set CORS headers for preflight and actual requests
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const { contractText, signatureDataUrl, outputPath } = req.body;
+        if (!contractText || !signatureDataUrl || !outputPath) {
+            return res.status(400).send("Missing required parameters.");
+        }
+
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        let page = pdfDoc.addPage();
+        const { width, height } = page.getSize();
+        const fontSize = 10;
+        const margin = 50;
+        const lineHeight = fontSize * 1.5;
+
+        // Simple text wrapping logic
+        const textWidth = width - 2 * margin;
+        let y = height - margin;
+        const paragraphs = contractText.split('\n');
+        
+        for (const paragraph of paragraphs) {
+            if (y < margin + lineHeight) {
+                page = pdfDoc.addPage();
+                y = height - margin;
+            }
+
+            if (paragraph.trim() === '') {
+                y -= lineHeight;
+                continue;
+            }
+            
+            const words = paragraph.split(' ');
+            let line = '';
+            for (const word of words) {
+                const testLine = line + word + ' ';
+                const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+                if (testWidth > textWidth) {
+                    page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+                    y -= lineHeight;
+                    if (y < margin) {
+                        page = pdfDoc.addPage();
+                        y = height - margin;
+                    }
+                    line = word + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            page.drawText(line, { x: margin, y, font, size: fontSize, color: rgb(0, 0, 0) });
+            y -= lineHeight;
+        }
+
+        // Add signature
+        const signatureImageBytes = Buffer.from(signatureDataUrl.split(',')[1], 'base64');
+        const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+        const sigDims = signatureImage.scale(0.25);
+
+        if (y < margin + sigDims.height + lineHeight) {
+            page = pdfDoc.addPage();
+            y = height - margin;
+        }
+        
+        page.drawText('Tenant Signature:', { x: margin, y: y - 20, font, size: fontSize });
+        page.drawImage(signatureImage, {
+            x: margin,
+            y: y - 25 - sigDims.height,
+            width: sigDims.width,
+            height: sigDims.height,
+        });
+
+        const pdfBytes = await pdfDoc.save();
+        const outputFile = bucket.file(outputPath);
+        await outputFile.save(Buffer.from(pdfBytes), { metadata: { contentType: "application/pdf" } });
+
+        await outputFile.makePublic();
+        const publicUrl = outputFile.publicUrl();
+
+        res.status(200).send({
+            message: "Contract generated successfully!",
+            downloadURL: publicUrl,
+        });
+
+    } catch (error) {
+        console.error("Error generating contract:", error);
+        res.status(500).send(`An internal error occurred.`);
+    }
+});
+
 
 exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
   // Set CORS headers for preflight and actual requests
