@@ -424,7 +424,6 @@ export interface AppContextType {
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  generateAndSignContract: (tenantId: string, contractText: string, contractEndDate: string, signatureDataUrl: string) => Promise<void>;
   uploadSignedContract: (tenantId: string, file: File, contractEndDate: string) => Promise<void>;
   renewSignedContract: (tenantId: string, file: File, newContractEndDate: string) => Promise<void>;
   deleteSignedContract: (tenantId: string) => Promise<void>;
@@ -479,7 +478,7 @@ export interface AppContextType {
   updateAnnouncement: (announcementId: string, data: Partial<Omit<Announcement, 'id' | 'createdAt' | 'readBy'>>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
-  
+
   addContractTemplate: (template: Omit<ContractTemplate, 'id' | 'clientId'>) => Promise<void>;
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
@@ -511,4 +510,3 @@ export interface AppContextType {
   addTechSupportRequest: (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => Promise<void>;
   updateTechSupportRequest: (ticketId: string, updates: Partial<TechSupportRequest>) => Promise<void>;
 }
-

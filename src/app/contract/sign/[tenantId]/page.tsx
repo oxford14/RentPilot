@@ -16,6 +16,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, CalendarClock, ArrowRight, Signature, Trash2, Check, AlertTriangle } from 'lucide-react';
 import { addMonths, addYears, format } from 'date-fns';
+import jsPDF from 'jspdf';
 
 const DEFAULT_CONTRACT_TEXT = `LEASE AGREEMENT
 
@@ -46,7 +47,7 @@ export default function SignContractPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const { tenants, clients, generateAndSignContract, contractTemplates } = useAppContext();
+    const { tenants, clients, uploadSignedContract, contractTemplates } = useAppContext();
     const { user } = useAuth();
     
     const signaturePadRef = useRef<SignatureCanvas | null>(null);
@@ -124,12 +125,46 @@ export default function SignContractPage() {
         if (!tenant || !calculatedEndDate) return;
 
         setIsLoading(true);
-        const signatureDataUrl = signaturePadRef.current?.toDataURL('image/png') || '';
         
-        await generateAndSignContract(tenant.id, contractText, calculatedEndDate.toISOString(), signatureDataUrl);
-        
-        setIsLoading(false);
-        router.push('/tenants');
+        try {
+            const doc = new jsPDF();
+            const signatureDataUrl = signaturePadRef.current?.toDataURL('image/png') || '';
+
+            const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width;
+            const margin = 20;
+            let y = margin;
+            
+            doc.setFontSize(10);
+
+            // Simple text wrapping logic
+            const textLines = doc.splitTextToSize(contractText, pageWidth - (margin * 2));
+            doc.text(textLines, margin, y);
+            
+            const textHeight = doc.getTextDimensions(textLines).h;
+            y = margin + textHeight + 10;
+
+            if (y > pageHeight - 50) { // check if signature needs a new page
+                doc.addPage();
+                y = margin;
+            }
+
+            doc.text('Tenant Signature:', margin, y);
+            y += 5;
+            doc.addImage(signatureDataUrl, 'PNG', margin, y, 60, 30);
+
+            const pdfBlob = doc.output('blob');
+            const pdfFile = new File([pdfBlob], `contract-${tenant.id}.pdf`, { type: 'application/pdf' });
+            
+            await uploadSignedContract(tenant.id, pdfFile, calculatedEndDate.toISOString());
+            
+            setIsLoading(false);
+            router.push('/tenants');
+        } catch (error) {
+            setIsLoading(false);
+            console.error("Error generating or uploading PDF:", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not save the signed contract." });
+        }
     };
     
     if (!user) return <p>Loading...</p>;
