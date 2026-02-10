@@ -143,101 +143,22 @@ exports.generateContract = functions.https.onRequest(async (req, res) => {
         const pdfBytes = await pdfDoc.save();
         const outputFile = bucket.file(outputPath);
         await outputFile.save(Buffer.from(pdfBytes), { metadata: { contentType: "application/pdf" } });
-
-        await outputFile.makePublic();
-        const publicUrl = outputFile.publicUrl();
+        
+        // Generate a long-lived signed URL for read access instead of making the file public
+        const [signedUrl] = await outputFile.getSignedUrl({
+            action: 'read',
+            expires: '03-09-2491' // A far-future date
+        });
 
         res.status(200).send({
             message: "Contract generated successfully!",
-            downloadURL: publicUrl,
+            downloadURL: signedUrl,
         });
 
     } catch (error) {
         console.error("Error generating contract:", error);
         res.status(500).send(`An internal error occurred.`);
     }
-});
-
-
-exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
-  // Set CORS headers for preflight and actual requests
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    // End preflight request successfully
-    res.status(204).send("");
-    return;
-  }
-  
-  if (req.method !== 'POST') {
-    res.status(405).send('Method Not Allowed');
-    return;
-  }
-
-  try {
-    // Validate request body for signature image
-    const { inputPath, outputPath, signatureImage, x, y } = req.body;
-    if (!inputPath || !outputPath || !signatureImage || x === undefined || y === undefined) {
-      res.status(400).send("Missing required parameters: inputPath, outputPath, signatureImage, x, y.");
-      return;
-    }
-    
-    const parsedX = parseFloat(x);
-    const parsedY = parseFloat(y);
-    if (isNaN(parsedX) || isNaN(parsedY)) {
-        res.status(400).send("Invalid coordinates: x and y must be numbers.");
-        return;
-    }
-
-    // Download the original PDF from Firebase Storage
-    const inputFile = bucket.file(inputPath);
-    const [pdfBytes] = await inputFile.download();
-
-    // Load the PDF with pdf-lib
-    const pdfDoc = await PDFDocument.load(pdfBytes);
-    
-    // Embed the signature image
-    const signatureImageBytes = Buffer.from(signatureImage.split(',')[1], 'base64');
-    const embeddedImage = await pdfDoc.embedPng(signatureImageBytes);
-    
-    // Get the last page and add the signature image
-    const pages = pdfDoc.getPages();
-    const lastPage = pages[pages.length - 1];
-
-    lastPage.drawImage(embeddedImage, {
-      x: parsedX,
-      y: parsedY,
-      width: 150, // Standard signature width
-      height: 75, // Standard signature height
-    });
-
-    // Save the modified PDF to a new buffer
-    const modifiedPdfBytes = await pdfDoc.save();
-    
-    // Upload the new PDF back to Firebase Storage
-    const outputFile = bucket.file(outputPath);
-    await outputFile.save(Buffer.from(modifiedPdfBytes), {
-        metadata: {
-            contentType: "application/pdf",
-        },
-    });
-
-    // Send a success response
-    res.status(200).send({
-      message: "PDF signed successfully!",
-      outputPath: outputPath,
-    });
-
-  } catch (error) {
-    console.error("Error processing PDF:", error);
-    if (error.code === 404) {
-        res.status(404).send("Input file not found in Firebase Storage.");
-    } else {
-        res.status(500).send("An internal error occurred while processing the PDF.");
-    }
-  }
 });
 
 
