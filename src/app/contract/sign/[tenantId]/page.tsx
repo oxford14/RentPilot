@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -137,17 +138,25 @@ export default function SignContractPage() {
             
             doc.setFontSize(10);
 
-            // New pagination logic
+            // New pagination logic with adjusted line height
             const textLines = doc.splitTextToSize(contractText, pageWidth - (margin * 2));
-            const lineHeight = doc.getLineHeight();
+            const normalLineHeight = 12; // Standard line height for text
+            const paragraphBreakHeight = 6; // Smaller gap for paragraph breaks
 
             for (const line of textLines) {
-                if (y + lineHeight > pageHeight - margin) {
+                const isParagraphBreak = line.trim() === "";
+                const currentLineHeight = isParagraphBreak ? paragraphBreakHeight : normalLineHeight;
+
+                if (y + currentLineHeight > pageHeight - margin) {
                     doc.addPage();
                     y = margin; 
                 }
-                doc.text(line, margin, y);
-                y += lineHeight;
+
+                if (!isParagraphBreak) {
+                    doc.text(line, margin, y);
+                }
+                
+                y += currentLineHeight;
             }
 
             y += 10; 
