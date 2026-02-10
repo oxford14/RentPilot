@@ -407,6 +407,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let historyWasModified = false;
         
         if (originalTenant?.status === 'active' && updatedTenant.status === 'inactive') {
+            if (!dataToUpdate.inactiveDate) {
+                dataToUpdate.inactiveDate = new Date().toISOString();
+            }
             if (originalTenant?.pcNumber) {
                 dataToUpdate.pcNumber = deleteField() as any;
                 toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
@@ -415,6 +418,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 dataToUpdate.roomNumber = deleteField() as any;
                 toast({title: "Room Unassigned", description: `${updatedTenant.name} has been unassigned from their room.`});
             }
+        }
+        
+        // If status is reactivated, clear the inactiveDate
+        if (originalTenant?.status === 'inactive' && updatedTenant.status === 'active') {
+            dataToUpdate.inactiveDate = deleteField() as any;
         }
         
         if (originalTenant && originalTenant.joinDate !== updatedTenant.joinDate) {
@@ -2041,11 +2049,3 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
-
-
-    
-
-
-
-
-

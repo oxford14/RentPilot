@@ -10,7 +10,13 @@ export function cn(...inputs: ClassValue[]) {
 
 // All dates here are treated as UTC dates at midnight
 export function calculateTenantBalanceBreakdown(tenant: Tenant, allPayments: Payment[], allDues: AdditionalDue[], upToDate: Date): BalanceBreakdown {
-  const boundaryDate = new Date(Date.UTC(upToDate.getUTCFullYear(), upToDate.getUTCMonth(), upToDate.getUTCDate() + 1));
+  // If tenant is inactive and has an inactiveDate, calculations should only go up to that date.
+  // Otherwise, use the provided upToDate.
+  const calculationBoundary = (tenant.status === 'inactive' && tenant.inactiveDate)
+    ? new Date(tenant.inactiveDate)
+    : upToDate;
+
+  const boundaryDate = new Date(Date.UTC(calculationBoundary.getUTCFullYear(), calculationBoundary.getUTCMonth(), calculationBoundary.getUTCDate() + 1));
   const joinDate = new Date(tenant.joinDate);
   const dueDay = tenant.monthlyDueDay || joinDate.getUTCDate();
 

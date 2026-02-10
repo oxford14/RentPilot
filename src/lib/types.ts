@@ -48,6 +48,7 @@ export interface Tenant {
   rent_history: RentHistoryEntry[];
   securityDeposit?: number;
   status: 'active' | 'inactive';
+  inactiveDate?: string;
   joinDate: string; // ISO string
   monthlyDueDay?: number;
   username?: string; // NEW
