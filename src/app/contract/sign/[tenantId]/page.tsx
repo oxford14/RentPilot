@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -10,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
@@ -47,7 +46,7 @@ export default function SignContractPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const { tenants, clients, generateAndSignContract } = useAppContext();
+    const { tenants, clients, generateAndSignContract, contractTemplates } = useAppContext();
     const { user } = useAuth();
     
     const signaturePadRef = useRef<SignatureCanvas | null>(null);
@@ -59,6 +58,7 @@ export default function SignContractPage() {
     const [duration, setDuration] = useState<number>(1);
     const [unit, setUnit] = useState<'years' | 'months'>('years');
     const [calculatedEndDate, setCalculatedEndDate] = useState<Date | null>(null);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('default');
 
     // Signing State
     const [contractText, setContractText] = useState('');
@@ -87,22 +87,30 @@ export default function SignContractPage() {
     const handleProceedToSign = () => {
         if (!tenant || !client || !calculatedEndDate) return;
         
+        let baseContractText = DEFAULT_CONTRACT_TEXT;
+        if (selectedTemplateId !== 'default') {
+            const selectedTemplate = contractTemplates.find(t => t.id === selectedTemplateId);
+            if (selectedTemplate) {
+                baseContractText = selectedTemplate.content;
+            }
+        }
+        
         const termString = `${duration} ${unit.slice(0, -1)}${duration > 1 ? 's' : ''}`;
         const startDate = format(new Date(tenant.joinDate), 'MMMM dd, yyyy');
         const endDate = format(calculatedEndDate, 'MMMM dd, yyyy');
         const dueDay = tenant.monthlyDueDay || new Date(tenant.joinDate).getDate();
 
-        const populatedText = DEFAULT_CONTRACT_TEXT
-            .replace('[DATE]', format(new Date(), 'MMMM dd, yyyy'))
-            .replace('[LANDLORD_NAME]', client.name || 'The Landlord')
-            .replace('[TENANT_NAME]', tenant.name)
-            .replace('[PROPERTY_ADDRESS]', '_________________________') // Placeholder
-            .replace('[CONTRACT_TERM]', termString)
-            .replace('[START_DATE]', startDate)
-            .replace('[END_DATE]', endDate)
-            .replace('[RENT_AMOUNT]', `PHP ${tenant.monthlyRentalRate.toLocaleString()}`)
-            .replace('[DUE_DAY]', String(dueDay))
-            .replace('[SECURITY_DEPOSIT]', `PHP ${(tenant.securityDeposit || 0).toLocaleString()}`);
+        const populatedText = baseContractText
+            .replace(/\[DATE\]/g, format(new Date(), 'MMMM dd, yyyy'))
+            .replace(/\[LANDLORD_NAME\]/g, client.name || 'The Landlord')
+            .replace(/\[TENANT_NAME\]/g, tenant.name)
+            .replace(/\[PROPERTY_ADDRESS\]/g, '_________________________') // Placeholder
+            .replace(/\[CONTRACT_TERM\]/g, termString)
+            .replace(/\[START_DATE\]/g, startDate)
+            .replace(/\[END_DATE\]/g, endDate)
+            .replace(/\[RENT_AMOUNT\]/g, `PHP ${tenant.monthlyRentalRate.toLocaleString()}`)
+            .replace(/\[DUE_DAY\]/g, String(dueDay))
+            .replace(/\[SECURITY_DEPOSIT\]/g, `PHP ${(tenant.securityDeposit || 0).toLocaleString()}`);
             
         setContractText(populatedText);
         setStep('sign');
@@ -139,15 +147,15 @@ export default function SignContractPage() {
            {step === 'duration' ? (
                 <Card className="max-w-xl mx-auto shadow-xl">
                     <CardHeader>
-                        <CardTitle>Set Contract Duration</CardTitle>
+                        <CardTitle>Set Contract Details</CardTitle>
                         <CardDescription>
-                            Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({format(new Date(tenant.joinDate), 'PPP')}).
+                            Specify the contract term and choose a template for {tenant?.name}. The term starts from their join date ({format(new Date(tenant.joinDate), 'PPP')}).
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-4 py-4">
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="duration-number">Renewal Duration</Label>
+                                <Label htmlFor="duration-number">Contract Duration</Label>
                                 <Input id="duration-number" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)} min="1" />
                             </div>
                             <div className="space-y-2">
@@ -161,6 +169,20 @@ export default function SignContractPage() {
                                 </Select>
                             </div>
                         </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="template-select">Contract Template</Label>
+                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                <SelectTrigger id="template-select"><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Default Contract</SelectItem>
+                                    {contractTemplates.map(template => (
+                                        <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
                         {calculatedEndDate && (
                             <Alert>
                                 <CalendarClock className="h-4 w-4" />
@@ -216,4 +238,3 @@ export default function SignContractPage() {
         </div>
     );
 }
-

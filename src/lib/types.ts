@@ -260,6 +260,12 @@ export interface Announcement {
   status: 'sent' | 'scheduled';
 }
 
+export interface ContractTemplate {
+  id: string;
+  name: string;
+  content: string;
+}
+
 // Navigation item types
 interface AppNavSubItem {
   href: string;
@@ -399,6 +405,7 @@ export interface AppContextType {
   weeklyIncomes: WeeklyIncome[];
   backupScheduleSettings: BackupScheduleSettings | null;
   announcements: Announcement[];
+  contractTemplates: ContractTemplate[];
   terminology: { single: string; plural: string };
   techSupportRequests: TechSupportRequest[];
   
@@ -473,6 +480,10 @@ export interface AppContextType {
   updateAnnouncement: (announcementId: string, data: Partial<Omit<Announcement, 'id' | 'createdAt' | 'readBy'>>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
+  
+  addContractTemplate: (template: Omit<ContractTemplate, 'id'>) => Promise<void>;
+  updateContractTemplate: (template: ContractTemplate) => Promise<void>;
+  deleteContractTemplate: (templateId: string) => Promise<void>;
   
   rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
   rawTenants: Tenant[];
