@@ -1,5 +1,219 @@
 
-// This page has been removed to resolve a build error.
-export default function Page() {
-  return null;
+"use client";
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import SignatureCanvas from 'react-signature-canvas';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from '@/hooks/use-toast';
+import { useAppContext } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2, CalendarClock, ArrowRight, Signature, Trash2, Check, AlertTriangle } from 'lucide-react';
+import { addMonths, addYears, format } from 'date-fns';
+
+const DEFAULT_CONTRACT_TEXT = `LEASE AGREEMENT
+
+This Lease Agreement ("Agreement") is made and entered into this day, [DATE], by and between:
+
+LANDLORD:
+[LANDLORD_NAME]
+
+and
+
+TENANT:
+[TENANT_NAME]
+
+1. PROPERTY. Landlord agrees to lease to Tenant the property located at [PROPERTY_ADDRESS].
+
+2. TERM. The term of this lease shall be for a period of [CONTRACT_TERM], beginning on [START_DATE] and ending on [END_DATE].
+
+3. RENT. Tenant agrees to pay Landlord as rent for the Property the sum of [RENT_AMOUNT] per month, due on the [DUE_DAY] day of each month.
+
+4. SECURITY DEPOSIT. Upon execution of this Agreement, Tenant shall deposit with Landlord the sum of [SECURITY_DEPOSIT] as security for the performance of Tenant's obligations under this Agreement.
+
+5. USE OF PROPERTY. The property shall be used and occupied by Tenant exclusively as a private single-family residence.
+
+6. SIGNATURES. The parties agree to the terms of this Lease Agreement, as evidenced by their signatures below.
+`;
+
+export default function SignContractPage() {
+    const params = useParams();
+    const router = useRouter();
+    const { toast } = useToast();
+    const { tenants, clients, generateAndSignContract } = useAppContext();
+    const { user } = useAuth();
+    
+    const signaturePadRef = useRef<SignatureCanvas | null>(null);
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [step, setStep] = useState<'duration' | 'sign'>('duration');
+    
+    // Duration State
+    const [duration, setDuration] = useState<number>(1);
+    const [unit, setUnit] = useState<'years' | 'months'>('years');
+    const [calculatedEndDate, setCalculatedEndDate] = useState<Date | null>(null);
+
+    // Signing State
+    const [contractText, setContractText] = useState('');
+
+    const tenantId = params.tenantId as string;
+    
+    const tenant = useMemo(() => tenants.find(t => t.id === tenantId), [tenants, tenantId]);
+    const client = useMemo(() => {
+        if (!tenant?.clientId) return null;
+        return clients.find(c => c.id === tenant.clientId);
+    }, [tenant, clients]);
+
+    useEffect(() => {
+        if (tenant?.joinDate) {
+            const joinDate = new Date(tenant.joinDate);
+            let endDate;
+            if (unit === 'months') {
+                endDate = addMonths(joinDate, duration || 0);
+            } else {
+                endDate = addYears(joinDate, duration || 0);
+            }
+            setCalculatedEndDate(endDate);
+        }
+    }, [duration, unit, tenant]);
+
+    const handleProceedToSign = () => {
+        if (!tenant || !client || !calculatedEndDate) return;
+        
+        const termString = `${duration} ${unit.slice(0, -1)}${duration > 1 ? 's' : ''}`;
+        const startDate = format(new Date(tenant.joinDate), 'MMMM dd, yyyy');
+        const endDate = format(calculatedEndDate, 'MMMM dd, yyyy');
+        const dueDay = tenant.monthlyDueDay || new Date(tenant.joinDate).getDate();
+
+        const populatedText = DEFAULT_CONTRACT_TEXT
+            .replace('[DATE]', format(new Date(), 'MMMM dd, yyyy'))
+            .replace('[LANDLORD_NAME]', client.name || 'The Landlord')
+            .replace('[TENANT_NAME]', tenant.name)
+            .replace('[PROPERTY_ADDRESS]', '_________________________') // Placeholder
+            .replace('[CONTRACT_TERM]', termString)
+            .replace('[START_DATE]', startDate)
+            .replace('[END_DATE]', endDate)
+            .replace('[RENT_AMOUNT]', `PHP ${tenant.monthlyRentalRate.toLocaleString()}`)
+            .replace('[DUE_DAY]', String(dueDay))
+            .replace('[SECURITY_DEPOSIT]', `PHP ${(tenant.securityDeposit || 0).toLocaleString()}`);
+            
+        setContractText(populatedText);
+        setStep('sign');
+    };
+
+    const handleSign = async () => {
+        if (signaturePadRef.current?.isEmpty()) {
+            toast({ variant: 'destructive', title: 'Signature Required', description: 'Please provide your signature before submitting.' });
+            return;
+        }
+        if (!tenant || !calculatedEndDate) return;
+
+        setIsLoading(true);
+        const signatureDataUrl = signaturePadRef.current?.toDataURL('image/png') || '';
+        
+        await generateAndSignContract(tenant.id, contractText, calculatedEndDate.toISOString(), signatureDataUrl);
+        
+        setIsLoading(false);
+        router.push('/tenants');
+    };
+    
+    if (!user) return <p>Loading...</p>;
+    // Allow tenant to sign for themselves, or admin to facilitate
+    const isAuthorized = user.role === 'tenant' ? user.tenantId === tenantId : (user.isSuperAdmin || user.role === 'admin');
+    if (!isAuthorized) {
+        toast({variant: 'destructive', title: 'Unauthorized', description: 'You do not have permission to view this page.'});
+        router.push('/');
+        return null;
+    }
+    if (!tenant) return <p>Tenant not found.</p>;
+
+    return (
+        <div className="container mx-auto py-2">
+           {step === 'duration' ? (
+                <Card className="max-w-xl mx-auto shadow-xl">
+                    <CardHeader>
+                        <CardTitle>Set Contract Duration</CardTitle>
+                        <CardDescription>
+                            Specify the contract length for {tenant?.name}. The end date will be calculated from their join date ({format(new Date(tenant.joinDate), 'PPP')}).
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="duration-number">Renewal Duration</Label>
+                                <Input id="duration-number" type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)} min="1" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="duration-unit">Unit</Label>
+                                <Select value={unit} onValueChange={(value: 'years' | 'months') => setUnit(value)}>
+                                    <SelectTrigger id="duration-unit"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="years">Years</SelectItem>
+                                        <SelectItem value="months">Months</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        {calculatedEndDate && (
+                            <Alert>
+                                <CalendarClock className="h-4 w-4" />
+                                <AlertTitle>New Contract End Date</AlertTitle>
+                                <AlertDescription className="font-semibold text-lg">
+                                    {format(calculatedEndDate, 'PPP')}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleProceedToSign} disabled={!duration || duration <= 0} className="w-full">
+                            Next: Review & Sign <ArrowRight className="ml-2 h-4 w-4"/>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            ) : (
+                <Card className="shadow-xl">
+                    <CardHeader>
+                        <CardTitle>Review & Sign Contract</CardTitle>
+                        <CardDescription>Review the details below and provide your signature.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="contract-text">Contract Content</Label>
+                            <Textarea id="contract-text" value={contractText} onChange={(e) => setContractText(e.target.value)} rows={15} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Signature</Label>
+                            <div className="border rounded-md bg-white">
+                                <SignatureCanvas
+                                    ref={signaturePadRef}
+                                    penColor='black'
+                                    canvasProps={{ className: 'w-full h-[200px]' }}
+                                />
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex-col sm:flex-row justify-between gap-2">
+                        <Button variant="outline" onClick={() => signaturePadRef.current?.clear()}>
+                            <Trash2 className="mr-2 h-4 w-4"/> Clear Signature
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="secondary" onClick={() => setStep('duration')}>Back</Button>
+                            <Button onClick={handleSign} disabled={isLoading}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Check className="mr-2 h-4 w-4"/>}
+                                {isLoading ? 'Saving...' : 'Sign & Submit Contract'}
+                            </Button>
+                        </div>
+                    </CardFooter>
+                </Card>
+            )}
+        </div>
+    );
 }
+

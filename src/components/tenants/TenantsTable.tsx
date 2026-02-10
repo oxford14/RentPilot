@@ -34,6 +34,7 @@ import { CredentialsDisplayDialog } from './CredentialsDisplayDialog';
 import { UploadContractDialog } from './UploadContractDialog';
 import { RenewContractDialog } from './RenewContractDialog';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 
 interface TenantsTableProps {
@@ -294,6 +295,11 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
+                       <DropdownMenuItem asChild>
+                          <Link href={`/contract/sign/${tenant.id}`}>
+                            <Edit className="mr-2 h-4 w-4" /> Request Digital Signature
+                          </Link>
+                        </DropdownMenuItem>
                        <DropdownMenuItem onClick={() => handleOpenUploadContract(tenant)} disabled={!!tenant.signedContractUrl}>
                         <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                       </DropdownMenuItem>
@@ -303,9 +309,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                                 <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
                            </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                              <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
+                              <Link href={`/contract/view/${tenant.id}`}>
                                   <FileViewIcon className="mr-2 h-4 w-4" /> View Signed Contract
-                              </a>
+                              </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleOpenDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                             <Trash2 className="mr-2 h-4 w-4" /> Delete Contract

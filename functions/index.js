@@ -64,11 +64,11 @@ exports.timelyNotificationRunner = onSchedule("every 1 minutes", async (event) =
 exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
   // Set CORS headers for preflight and actual requests
   res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "POST");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type");
-  res.set("Access-Control-Max-Age", "3600");
 
   if (req.method === "OPTIONS") {
+    // End preflight request successfully
     res.status(204).send("");
     return;
   }
@@ -79,10 +79,10 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    // Validate request body
-    const { inputPath, outputPath, signatureText, x, y } = req.body;
-    if (!inputPath || !outputPath || !signatureText || x === undefined || y === undefined) {
-      res.status(400).send("Missing required parameters: inputPath, outputPath, signatureText, x, y.");
+    // Validate request body for signature image
+    const { inputPath, outputPath, signatureImage, x, y } = req.body;
+    if (!inputPath || !outputPath || !signatureImage || x === undefined || y === undefined) {
+      res.status(400).send("Missing required parameters: inputPath, outputPath, signatureImage, x, y.");
       return;
     }
     
@@ -100,19 +100,19 @@ exports.addSignatureToPdf = functions.https.onRequest(async (req, res) => {
     // Load the PDF with pdf-lib
     const pdfDoc = await PDFDocument.load(pdfBytes);
     
-    // Embed a standard font
-    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Embed the signature image
+    const signatureImageBytes = Buffer.from(signatureImage.split(',')[1], 'base64');
+    const embeddedImage = await pdfDoc.embedPng(signatureImageBytes);
     
-    // Get the first page and add the signature text
+    // Get the last page and add the signature image
     const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
+    const lastPage = pages[pages.length - 1];
 
-    firstPage.drawText(signatureText, {
+    lastPage.drawImage(embeddedImage, {
       x: parsedX,
       y: parsedY,
-      font: helveticaFont,
-      size: 12,
-      color: rgb(0.1, 0.1, 0.1),
+      width: 150, // Standard signature width
+      height: 75, // Standard signature height
     });
 
     // Save the modified PDF to a new buffer
