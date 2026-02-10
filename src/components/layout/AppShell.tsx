@@ -103,6 +103,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
     groupLabel: 'System',
     groupIcon: Cog,
     items: [
+      { href: '/admin/contracts', label: 'Contract Templates', icon: FileText },
       { href: '/admin/settings', label: 'Timezone Settings', icon: Clock },
       { href: '/admin/superadmin-users', label: 'Manage Super Admins', icon: ShieldCheck },
       { href: '/admin/maintenance/backups', label: 'Backups', icon: DatabaseBackup },
@@ -352,7 +353,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
       else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
       else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
-      else if (!activeItemFound && pathname === '/admin/contracts') currentActivePageLabel = 'Contract Templates';
+      else if (!activeItemFound && pathname.startsWith('/admin/contracts')) currentActivePageLabel = 'Contract Templates';
       else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
       else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
       else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
