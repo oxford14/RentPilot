@@ -1939,8 +1939,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addContractTemplate = async (templateData: Omit<ContractTemplate, 'id'>) => {
-    if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized" });
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
       return;
     }
     try {
@@ -1953,8 +1953,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateContractTemplate = async (template: ContractTemplate) => {
-    if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized" });
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
       return;
     }
     const { id, ...dataToUpdate } = template;
@@ -1968,8 +1968,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteContractTemplate = async (templateId: string) => {
-    if (!authUser?.isSuperAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized" });
+    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
+      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
       return;
     }
     try {
