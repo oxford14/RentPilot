@@ -134,8 +134,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }, 
         (error) => {
           if (!isMounted) return;
-          console.error(`Error fetching ${coll.label}: `, error);
-          toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: error.message });
+          console.error(`Error fetching ${'${coll.label}'}: `, error);
+          toast({ variant: "destructive", title: `Error loading ${'${coll.label}'}`, description: error.message });
         }
       )
     );
@@ -191,7 +191,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         await setDoc(settingsDocRef, { timezone }, { merge: true });
     } catch (error: any) {
         console.error("Error updating system timezone:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to save timezone: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to save timezone: ${'${error.message}'}` });
         throw error;
     }
   };
@@ -368,7 +368,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Error adding tenant to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add ${terminology.single}: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add ${'${terminology.single}'}: ${'${error.message}'}` });
     }
   };
 
@@ -393,11 +393,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }
             if (originalTenant?.pcNumber) {
                 dataToUpdate.pcNumber = deleteField() as any;
-                toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
+                toast({title: "PC Unassigned", description: `${'${updatedTenant.name}'} has been unassigned from their PC.`});
             }
             if (originalTenant?.roomNumber) {
                 dataToUpdate.roomNumber = deleteField() as any;
-                toast({title: "Room Unassigned", description: `${updatedTenant.name} has been unassigned from their room.`});
+                toast({title: "Room Unassigned", description: `${'${updatedTenant.name}'} has been unassigned from their room.`});
             }
         }
         
@@ -462,7 +462,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error updating tenant in Firestore:", error);
-        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update ${terminology.single}: ${error.message}` });
+        toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update ${'${terminology.single}'}: ${'${error.message}'}` });
     }
   };
 
@@ -475,8 +475,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const tenantSnapshot = await getDoc(tenantDocRef);
       if (!tenantSnapshot.exists()) {
-        toast({ variant: "destructive", title: "Not Found", description: `${terminology.single} not found.` });
-        return { success: false, message: `${terminology.single} not found.`, action: 'not_found' };
+        toast({ variant: "destructive", title: "Not Found", description: `${'${terminology.single}'} not found.` });
+        return { success: false, message: `${'${terminology.single}'} not found.`, action: 'not_found' };
       }
       const tenantData = {id: tenantSnapshot.id, ...tenantSnapshot.data()} as Tenant;
 
@@ -490,15 +490,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       if (hasHistory) {
         await updateDoc(tenantDocRef, { status: 'inactive' });
-        return { success: true, message: `${terminology.single} "${tenantData.name}" marked as inactive.`, action: 'inactivated' };
+        return { success: true, message: `${'${terminology.single}'} "${'${tenantData.name}'}" marked as inactive.`, action: 'inactivated' };
       } else {
         await deleteDoc(tenantDocRef);
-        return { success: true, message: `${terminology.single} "${tenantData.name}" permanently deleted.`, action: 'deleted' };
+        return { success: true, message: `${'${terminology.single}'} "${'${tenantData.name}'}" permanently deleted.`, action: 'deleted' };
       }
     } catch (error: any) {
       console.error("Error attempting to delete tenant:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate ${terminology.single}: ${error.message}` });
-      return { success: false, message: `Operation failed: ${error.message}`, action: 'error' };
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate ${'${terminology.single}'}: ${'${error.message}'}` });
+      return { success: false, message: `Operation failed: ${'${error.message}'}`, action: 'error' };
     }
   };
   
@@ -537,8 +537,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 batch.set(mailRef, {
                     to: emailRecipients,
                     message: {
-                        subject: `${fromName}: ${newAnnouncement.title}`,
-                        html: `<p>${newAnnouncement.content}</p>`,
+                        subject: `${'${fromName}'}: ${'${newAnnouncement.title}'}`,
+                        html: `<p>${'${newAnnouncement.content}'}</p>`,
                     },
                 });
             }
@@ -549,7 +549,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
       console.error("Error posting announcement:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to post announcement: ${'${error.message}'}` });
     }
   };
 
@@ -568,7 +568,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Announcement Updated", description: "Your scheduled announcement has been updated." });
     } catch (error: any) {
         console.error("Error updating announcement:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to update announcement: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to update announcement: ${'${error.message}'}` });
     }
   };
 
@@ -579,7 +579,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   
     const functionUrl = "/api/generate-contract"; // Use the proxy route
-    const outputPath = `signed_contracts/${tenantId}/contract-${Date.now()}.pdf`;
+    const outputPath = `signed_contracts/${'${tenantId}'}/contract-${'${Date.now()}'}.pdf`;
   
     try {
       toast({ title: "Generating PDF...", description: "Please wait while we create and sign your contract." });
@@ -592,7 +592,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to generate contract: ${errorText}`);
+        throw new Error(`Failed to generate contract: ${'${errorText}'}`);
       }
   
       const result = await response.json();
@@ -644,7 +644,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const storageRef = ref(storage, `signed_contracts/${tenantId}/${file.name}`);
+    const storageRef = ref(storage, `signed_contracts/${'${tenantId}'}/${'${file.name}'}`);
     
     try {
       toast({ title: "Uploading...", description: "Your contract is being uploaded." });
@@ -732,7 +732,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
         if (error.code !== 'storage/object-not-found') {
             console.error("Error deleting contract file from Storage:", error);
-            toast({ variant: "destructive", title: "Deletion Failed", description: `Could not delete file from storage: ${error.message}` });
+            toast({ variant: "destructive", title: "Deletion Failed", description: `Could not delete file from storage: ${'${error.message}'}` });
             return; // Stop if storage deletion fails for reasons other than not found
         }
         console.warn("File not found in storage, but proceeding to remove link from Firestore.");
@@ -747,7 +747,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Contract Deleted", description: "The signed contract has been successfully deleted." });
     } catch (error: any) {
         console.error("Error removing contract URL from Firestore:", error);
-        toast({ variant: "destructive", title: "Update Failed", description: `Could not remove contract link from database: ${error.message}` });
+        toast({ variant: "destructive", title: "Update Failed", description: `Could not remove contract link from database: ${'${error.message}'}` });
     }
   };
 
@@ -771,7 +771,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await addDoc(collection(db, 'payments'), newPaymentData);
     } catch (error: any) {
       console.error("Error adding payment to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add payment: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add payment: ${'${error.message}'}` });
     }
   };
 
@@ -785,7 +785,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'payments', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating payment in Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update payment: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update payment: ${'${error.message}'}` });
     }
   };
 
@@ -798,7 +798,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'payments', paymentId));
     } catch (error: any) {
       console.error("Error deleting payment from Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete payment: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete payment: ${'${error.message}'}` });
     }
   };
 
@@ -840,7 +840,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         toast({
             title: "Success",
-            description: `₱${amountToApply.toFixed(2)} from the security deposit has been applied as a payment.`,
+            description: `₱${'${amountToApply.toFixed(2)}'} from the security deposit has been applied as a payment.`,
         });
 
     } catch (error: any) {
@@ -867,7 +867,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await addDoc(collection(db, 'expenses'), newExpenseData);
     } catch (error: any) {
       console.error("Error adding expense to Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${'${error.message}'}` });
     }
   };
 
@@ -881,7 +881,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'expenses', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating expense in Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${'${error.message}'}` });
     }
   };
 
@@ -894,7 +894,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'expenses', expenseId));
     } catch (error: any) {
       console.error("Error deleting expense from Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${'${error.message}'}` });
     }
   };
   
@@ -916,7 +916,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await addDoc(collection(db, 'companyFundsExpenses'), newExpenseData);
     } catch (error: any) {
       console.error("Error adding company funds expense:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add expense: ${'${error.message}'}` });
     }
   };
   
@@ -930,7 +930,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'companyFundsExpenses', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating company funds expense:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update expense: ${'${error.message}'}` });
     }
   };
 
@@ -943,7 +943,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'companyFundsExpenses', expenseId));
     } catch (error: any) {
       console.error("Error deleting company funds expense:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete expense: ${'${error.message}'}` });
     }
   };
 
@@ -956,7 +956,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { tenantId, amount: newDueAmount, type } = dueData;
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant) {
-      toast({ variant: 'destructive', title: 'Error', description: `${terminology.single} not found.` });
+      toast({ variant: 'destructive', title: 'Error', description: `${'${terminology.single}'} not found.` });
       return;
     }
 
@@ -990,7 +990,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           date: newDueData.dueDate, // Match the due date for clarity
           amount: creditToApply,
           paymentMethod: 'From Credit',
-          discountDescription: `Auto-applied from credit towards new ${type} charge.`,
+          discountDescription: `Auto-applied from credit towards new ${'${type}'} charge.`,
           discountApplied: 0,
           clientId: determinedClientId,
         };
@@ -999,14 +999,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       await batch.commit();
       
-      let toastDescription = `A ${type} charge of ₱${newDueAmount.toFixed(2)} was added.`;
+      let toastDescription = `A ${'${type}'} charge of ₱${'${newDueAmount.toFixed(2)}'} was added.`;
       if (creditToApply > 0) {
-        toastDescription += ` ₱${creditToApply.toFixed(2)} of it was automatically paid from the tenant's credit.`;
+        toastDescription += ` ₱${'${creditToApply.toFixed(2)}'} of it was automatically paid from the tenant's credit.`;
       }
       toast({ title: 'Due Added', description: toastDescription });
     } catch (error: any) {
       console.error('Error adding due:', error);
-      toast({ variant: 'destructive', title: 'Firestore Error', description: `Failed to process due: ${error.message}` });
+      toast({ variant: 'destructive', title: 'Firestore Error', description: `Failed to process due: ${'${error.message}'}` });
     }
   };
   
@@ -1020,7 +1020,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'additionalDues', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating additional due:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update due: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update due: ${'${error.message}'}` });
     }
   };
   
@@ -1033,7 +1033,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'additionalDues', dueId));
     } catch (error: any) {
       console.error("Error deleting additional due:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete due: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete due: ${'${error.message}'}` });
     }
   };
 
@@ -1045,8 +1045,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       let logoUrl: string | null = null;
       if (logoFile) {
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
-        const uniqueFileName = `${uuidv4()}-${fileName}`;
-        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
+        const uniqueFileName = `${'${uuidv4()}'}-${'${fileName}'}`;
+        const storageRef = ref(storage, `client_logos/${'${uniqueFileName}'}`);
         
         const uploadResult = await uploadBytes(storageRef, logoFile);
         logoUrl = await getDownloadURL(uploadResult.ref);
@@ -1066,7 +1066,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await addDoc(collection(db, 'clients'), dataToSave);
     } catch (error: any) {
       console.error("Error adding client:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add client: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add client: ${'${error.message}'}` });
       throw error;
     }
   };
@@ -1081,8 +1081,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       if (logoFile) {
         const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
-        const uniqueFileName = `${uuidv4()}-${fileName}`;
-        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
+        const uniqueFileName = `${'${uuidv4()}'}-${'${fileName}'}`;
+        const storageRef = ref(storage, `client_logos/${'${uniqueFileName}'}`);
         
         const uploadResult = await uploadBytes(storageRef, logoFile);
         dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);
@@ -1091,7 +1091,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating client:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update client: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update client: ${'${error.message}'}` });
       throw error;
     }
   };
@@ -1120,12 +1120,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch (error: any) {
       console.error("Error updating notification settings:", error);
-      throw new Error(`Failed to save notification settings: ${error.message}`);
+      throw new Error(`Failed to save notification settings: ${'${error.message}'}`);
     }
   };
 
   const runNotificationTrigger = async (): Promise<{success: boolean, message: string}> => {
-    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/notificationRunner";
+    const functionUrl = "https://us-central1-tenanttracker-u4wuw.cloudfunctions.net/notificationRunner";
     try {
       const response = await fetch(functionUrl, {
         method: 'POST',
@@ -1135,7 +1135,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to trigger notifications: ${response.status} ${errorText}`);
+        throw new Error(`Failed to trigger notifications: ${'${response.status}'} ${'${errorText}'}`);
       }
       const result = await response.json();
       return { success: true, message: result.message };
@@ -1188,7 +1188,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         
         await batch.commit();
-        toast({ title: 'Client Moved to Recycle Bin', description: `${clientData.name} has been deleted. You can restore them from the maintenance menu.` });
+        toast({ title: 'Client Moved to Recycle Bin', description: `${'${clientData.name}'} has been deleted. You can restore them from the maintenance menu.` });
     } catch (error: any) {
         console.error('Error soft-deleting client:', error);
         toast({ variant: 'destructive', title: 'Error Deleting Client', description: error.message });
@@ -1229,7 +1229,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         batch.delete(backupDocRef);
 
         await batch.commit();
-        toast({ title: 'Client Restored', description: `${backup.clientData.name} and all their data have been restored.` });
+        toast({ title: 'Client Restored', description: `${'${backup.clientData.name}'} and all their data have been restored.` });
 
     } catch (error: any) {
         console.error('Error restoring client:', error);
@@ -1260,7 +1260,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await serverAddManagedUser(userData);
     } catch (error: any) {
       console.error("Error adding managed user:", error);
-      toast({ variant: "destructive", title: "Server Error", description: `Failed to add user: ${error.message}` });
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to add user: ${'${error.message}'}` });
     }
   };
 
@@ -1274,7 +1274,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await serverUpdateManagedUser(id, dataToUpdate);
     } catch (error: any) {
       console.error("Error updating managed user:", error);
-      toast({ variant: "destructive", title: "Server Error", description: `Failed to update user: ${error.message}` });
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to update user: ${'${error.message}'}` });
     }
   };
 
@@ -1292,7 +1292,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'managedUsers', userId));
     } catch (error: any) {
       console.error("Error deleting managed user from Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete user: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete user: ${'${error.message}'}` });
     }
   };
 
@@ -1305,7 +1305,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await serverAddSuperAdminUser(userData);
     } catch (error: any) {
       console.error("Error adding super admin user:", error);
-      toast({ variant: "destructive", title: "Server Error", description: `Failed to add super admin: ${error.message}` });
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to add super admin: ${'${error.message}'}` });
     }
   };
 
@@ -1319,7 +1319,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await serverUpdateSuperAdminUser(id, dataToUpdate);
     } catch (error: any) {
       console.error("Error updating super admin user:", error);
-      toast({ variant: "destructive", title: "Server Error", description: `Failed to update super admin: ${error.message}` });
+      toast({ variant: "destructive", title: "Server Error", description: `Failed to update super admin: ${'${error.message}'}` });
     }
   };
 
@@ -1332,7 +1332,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await deleteDoc(doc(db, 'superAdminUsers', userId));
     } catch (error: any) {
       console.error("Error deleting super admin user from Firestore:", error);
-      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete super admin: ${error.message}` });
+      toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete super admin: ${'${error.message}'}` });
     }
   };
   
@@ -1367,7 +1367,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return result;
     } catch (error: any) {
       console.error("Error generating tenant account:", error);
-      return { success: false, message: `An unexpected server error occurred: ${error.message}` };
+      return { success: false, message: `An unexpected server error occurred: ${'${error.message}'}` };
     }
   };
   
@@ -1380,7 +1380,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return result;
     } catch (error: any) {
       console.error("Error resetting tenant password:", error);
-      return { success: false, message: `An unexpected server error occurred: ${error.message}` };
+      return { success: false, message: `An unexpected server error occurred: ${'${error.message}'}` };
     }
   };
 
@@ -1389,7 +1389,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return await serverForceChangeTenantPassword(tenantId, newPassword);
     } catch (error: any) {
         console.error("Error forcing tenant password change:", error);
-        return { success: false, message: `An unexpected server error occurred: ${error.message}` };
+        return { success: false, message: `An unexpected server error occurred: ${'${error.message}'}` };
     }
   };
 
@@ -1419,8 +1419,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error cleaning client data:", error);
-        toast({ variant: 'destructive', title: 'Cleanup Failed', description: `Cleanup failed: ${error.message}` });
-        return { success: false, message: `Cleanup failed: ${error.message}` };
+        toast({ variant: 'destructive', title: 'Cleanup Failed', description: `Cleanup failed: ${'${error.message}'}` });
+        return { success: false, message: `Cleanup failed: ${'${error.message}'}` };
     }
   };
 
@@ -1442,10 +1442,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
     try {
         await addDoc(collection(db, 'businesses'), newBusinessData);
-        toast({ title: "Business Added", description: `${businessName} has been added.`});
+        toast({ title: "Business Added", description: `${'${businessName}'} has been added.`});
     } catch (error: any) {
         console.error("Error adding business:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${'${error.message}'}` });
     }
   };
 
@@ -1457,10 +1457,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...dataToUpdate } = updatedBusiness;
     try {
         await setDoc(doc(db, 'businesses', id), dataToUpdate, { merge: true });
-        toast({ title: "Business Updated", description: `${updatedBusiness.name} has been updated.`});
+        toast({ title: "Business Updated", description: `${'${updatedBusiness.name}'} has been updated.`});
     } catch (error: any) {
         console.error("Error updating business:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to add business: ${'${error.message}'}` });
     }
   };
 
@@ -1485,7 +1485,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Business Deleted", description: "The business and all its income history have been deleted."});
     } catch (error: any) {
         console.error("Error deleting business:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to delete business: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete business: ${'${error.message}'}` });
     }
   };
 
@@ -1510,7 +1510,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           toast({ title: "Income Recorded", description: "Weekly income and breakdown have been saved." });
       } catch (error: any) {
           console.error("Error adding weekly income:", error);
-          toast({ variant: "destructive", title: "Error", description: `Failed to save income: ${error.message}` });
+          toast({ variant: "destructive", title: "Error", description: `Failed to save income: ${'${error.message}'}` });
       }
   };
   
@@ -1524,7 +1524,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Income Entry Deleted", description: "The weekly income entry has been successfully deleted."});
     } catch (error: any) {
         console.error("Error deleting weekly income:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to delete income entry: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete income entry: ${'${error.message}'}` });
     }
   };
   
@@ -1534,7 +1534,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
     } catch (error: any) {
       console.error("Error adding demo request:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${'${error instanceof Error ? error.message : \'An unknown error occurred.\'}'}` });
       throw error;
     }
   };
@@ -1548,7 +1548,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await updateDoc(doc(db, 'demoRequests', requestId), { status });
       toast({ title: "Status Updated", description: "The demo request status has been updated."});
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: `Failed to update status: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to update status: ${'${error.message}'}` });
     }
   };
 
@@ -1560,7 +1560,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       await deleteDoc(doc(db, 'demoRequests', requestId));
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: `Failed to delete request: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete request: ${'${error.message}'}` });
     }
   };
 
@@ -1575,7 +1575,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         toast({ title: "Schedule Saved", description: "Backup schedule has been saved successfully." });
     } catch (error: any) {
         console.error("Error updating backup schedule:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to save schedule: ${error.message}` });
+        toast({ variant: "destructive", title: "Error", description: `Failed to save schedule: ${'${error.message}'}` });
     }
   };
 
@@ -1589,7 +1589,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Announcement Deleted" });
     } catch (error: any) {
       console.error("Error deleting announcement:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to delete announcement: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete announcement: ${'${error.message}'}` });
     }
   };
 
@@ -1676,8 +1676,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (error: any) {
         console.error("Error restoring from backup:", error);
-        toast({ variant: 'destructive', title: 'Restore Failed', description: `An error occurred during the restore process: ${error.message}` });
-        return { success: false, message: `Restore failed: ${error.message}` };
+        toast({ variant: 'destructive', title: 'Restore Failed', description: `An error occurred during the restore process: ${'${error.message}'}` });
+        return { success: false, message: `Restore failed: ${'${error.message}'}` };
     }
   };
 
@@ -1780,7 +1780,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       await batch.commit();
 
-      toast({ title: "Success", description: `Tenant assigned to PC ${pcNumber}.` });
+      toast({ title: "Success", description: `Tenant assigned to PC ${'${pcNumber}'}.` });
     } catch (e: any) {
       console.error("Error assigning tenant to PC:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
@@ -1818,7 +1818,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
 
         await updateDoc(clientRef, { pcIssues: currentIssues });
-        toast({ title: "Success", description: `Issue for PC ${pcNumber} has been updated.` });
+        toast({ title: "Success", description: `Issue for PC ${'${pcNumber}'} has been updated.` });
 
     } catch (e: any) {
         console.error("Error updating PC issue:", e);
@@ -1857,7 +1857,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       await batch.commit();
 
-      toast({ title: "Success", description: `Tenant assigned to Room ${roomNumber}.` });
+      toast({ title: "Success", description: `Tenant assigned to Room ${'${roomNumber}'}.` });
     } catch (e: any) {
       console.error("Error assigning tenant to room:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
@@ -1895,7 +1895,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
 
         await updateDoc(clientRef, { roomIssues: currentIssues });
-        toast({ title: "Success", description: `Issue for Room ${roomNumber} has been updated.` });
+        toast({ title: "Success", description: `Issue for Room ${'${roomNumber}'} has been updated.` });
 
     } catch (e: any) {
         console.error("Error updating room issue:", e);
@@ -1916,7 +1916,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (files.length > 0) {
         for (const file of files) {
             const fileId = uuidv4();
-            const storageRef = ref(storage, `ticket_attachments/${authUser.clientId}/${fileId}-${file.name}`);
+            const storageRef = ref(storage, `ticket_attachments/${'${authUser.clientId}'}/${'${fileId}'}-${'${file.name}'}`);
             const uploadResult = await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(uploadResult.ref);
             attachmentUrls.push(downloadURL);
@@ -1968,7 +1968,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Template Added" });
     } catch (error: any) {
       console.error("Error adding contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to add template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to add template: ${'${error.message}'}` });
     }
   };
 
@@ -1988,7 +1988,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Template Updated" });
     } catch (error: any) {
       console.error("Error updating contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to update template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to update template: ${'${error.message}'}` });
     }
   };
 
@@ -2008,7 +2008,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Template Deleted" });
     } catch (error: any) {
       console.error("Error deleting contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to delete template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: `Failed to delete template: ${'${error.message}'}` });
     }
   };
 
@@ -2157,5 +2157,6 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
 
 

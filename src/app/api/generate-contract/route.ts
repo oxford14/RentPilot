@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 
 export async function POST(request: NextRequest) {
   // This is the actual cloud function URL
-  const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/generateContract";
+  const functionUrl = "https://us-central1-tenanttracker-u4wuw.cloudfunctions.net/generateContract";
 
   try {
     const body = await request.json();
