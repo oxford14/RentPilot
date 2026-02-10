@@ -340,10 +340,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isLoading: boolean;
-  login: (
-    usernameInput: string,
-    passwordInput: string
-  ) => Promise<boolean>;
+  login: (usernameInput: string, passwordInput: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -427,6 +424,7 @@ export interface AppContextType {
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
   resetTenantPassword: (tenantId: string) => Promise<{success: boolean, password?: string, message?: string}>;
   forceChangeTenantPassword: (tenantId: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  generateAndSignContract: (tenantId: string, contractText: string, contractEndDate: string, signatureDataUrl: string) => Promise<void>;
   uploadSignedContract: (tenantId: string, file: File, contractEndDate: string) => Promise<void>;
   renewSignedContract: (tenantId: string, file: File, newContractEndDate: string) => Promise<void>;
   deleteSignedContract: (tenantId: string) => Promise<void>;

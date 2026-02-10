@@ -2044,6 +2044,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     generateTenantAccount,
     resetTenantPassword,
     forceChangeTenantPassword,
+    generateAndSignContract,
     uploadSignedContract,
     renewSignedContract,
     deleteSignedContract,
