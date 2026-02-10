@@ -137,14 +137,22 @@ export default function SignContractPage() {
             
             doc.setFontSize(10);
 
-            // Simple text wrapping logic
+            // New pagination logic
             const textLines = doc.splitTextToSize(contractText, pageWidth - (margin * 2));
-            doc.text(textLines, margin, y);
-            
-            const textHeight = doc.getTextDimensions(textLines).h;
-            y = margin + textHeight + 10;
+            const lineHeight = doc.getLineHeight();
 
-            if (y > pageHeight - 50) { // check if signature needs a new page
+            for (const line of textLines) {
+                if (y + lineHeight > pageHeight - margin) {
+                    doc.addPage();
+                    y = margin; 
+                }
+                doc.text(line, margin, y);
+                y += lineHeight;
+            }
+
+            y += 10; 
+            
+            if (y > pageHeight - 50) { 
                 doc.addPage();
                 y = margin;
             }
