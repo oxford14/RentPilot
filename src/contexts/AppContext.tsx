@@ -578,7 +578,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
   
-    const functionUrl = "https://asia-east1-tenanttracker-u4wuw.cloudfunctions.net/generateContract";
+    const functionUrl = "/api/generate-contract"; // Use the proxy route
     const outputPath = `signed_contracts/${tenantId}/contract-${Date.now()}.pdf`;
   
     try {
@@ -2157,4 +2157,5 @@ export const useAppContext = (): AppContextType => {
   }
   return context;
 };
+
 

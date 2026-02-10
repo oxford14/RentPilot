@@ -63,7 +63,7 @@ export interface Tenant {
   clientId?: string;
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Paymongo' | 'Other';
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID
@@ -73,7 +73,7 @@ export interface Payment {
   paymentMethod?: PaymentMethod;
   checkNumber?: string;
   discountApplied?: number;
-  discountDescription?: string;
+  discountDescription?: string; 
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
 }
 
@@ -120,24 +120,24 @@ export interface DeletedClientBackup {
     deletedAt: string; // ISO string
 }
 
-export type ExpenseCategory =
-  | 'Maintenance'
-  | 'Utilities'
-  | 'Administrative'
-  | 'Marketing'
-  | 'Supplies'
-  | 'Repairs'
-  | 'Taxes & Fees'
+export type ExpenseCategory = 
+  | 'Maintenance' 
+  | 'Utilities' 
+  | 'Administrative' 
+  | 'Marketing' 
+  | 'Supplies' 
+  | 'Repairs' 
+  | 'Taxes & Fees' 
   | 'Other';
 
 export const expenseCategories: ExpenseCategory[] = [
-  'Maintenance',
-  'Utilities',
-  'Administrative',
-  'Marketing',
-  'Supplies',
-  'Repairs',
-  'Taxes & Fees',
+  'Maintenance', 
+  'Utilities', 
+  'Administrative', 
+  'Marketing', 
+  'Supplies', 
+  'Repairs', 
+  'Taxes & Fees', 
   'Other'
 ];
 
@@ -511,3 +511,4 @@ export interface AppContextType {
   addTechSupportRequest: (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => Promise<void>;
   updateTechSupportRequest: (ticketId: string, updates: Partial<TechSupportRequest>) => Promise<void>;
 }
+
