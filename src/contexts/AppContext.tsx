@@ -300,6 +300,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return rawAnnouncementsState;
   }, [rawAnnouncementsState, authIsAuthenticated]);
 
+  const contractTemplates = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    // Do not show any templates if no client is selected (i.e., super admin global view)
+    if (!clientId) return [];
+    return rawContractTemplatesState.filter(t => t.clientId === clientId);
+  }, [rawContractTemplatesState, getScopedClientId, authIsAuthenticated]);
+
+
   const techSupportRequests = useMemo(() => {
     if (!authIsAuthenticated || !authUser) return [];
     if (authUser.isSuperAdmin) {
@@ -1938,13 +1947,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addContractTemplate = async (templateData: Omit<ContractTemplate, 'id'>) => {
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
+  const addContractTemplate = async (templateData: Omit<ContractTemplate, 'id' | 'clientId'>) => {
+    if (!authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
+    const determinedClientId = getScopedClientId();
+    if (!determinedClientId) {
+      toast({ variant: "destructive", title: "Error", description: "A client must be selected to add a template." });
+      return;
+    }
+    
     try {
-      await addDoc(collection(db, 'contractTemplates'), templateData);
+      await addDoc(collection(db, 'contractTemplates'), { ...templateData, clientId: determinedClientId });
       toast({ title: "Template Added" });
     } catch (error: any) {
       console.error("Error adding contract template:", error);
@@ -1953,11 +1968,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateContractTemplate = async (template: ContractTemplate) => {
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
+    if (!authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
       return;
     }
     const { id, ...dataToUpdate } = template;
+    const currentContextClientId = getScopedClientId();
+    if (template.clientId !== currentContextClientId) {
+        toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
+        return;
+    }
     try {
       await setDoc(doc(db, 'contractTemplates', id), dataToUpdate, { merge: true });
       toast({ title: "Template Updated" });
@@ -1968,9 +1988,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteContractTemplate = async (templateId: string) => {
-    if (!authUser?.isSuperAdmin && authUser?.role !== 'admin') {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to manage contract templates." });
+    if (!authUser) {
+      toast({ variant: "destructive", title: "Unauthorized" });
       return;
+    }
+    const templateToDelete = rawContractTemplatesState.find(t => t.id === templateId);
+    const currentContextClientId = getScopedClientId();
+    if (templateToDelete && templateToDelete.clientId !== currentContextClientId) {
+        toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
+        return;
     }
     try {
       await deleteDoc(doc(db, 'contractTemplates', templateId));
@@ -1997,7 +2023,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     weeklyIncomes,
     backupScheduleSettings,
     announcements,
-    contractTemplates: rawContractTemplatesState,
+    contractTemplates,
     terminology,
     techSupportRequests,
     

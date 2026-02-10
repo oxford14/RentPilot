@@ -262,6 +262,7 @@ export interface Announcement {
 
 export interface ContractTemplate {
   id: string;
+  clientId: string;
   name: string;
   content: string;
 }
@@ -481,7 +482,7 @@ export interface AppContextType {
   deleteAnnouncement: (announcementId: string) => Promise<void>;
   markAnnouncementAsRead: (announcementId: string, userId: string) => Promise<void>;
   
-  addContractTemplate: (template: Omit<ContractTemplate, 'id'>) => Promise<void>;
+  addContractTemplate: (template: Omit<ContractTemplate, 'id' | 'clientId'>) => Promise<void>;
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
   

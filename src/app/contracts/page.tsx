@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2, FileText } from 'lucide-react';
@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function ContractsPage() {
-  const { contractTemplates, deleteContractTemplate } = useAppContext();
+  const { contractTemplates, deleteContractTemplate, clients, viewingAsClientId } = useAppContext();
   const { toast } = useToast();
   const { user } = useAuth();
   const router = useRouter();
@@ -31,6 +31,13 @@ export default function ContractsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<ContractTemplate | null>(null);
+  
+  const currentClientId = user?.isSuperAdmin ? viewingAsClientId : user?.clientId;
+
+  const client = useMemo(() => {
+    if (!currentClientId) return null;
+    return clients.find(c => c.id === currentClientId);
+  }, [clients, currentClientId]);
 
   useEffect(() => {
     if (user && !user.isSuperAdmin && user.role !== 'admin') {
@@ -64,6 +71,21 @@ export default function ContractsPage() {
   if (user && !user.isSuperAdmin && user.role !== 'admin') {
     return <div className="container mx-auto py-2"><p>Access Denied.</p></div>;
   }
+  
+  if (!currentClientId) {
+    return (
+      <div className="container mx-auto py-2">
+        <Card className="shadow-xl">
+          <CardHeader>
+            <CardTitle>No Client Selected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please select a client from the admin dashboard to manage contract templates.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -74,7 +96,7 @@ export default function ContractsPage() {
               <FileText className="mr-3 h-8 w-8 text-primary" />
               Contract Templates
             </h1>
-            <p className="text-muted-foreground">Manage reusable contract templates for digital signing.</p>
+            <p className="text-muted-foreground">Manage reusable contract templates for {client?.name}.</p>
           </div>
           <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Template
@@ -83,8 +105,8 @@ export default function ContractsPage() {
 
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle>Global Templates</CardTitle>
-            <CardDescription>These templates are available to all clients when generating a digital contract.</CardDescription>
+            <CardTitle>Templates for {client?.name}</CardTitle>
+            <CardDescription>These templates are available when generating a digital contract for this client.</CardDescription>
           </CardHeader>
           <CardContent>
             {contractTemplates.length > 0 ? (
@@ -109,7 +131,7 @@ export default function ContractsPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-8">No contract templates found. Add one to get started.</p>
+              <p className="text-center text-muted-foreground py-8">No contract templates found for this client. Add one to get started.</p>
             )}
           </CardContent>
         </Card>
