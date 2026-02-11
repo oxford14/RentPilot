@@ -42,6 +42,10 @@ TENANT:
 5. USE OF PROPERTY. The property shall be used and occupied by Tenant exclusively as a private single-family residence.
 
 6. SIGNATURES. The parties agree to the terms of this Lease Agreement, as evidenced by their signatures below.
+
+Tenant Signature: [TENANT_SIGNATURE]
+
+Landlord Signature: [LANDLORD_SIGNATURE]
 `;
 
 export default function SignContractPage() {
@@ -138,37 +142,50 @@ export default function SignContractPage() {
             
             doc.setFontSize(10);
 
-            // New pagination logic with adjusted line height
             const textLines = doc.splitTextToSize(contractText, pageWidth - (margin * 2));
-            const normalLineHeight = 12; // Standard line height for text
-            const paragraphBreakHeight = 6; // Smaller gap for paragraph breaks
+            const normalLineHeight = 7;
+            const paragraphBreakHeight = 3;
 
             for (const line of textLines) {
                 const isParagraphBreak = line.trim() === "";
                 const currentLineHeight = isParagraphBreak ? paragraphBreakHeight : normalLineHeight;
 
-                if (y + currentLineHeight > pageHeight - margin) {
+                // Check if adding the next line (or signature) exceeds the page height
+                const spaceNeeded = line.includes('[TENANT_SIGNATURE]') ? 30 : currentLineHeight;
+                if (y + spaceNeeded > pageHeight - margin) {
                     doc.addPage();
                     y = margin; 
                 }
 
-                if (!isParagraphBreak) {
+                if (line.includes('[TENANT_SIGNATURE]')) {
+                    const lineParts = line.split('[TENANT_SIGNATURE]');
+                    const textBefore = lineParts[0];
+                    const textAfter = lineParts[1] || '';
+
+                    // Draw the text that comes before the placeholder
+                    doc.text(textBefore, margin, y);
+
+                    const textBeforeWidth = doc.getTextWidth(textBefore);
+                    const signatureX = margin + textBeforeWidth;
+
+                    // Draw the signature image, adjusting Y to align with text
+                    doc.addImage(signatureDataUrl, 'PNG', signatureX, y - 5, 60, 30);
+                    
+                    // Draw text after if it exists
+                    if(textAfter.trim()) {
+                        const signatureWidth = 60;
+                        doc.text(textAfter, signatureX + signatureWidth, y);
+                    }
+
+                    y += 30; // Move y down to account for signature height
+
+                } else if (isParagraphBreak) {
+                    y += paragraphBreakHeight;
+                } else {
                     doc.text(line, margin, y);
+                    y += currentLineHeight;
                 }
-                
-                y += currentLineHeight;
             }
-
-            y += 10; 
-            
-            if (y > pageHeight - 50) { 
-                doc.addPage();
-                y = margin;
-            }
-
-            doc.text('Tenant Signature:', margin, y);
-            y += 5;
-            doc.addImage(signatureDataUrl, 'PNG', margin, y, 60, 30);
 
             const pdfBlob = doc.output('blob');
             const pdfFile = new File([pdfBlob], `contract-${tenant.id}.pdf`, { type: 'application/pdf' });
@@ -290,3 +307,5 @@ export default function SignContractPage() {
         </div>
     );
 }
+
+    
