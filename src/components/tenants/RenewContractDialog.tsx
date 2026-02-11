@@ -1,15 +1,14 @@
-
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAppContext } from '@/contexts/AppContext';
-import { Loader2, UploadCloud, CalendarClock, ArrowRight, Calendar } from 'lucide-react';
+import { Loader2, UploadCloud, CalendarClock, ArrowRight, Calendar, FileSignature } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { addMonths, addYears, format, addMinutes } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,8 +29,9 @@ const formatUtcDateAsPPP = (date: Date | null): string => {
 export function RenewContractDialog({ isOpen, onClose, tenant }: RenewContractDialogProps) {
   const { renewSignedContract } = useAppContext();
   const { toast } = useToast();
+  const router = useRouter();
   
-  const [step, setStep] = useState<'duration' | 'upload'>('duration');
+  const [step, setStep] = useState<'duration' | 'method' | 'upload'>('duration');
   const [duration, setDuration] = useState<number>(1);
   const [unit, setUnit] = useState<'years' | 'months'>('years');
   const [calculatedEndDate, setCalculatedEndDate] = useState<Date | null>(null);
@@ -72,6 +72,12 @@ export function RenewContractDialog({ isOpen, onClose, tenant }: RenewContractDi
     setIsLoading(true);
     await renewSignedContract(tenant.id, selectedFile, calculatedEndDate.toISOString());
     setIsLoading(false);
+    onClose();
+  };
+  
+  const handleDigitalSign = () => {
+    if (!tenant) return;
+    router.push(`/contract/sign/${tenant.id}?renewal=true`);
     onClose();
   };
   
@@ -137,9 +143,33 @@ export function RenewContractDialog({ isOpen, onClose, tenant }: RenewContractDi
                 )}
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                    <Button onClick={() => setStep('upload')} disabled={!duration || duration <= 0}>
+                    <Button onClick={() => setStep('method')} disabled={!duration || duration <= 0}>
                         Next <ArrowRight className="ml-2 h-4 w-4"/>
                     </Button>
+                </DialogFooter>
+            </>
+        )}
+        {step === 'method' && (
+             <>
+                <DialogHeader>
+                    <DialogTitle>Choose Renewal Method</DialogTitle>
+                    <DialogDescription>
+                        You can upload a signed document or create and sign a new one digitally.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="grid grid-cols-2 gap-4 py-4">
+                    <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => setStep('upload')}>
+                        <UploadCloud className="h-6 w-6"/>
+                        Upload Manually
+                    </Button>
+                     <Button variant="outline" className="h-24 flex-col gap-2" onClick={handleDigitalSign}>
+                        <FileSignature className="h-6 w-6"/>
+                        Sign Digitally
+                    </Button>
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setStep('duration')}>Back</Button>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
                 </DialogFooter>
             </>
         )}
@@ -172,7 +202,7 @@ export function RenewContractDialog({ isOpen, onClose, tenant }: RenewContractDi
                     )}
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => setStep('duration')}>Back</Button>
+                    <Button variant="outline" onClick={() => setStep('method')}>Back</Button>
                     <Button onClick={handleUpload} disabled={!selectedFile || isLoading}>
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                         {isLoading ? 'Uploading...' : 'Upload & Renew'}

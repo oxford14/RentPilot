@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import SignatureCanvas from 'react-signature-canvas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +50,7 @@ Landlord Signature: [LANDLORD_SIGNATURE]
 export default function SignContractPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const { tenants, clients, uploadSignedContract, contractTemplates } = useAppContext();
     const { user } = useAuth();
@@ -70,6 +70,7 @@ export default function SignContractPage() {
     const [contractText, setContractText] = useState('');
 
     const tenantId = params.tenantId as string;
+    const isRenewal = searchParams.get('renewal') === 'true';
     
     const tenant = useMemo(() => tenants.find(t => t.id === tenantId), [tenants, tenantId]);
     const client = useMemo(() => {
@@ -78,17 +79,17 @@ export default function SignContractPage() {
     }, [tenant, clients]);
 
     useEffect(() => {
-        if (tenant?.joinDate) {
-            const joinDate = new Date(tenant.joinDate);
+        if (tenant) {
+            const startDate = (isRenewal && tenant.contractEndDate) ? new Date(tenant.contractEndDate) : new Date(tenant.joinDate);
             let endDate;
             if (unit === 'months') {
-                endDate = addMonths(joinDate, duration || 0);
+                endDate = addMonths(startDate, duration || 0);
             } else {
-                endDate = addYears(joinDate, duration || 0);
+                endDate = addYears(startDate, duration || 0);
             }
             setCalculatedEndDate(endDate);
         }
-    }, [duration, unit, tenant]);
+    }, [duration, unit, tenant, isRenewal]);
 
     const handleProceedToSign = () => {
         if (!tenant || !client || !calculatedEndDate) return;
@@ -102,7 +103,8 @@ export default function SignContractPage() {
         }
         
         const termString = `${duration} ${unit.slice(0, -1)}${duration > 1 ? 's' : ''}`;
-        const startDate = format(new Date(tenant.joinDate), 'MMMM dd, yyyy');
+        const startDateForText = (isRenewal && tenant.contractEndDate) ? new Date(tenant.contractEndDate) : new Date(tenant.joinDate);
+        const startDate = format(startDateForText, 'MMMM dd, yyyy');
         const endDate = format(calculatedEndDate, 'MMMM dd, yyyy');
         const dueDay = tenant.monthlyDueDay || new Date(tenant.joinDate).getDate();
 
@@ -150,11 +152,12 @@ export default function SignContractPage() {
                 const isParagraphBreak = line.trim() === "";
                 const currentLineHeight = isParagraphBreak ? paragraphBreakHeight : normalLineHeight;
 
-                // Check if adding the next line (or signature) exceeds the page height
-                const spaceNeeded = line.includes('[TENANT_SIGNATURE]') ? 30 : currentLineHeight;
-                if (y + spaceNeeded > pageHeight - margin) {
+                const spaceNeededForSignature = 30;
+                const spaceNeededForLine = line.includes('[TENANT_SIGNATURE]') ? spaceNeededForSignature : currentLineHeight;
+
+                if (y + spaceNeededForLine > pageHeight - margin) {
                     doc.addPage();
-                    y = margin; 
+                    y = margin;
                 }
 
                 if (line.includes('[TENANT_SIGNATURE]')) {
@@ -162,23 +165,18 @@ export default function SignContractPage() {
                     const textBefore = lineParts[0];
                     const textAfter = lineParts[1] || '';
 
-                    // Draw the text that comes before the placeholder
                     doc.text(textBefore, margin, y);
 
                     const textBeforeWidth = doc.getTextWidth(textBefore);
                     const signatureX = margin + textBeforeWidth;
 
-                    // Draw the signature image, adjusting Y to align with text
                     doc.addImage(signatureDataUrl, 'PNG', signatureX, y - 5, 60, 30);
                     
-                    // Draw text after if it exists
                     if(textAfter.trim()) {
                         const signatureWidth = 60;
                         doc.text(textAfter, signatureX + signatureWidth, y);
                     }
-
-                    y += 30; // Move y down to account for signature height
-
+                    y += spaceNeededForSignature;
                 } else if (isParagraphBreak) {
                     y += paragraphBreakHeight;
                 } else {
@@ -211,14 +209,16 @@ export default function SignContractPage() {
     }
     if (!tenant) return <p>Tenant not found.</p>;
 
+    const startDateForDescription = (isRenewal && tenant.contractEndDate) ? new Date(tenant.contractEndDate) : new Date(tenant.joinDate);
+
     return (
         <div className="container mx-auto py-2">
            {step === 'duration' ? (
                 <Card className="max-w-xl mx-auto shadow-xl">
                     <CardHeader>
-                        <CardTitle>Set Contract Details</CardTitle>
+                        <CardTitle>{isRenewal ? 'Renew Contract' : 'Set Contract Details'}</CardTitle>
                         <CardDescription>
-                            Specify the contract term and choose a template for {tenant?.name}. The term starts from their join date ({format(new Date(tenant.joinDate), 'PPP')}).
+                            Specify the contract term and choose a template for {tenant?.name}. The term starts from {isRenewal ? 'the current contract end date' : 'their join date'} ({format(startDateForDescription, 'PPP')}).
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -307,5 +307,3 @@ export default function SignContractPage() {
         </div>
     );
 }
-
-    
