@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -26,6 +26,9 @@ const tenantFormSchema = z.object({
   joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
   monthlyDueDay: z.coerce.number().min(1).max(31).optional().nullable(),
   rentAdjustmentDate: z.string().optional(),
+  vehicleId: z.string().optional(),
+  rentStartDate: z.string().optional(),
+  rentEndDate: z.string().optional(),
 });
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>;
@@ -33,15 +36,15 @@ type TenantFormValues = z.infer<typeof tenantFormSchema>;
 interface TenantFormProps {
   isOpen: boolean;
   onClose: () => void;
-  tenant?: Tenant | null; // For editing
+  tenant?: Tenant | null;
 }
 
 export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
-  const { addTenant, updateTenant } = useAppContext();
+  const { addTenant, updateTenant, activeClient, vehicles, terminology } = useAppContext();
   const { toast } = useToast();
   const [initialRentRate, setInitialRentRate] = useState<number | null>(null);
 
-  const [newTenantJoinDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const isVehicleRental = activeClient?.businessType === 'Vehicle_Rental';
 
   const defaultValues = React.useMemo(() => {
     return tenant ? {
@@ -49,9 +52,12 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       email: tenant.email || '',
       phone: tenant.phone || '',
       securityDeposit: tenant.securityDeposit || 0,
-      joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
+      joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       monthlyDueDay: tenant.monthlyDueDay || undefined,
       rentAdjustmentDate: undefined,
+      vehicleId: tenant.vehicleId || '',
+      rentStartDate: tenant.rentStartDate ? new Date(tenant.rentStartDate).toISOString().split('T')[0] : '',
+      rentEndDate: tenant.rentEndDate ? new Date(tenant.rentEndDate).toISOString().split('T')[0] : '',
     } : {
       name: '',
       email: '',
@@ -59,11 +65,14 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       monthlyRentalRate: 0,
       securityDeposit: 0,
       status: 'active' as 'active' | 'inactive',
-      joinDate: newTenantJoinDate,
+      joinDate: new Date().toISOString().split('T')[0],
       monthlyDueDay: undefined,
       rentAdjustmentDate: undefined,
+      vehicleId: '',
+      rentStartDate: '',
+      rentEndDate: '',
     };
-  }, [tenant, newTenantJoinDate]);
+  }, [tenant]);
   
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
@@ -72,26 +81,14 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
 
   useEffect(() => {
     if (isOpen) {
-      form.reset(
-        tenant 
-        ? { 
-            ...tenant,
-            email: tenant.email || '',
-            phone: tenant.phone || '',
-            securityDeposit: tenant.securityDeposit || 0,
-            joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : newTenantJoinDate,
-            monthlyDueDay: tenant.monthlyDueDay || undefined,
-            rentAdjustmentDate: undefined
-          }
-        : { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, monthlyDueDay: undefined, rentAdjustmentDate: undefined }
-      );
+      form.reset(defaultValues);
       if (tenant) {
         setInitialRentRate(tenant.monthlyRentalRate);
       } else {
         setInitialRentRate(null);
       }
     }
-  }, [tenant, isOpen, form, newTenantJoinDate]);
+  }, [tenant, isOpen, form, defaultValues]);
 
   const watchedRentRate = form.watch('monthlyRentalRate');
   const rentRateChanged = tenant && initialRentRate !== null && watchedRentRate !== initialRentRate;
@@ -106,34 +103,37 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
       const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const { rentAdjustmentDate, ...restOfData } = data;
+      const { rentAdjustmentDate, rentStartDate, rentEndDate, ...restOfData } = data;
 
-      const submissionData = { 
+      const submissionData: any = { 
         ...restOfData, 
-        monthlyDueDay: restOfData.monthlyDueDay || null 
+        monthlyDueDay: restOfData.monthlyDueDay || null,
+        rentStartDate: rentStartDate ? new Date(`${rentStartDate}T00:00:00.000Z`).toISOString() : undefined,
+        rentEndDate: rentEndDate ? new Date(`${rentEndDate}T00:00:00.000Z`).toISOString() : undefined,
       };
 
       if (tenant) {
         updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
-        toast({ title: "Tenant Updated", description: `${data.name} has been updated successfully.` });
+        toast({ title: `${terminology.single} Updated`, description: `${data.name} has been updated successfully.` });
       } else {
         addTenant({...submissionData, joinDate: finalJoinDate});
-        toast({ title: "Tenant Added", description: `${data.name} has been added successfully.` });
+        toast({ title: `${terminology.single} Added`, description: `${data.name} has been added successfully.` });
       }
-      const resetValues = { name: '', email: '', phone: '', monthlyRentalRate: 0, securityDeposit: 0, status: 'active' as 'active' | 'inactive', joinDate: newTenantJoinDate, monthlyDueDay: undefined, rentAdjustmentDate: undefined };
-      form.reset(resetValues); 
       onClose();
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to save tenant information." });
-      console.error("Form submission error:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to save information." });
     }
   };
+
+  const availableVehicles = useMemo(() => {
+    return vehicles.filter(v => v.status === 'Available' || v.id === tenant?.vehicleId);
+  }, [vehicles, tenant]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[525px] bg-card shadow-xl rounded-lg">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">{tenant ? 'Edit Tenant' : 'Add New Tenant'}</DialogTitle>
+          <DialogTitle className="font-headline text-2xl">{tenant ? `Edit ${terminology.single}` : `Add New ${terminology.single}`}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off" className="space-y-6 p-2 max-h-[70vh] overflow-y-auto">
@@ -158,7 +158,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="" {...field} autoComplete="off" />
+                      <Input type="email" {...field} autoComplete="off" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -178,21 +178,76 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 )}
               />
             </div>
+
+            {isVehicleRental && (
+              <>
+                <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+                  <h3 className="font-semibold text-sm uppercase text-muted-foreground">Rental Assignment</h3>
+                  <FormField
+                    control={form.control}
+                    name="vehicleId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assign Vehicle</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a vehicle..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">No Vehicle Assigned</SelectItem>
+                            {availableVehicles.map(v => (
+                              <SelectItem key={v.id} value={v.id}>{v.make} {v.model} ({v.plateNumber})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="rentStartDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rent Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="rentEndDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Rent End Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="monthlyRentalRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Monthly Rental Rate (₱)</FormLabel>
+                    <FormLabel>{isVehicleRental ? 'Daily/Weekly Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
-                    <FormDescription className="text-xs">
-                      {rentRateChanged 
-                        ? "Please select the effective date for this new rate."
-                        : "Changing this will create a new versioned entry in the tenant's rent history."}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -218,7 +273,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="joinDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Join Date</FormLabel>
+                    <FormLabel>Contract Date</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -226,56 +281,36 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
-              <FormField
-                  control={form.control}
-                  name="monthlyDueDay"
-                  render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Monthly Due Day</FormLabel>
-                          <Select
-                            onValueChange={(val) => field.onChange(val === 'default' ? null : Number(val))}
-                            value={field.value ? String(field.value) : 'default'}
-                          >
-                              <FormControl>
-                                  <SelectTrigger>
-                                      <SelectValue placeholder="Defaults to join date day" />
-                                  </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                  <SelectItem value="default">Use Join Date Day</SelectItem>
-                                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                                      <SelectItem key={day} value={String(day)}>{day}</SelectItem>
-                                  ))}
-                              </SelectContent>
-                          </Select>
-                          <FormDescription className="text-xs">
-                              The day of the month rent is due.
-                          </FormDescription>
-                          <FormMessage />
-                      </FormItem>
-                  )}
-              />
+              {!isVehicleRental && (
+                <FormField
+                    control={form.control}
+                    name="monthlyDueDay"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Monthly Due Day</FormLabel>
+                            <Select
+                              onValueChange={(val) => field.onChange(val === 'default' ? null : Number(val))}
+                              value={field.value ? String(field.value) : 'default'}
+                            >
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Defaults to join date day" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="default">Use Join Date Day</SelectItem>
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                        <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+              )}
             </div>
 
-            {rentRateChanged && (
-               <FormField
-                control={form.control}
-                name="rentAdjustmentDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rent Adjustment Effective Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} value={field.value || ''}/>
-                    </FormControl>
-                     <FormDescription className="text-xs">
-                       The new rent rate will apply starting from this date.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
             <FormField
               control={form.control}
               name="status"
@@ -310,7 +345,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
               </DialogClose>
-              <Button type="submit" variant="default">{tenant ? 'Save Changes' : 'Add Tenant'}</Button>
+              <Button type="submit" variant="default">{tenant ? 'Save Changes' : `Add ${terminology.single}`}</Button>
             </DialogFooter>
           </form>
         </Form>

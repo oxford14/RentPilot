@@ -1,5 +1,4 @@
 
-
 export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
 
 export type ClientUserRole = 'admin' | 'user' | 'hub-admin' | 'technician';
@@ -51,16 +50,30 @@ export interface Tenant {
   inactiveDate?: string;
   joinDate: string; // ISO string
   monthlyDueDay?: number;
-  username?: string; // NEW
+  username?: string; 
   password?: string; // For tenant login
-  temporaryPassword?: boolean; // NEW: flag for forced password change
-  hasAccount?: boolean; // To track if tenant has created a login
+  temporaryPassword?: boolean; 
+  hasAccount?: boolean; 
   rentAdjustmentDate?: string;
   signedContractUrl?: string;
   contractEndDate?: string;
   pcNumber?: number;
   roomNumber?: number;
+  vehicleId?: string; // NEW for Vehicle Rental
+  rentStartDate?: string; // NEW for Vehicle Rental
+  rentEndDate?: string; // NEW for Vehicle Rental
   clientId?: string;
+}
+
+export interface Vehicle {
+  id: string;
+  clientId: string;
+  make: string;
+  model: string;
+  year: number;
+  plateNumber: string;
+  status: 'Available' | 'Rented' | 'Maintenance';
+  dailyRate: number;
 }
 
 export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
@@ -406,6 +419,7 @@ export interface AppContextType {
   contractTemplates: ContractTemplate[];
   terminology: { single: string; plural: string };
   techSupportRequests: TechSupportRequest[];
+  vehicles: Vehicle[];
   
   // Chat
   chatSessions: ChatSession[];
@@ -436,6 +450,10 @@ export interface AppContextType {
   assignTenantToRoom: (tenantId: string, roomNumber: number) => Promise<void>;
   unassignTenantFromRoom: (tenantId: string) => Promise<void>;
   updateClientRoomIssue: (clientId: string, roomNumber: number, newIssues: PcIssue) => Promise<void>;
+
+  addVehicle: (vehicle: Omit<Vehicle, 'id' | 'clientId'>) => Promise<void>;
+  updateVehicle: (vehicle: Vehicle) => Promise<void>;
+  deleteVehicle: (vehicleId: string) => Promise<void>;
 
   addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;
@@ -483,7 +501,7 @@ export interface AppContextType {
   updateContractTemplate: (template: ContractTemplate) => Promise<void>;
   deleteContractTemplate: (templateId: string) => Promise<void>;
   
-  rawManagedUsers: ManagedUser[]; // Exposing raw list for components like AdminUsersPage
+  rawManagedUsers: ManagedUser[]; 
   rawTenants: Tenant[];
   rawPayments: Payment[];
   rawExpenses: Expense[];

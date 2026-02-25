@@ -20,12 +20,12 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket } from 'lucide-react'; 
+import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket, Car, Key } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
@@ -115,7 +115,6 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
 const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media";
 const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a631f6b78299";
 
-// Helper component for grouped app navigation items
 const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNavGroup; pathname: string; disabled: boolean, onClick?: () => void }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
   const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
@@ -228,7 +227,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
     handleMobileNavClick();
   };
 
-  // Announcement logic
   const [filteredAnnouncements, setFilteredAnnouncements] = React.useState<Announcement[]>([]);
   
   React.useEffect(() => {
@@ -239,23 +237,19 @@ function AppShellContent({ children }: { children: ReactNode }) {
     
     let relevant: Announcement[] = [];
     if (authUser.isSuperAdmin) {
-        // Super admins do not see announcements in their bell. They manage them from their page.
     } else if (authUser.role === 'admin' || authUser.role === 'user' || authUser.role === 'hub-admin' || authUser.role === 'technician') {
-        // Client admins and users only see global announcements, not tenant-specific ones.
         relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin' && !a.recipientId);
     } else if (authUser.role === 'tenant' && authUser.clientId && authUser.tenantId) {
-        // Tenants see broadcasts for their client AND messages sent directly to them.
         relevant = announcements.filter(a => 
             a.audience === 'tenant' &&
             a.scope === authUser.clientId &&
             (
-                !a.recipientId || // It's a broadcast for their client
-                a.recipientId === authUser.tenantId // OR it's a message specifically for them
+                !a.recipientId || 
+                a.recipientId === authUser.tenantId 
             )
         );
     }
     
-    // Sort all relevant announcements by date
     relevant.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     setFilteredAnnouncements(relevant);
@@ -269,7 +263,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
   const handleAnnouncementClick = (announcement: Announcement) => {
     if (!authUser) return;
     setViewingAnnouncement(announcement);
-    // Mark as read when clicked, if it's unread
     if (!announcement.readBy.includes(authUser.username)) {
       markAnnouncementAsRead(announcement.id, authUser.username);
     }
@@ -349,16 +342,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
         }
         if (activeItemFound) break;
       }
-      if (!activeItemFound && pathname === '/admin') currentActivePageLabel = 'Admin Dashboard';
-      else if (!activeItemFound && pathname === '/admin/chat') currentActivePageLabel = 'Live Chat';
-      else if (!activeItemFound && pathname === '/admin/announcements') currentActivePageLabel = 'Announcements';
-      else if (!activeItemFound && pathname === '/admin/subscriptions') currentActivePageLabel = 'Subscriptions';
-      else if (!activeItemFound && pathname.startsWith('/admin/contracts')) currentActivePageLabel = 'Contract Templates';
-      else if (!activeItemFound && pathname === '/admin/settings') currentActivePageLabel = 'Timezone Settings';
-      else if (!activeItemFound && pathname === '/admin/superadmin-users') currentActivePageLabel = 'Manage Super Admins';
-      else if (!activeItemFound && pathname === '/admin/maintenance/backups') currentActivePageLabel = 'Backups';
-      else if (!activeItemFound && pathname === '/admin/maintenance/deleted-clients') currentActivePageLabel = 'Deleted Clients';
-      else if (!activeItemFound && pathname === '/admin/maintenance/demo-requests') currentActivePageLabel = 'Demo Requests';
   } else {
       let baseNavItems: Omit<AppSidebarNavItem, 'label'>[];
       if(isTenantSection) {
@@ -379,7 +362,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
         const isTechnician = authUser?.role === 'technician';
         
         if (isTechnician) {
-            baseNavItems = []; // Technicians start with a blank slate
+            baseNavItems = []; 
         } else {
             baseNavItems = [...baseAppNavItems].filter(item => {
               if (isHubAdmin) {
@@ -423,6 +406,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
             return { ...item, label };
         });
 
+        if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
+            const vehiclesItem: AppSidebarNavItem = {
+                isGroup: false, href: '/vehicles', label: 'Fleet Management', icon: Car,
+            };
+            const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+            if (tenantsIndex !== -1) {
+                currentAppNavItems.splice(tenantsIndex + 1, 0, vehiclesItem);
+            } else {
+                currentAppNavItems.push(vehiclesItem);
+            }
+        }
+
         if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
             const pcManagementItem: AppSidebarNavItem = {
                 isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
@@ -436,14 +431,16 @@ function AppShellContent({ children }: { children: ReactNode }) {
         }
 
         if (activeClientForDisplay?.businessType === 'Standard' || activeClientForDisplay?.businessType === 'Vehicle_Rental') {
-            const roomManagementItem: AppSidebarNavItem = {
-                isGroup: false, href: '/room-management', label: 'Room Management', icon: Home,
-            };
-            const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-            if (tenantsIndex !== -1) {
-                currentAppNavItems.splice(tenantsIndex + 1, 0, roomManagementItem);
-            } else {
-                currentAppNavItems.push(roomManagementItem);
+            if (activeClientForDisplay?.businessType !== 'Vehicle_Rental') {
+                const roomManagementItem: AppSidebarNavItem = {
+                    isGroup: false, href: '/room-management', label: 'Room Management', icon: Home,
+                };
+                const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
+                if (tenantsIndex !== -1) {
+                    currentAppNavItems.splice(tenantsIndex + 1, 0, roomManagementItem);
+                } else {
+                    currentAppNavItems.push(roomManagementItem);
+                }
             }
         }
         
@@ -508,14 +505,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
         }
         if (activeItemFound) break;
       }
-       if (!activeItemFound && pathname === '/profile') currentActivePageLabel = 'User Profile';
-       else if (!activeItemFound && pathname === '/settings') currentActivePageLabel = 'Account Settings';
-       else if (!activeItemFound && pathname === '/announcements') currentActivePageLabel = 'Announcements';
-       else if (!activeItemFound && pathname.startsWith('/contracts')) currentActivePageLabel = 'Contract Templates';
-       else if (!activeItemFound && pathname === '/notifications') currentActivePageLabel = 'Notifications';
-       else if (!activeItemFound && pathname === '/subscription') currentActivePageLabel = 'Subscription & Billing';
-       else if (!activeItemFound && pathname.startsWith('/contract/sign')) currentActivePageLabel = 'Sign Contract';
-       else if (!activeItemFound) currentActivePageLabel = 'RentPilot'; 
   }
 
   const handleReturnToAdminView = () => {
@@ -558,7 +547,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center justify-center">
             <Link href="/" className="flex items-center justify-center" onClick={handleMobileNavClick}>
-                {/* Expanded Logo */}
                 <Image 
                   src={MAIN_APP_LOGO_URL}
                   alt="RentPilot app logo" 
@@ -568,7 +556,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
                   data-ai-hint="app logo"
                   unoptimized
                 />
-                {/* Collapsed Icon */}
                 <Image 
                   src={MAIN_APP_FAVICON_URL}
                   alt="RentPilot icon" 
@@ -722,7 +709,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
                     />
                   );
                 }
-                // Global view
                 return (
                   <Image
                     src={MAIN_APP_LOGO_URL}
@@ -895,5 +881,3 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SidebarProvider>
     )
 }
-
-    

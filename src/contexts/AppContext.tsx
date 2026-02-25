@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest, ContractTemplate } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest, ContractTemplate, Vehicle } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +68,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawDeletedClientsState, setRawDeletedClientsState] = useState<DeletedClientBackup[]>([]);
   const [rawTechSupportRequests, setRawTechSupportRequests] = useState<TechSupportRequest[]>([]);
   const [rawContractTemplatesState, setRawContractTemplatesState] = useState<ContractTemplate[]>([]);
+  const [rawVehiclesState, setRawVehiclesState] = useState<Vehicle[]>([]);
 
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
@@ -79,7 +79,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Firestore listeners
   useEffect(() => {
     if (!authIsAuthenticated) {
-      // Clear data if user is not authenticated
       setRawClientsState([]);
       setRawTenantsState([]);
       setRawPaymentsState([]);
@@ -96,10 +95,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawDeletedClientsState([]);
       setRawTechSupportRequests([]);
       setRawContractTemplatesState([]);
+      setRawVehiclesState([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
-      setInitialLoadComplete(false); // Reset load complete flag
+      setInitialLoadComplete(false);
       return;
     }
 
@@ -123,6 +123,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'deletedClients', setter: setRawDeletedClientsState, label: 'deleted clients' },
       { name: 'techSupportRequests', setter: setRawTechSupportRequests, label: 'tech support requests' },
       { name: 'contractTemplates', setter: setRawContractTemplatesState, label: 'contract templates' },
+      { name: 'vehicles', setter: setRawVehiclesState, label: 'vehicles' },
     ];
     
     const unsubs = collectionsToListen.map(coll => 
@@ -140,7 +141,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       )
     );
 
-    // Listener for single system settings document
     const settingsDocRef = doc(db, 'systemSettings', 'main');
     const unsubSettings = onSnapshot(settingsDocRef, (doc) => {
       if (isMounted) {
@@ -223,7 +223,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [activeClient]);
 
 
-  // Filtered data based on auth user and view mode
   const tenants = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin && !viewingAsClientId) {
@@ -232,6 +231,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const clientId = getScopedClientId();
     return rawTenantsState.filter(t => t.clientId === clientId);
   }, [rawTenantsState, getScopedClientId, authUser, authIsAuthenticated, viewingAsClientId]);
+
+  const vehicles = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    if (!clientId && authUser?.isSuperAdmin) return rawVehiclesState;
+    return rawVehiclesState.filter(v => v.clientId === clientId);
+  }, [rawVehiclesState, getScopedClientId, authIsAuthenticated, authUser]);
 
   const payments = useMemo(() => {
     if (!authIsAuthenticated) return [];
@@ -280,8 +286,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const businesses = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-        if (!viewingAsClientId) return rawBusinessesState.filter(b => !b.clientId); // Super admin global view
-        return rawBusinessesState.filter(b => b.clientId === viewingAsClientId); // Super admin client view
+        if (!viewingAsClientId) return rawBusinessesState.filter(b => !b.clientId); 
+        return rawBusinessesState.filter(b => b.clientId === viewingAsClientId); 
     }
     return rawBusinessesState.filter(b => b.clientId === authUser?.clientId);
   }, [rawBusinessesState, viewingAsClientId, authUser, authIsAuthenticated]);
@@ -289,8 +295,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const weeklyIncomes = useMemo(() => {
     if (!authIsAuthenticated) return [];
     if (authUser?.isSuperAdmin) {
-        if (!viewingAsClientId) return rawWeeklyIncomesState.filter(wi => !wi.clientId); // Super admin global view
-        return rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId); // Super admin client view
+        if (!viewingAsClientId) return rawWeeklyIncomesState.filter(wi => !wi.clientId); 
+        return rawWeeklyIncomesState.filter(wi => wi.clientId === viewingAsClientId); 
     }
     return rawWeeklyIncomesState.filter(wi => wi.clientId === authUser?.clientId);
   }, [rawWeeklyIncomesState, viewingAsClientId, authUser, authIsAuthenticated]);
@@ -303,7 +309,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const contractTemplates = useMemo(() => {
     if (!authIsAuthenticated) return [];
     const clientId = getScopedClientId();
-    // Do not show any templates if no client is selected (i.e., super admin global view)
     if (!clientId) return [];
     return rawContractTemplatesState.filter(t => t.clientId === clientId);
   }, [rawContractTemplatesState, getScopedClientId, authIsAuthenticated]);
@@ -364,6 +369,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         batch.set(paymentRef, paymentData);
       }
       
+      // Update vehicle status to Rented if assigned
+      if (tenantData.vehicleId) {
+        const vehicleRef = doc(db, 'vehicles', tenantData.vehicleId);
+        batch.update(vehicleRef, { status: 'Rented' });
+      }
+
       await batch.commit();
 
     } catch (error: any) {
@@ -393,15 +404,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }
             if (originalTenant?.pcNumber) {
                 dataToUpdate.pcNumber = deleteField() as any;
-                toast({title: "PC Unassigned", description: `${updatedTenant.name} has been unassigned from their PC.`});
             }
             if (originalTenant?.roomNumber) {
                 dataToUpdate.roomNumber = deleteField() as any;
-                toast({title: "Room Unassigned", description: `${updatedTenant.name} has been unassigned from their room.`});
+            }
+            if (originalTenant?.vehicleId) {
+                const vehicleRef = doc(db, 'vehicles', originalTenant.vehicleId);
+                batch.update(vehicleRef, { status: 'Available' });
+                dataToUpdate.vehicleId = deleteField() as any;
             }
         }
         
-        // If status is reactivated, clear the inactiveDate
         if (originalTenant?.status === 'inactive' && updatedTenant.status === 'active') {
             dataToUpdate.inactiveDate = deleteField() as any;
         }
@@ -458,6 +471,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             batch.set(paymentRef, paymentData);
         }
 
+        // Handle vehicle reassignment
+        if (originalTenant?.vehicleId !== updatedTenant.vehicleId) {
+            if (originalTenant?.vehicleId) {
+                const oldVehicleRef = doc(db, 'vehicles', originalTenant.vehicleId);
+                batch.update(oldVehicleRef, { status: 'Available' });
+            }
+            if (updatedTenant.vehicleId) {
+                const newVehicleRef = doc(db, 'vehicles', updatedTenant.vehicleId);
+                batch.update(newVehicleRef, { status: 'Rented' });
+            }
+        }
+
         await batch.commit();
 
     } catch (error: any) {
@@ -490,8 +515,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       if (hasHistory) {
         await updateDoc(tenantDocRef, { status: 'inactive' });
+        if (tenantData.vehicleId) {
+            await updateDoc(doc(db, 'vehicles', tenantData.vehicleId), { status: 'Available' });
+        }
         return { success: true, message: `${terminology.single} "${tenantData.name}" marked as inactive.`, action: 'inactivated' };
       } else {
+        if (tenantData.vehicleId) {
+            await updateDoc(doc(db, 'vehicles', tenantData.vehicleId), { status: 'Available' });
+        }
         await deleteDoc(tenantDocRef);
         return { success: true, message: `${terminology.single} "${tenantData.name}" permanently deleted.`, action: 'deleted' };
       }
@@ -499,6 +530,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error attempting to delete tenant:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to delete/inactivate ${terminology.single}: ${error.message}` });
       return { success: false, message: `Operation failed: ${error.message}`, action: 'error' };
+    }
+  };
+
+  const addVehicle = async (vehicleData: Omit<Vehicle, 'id' | 'clientId'>) => {
+    if (!authIsAuthenticated) {
+      toast({ variant: "destructive", title: "Unauthorized" });
+      return;
+    }
+    const determinedClientId = getScopedClientId();
+    if (!determinedClientId) {
+      toast({ variant: "destructive", title: "No client context." });
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'vehicles'), { ...vehicleData, clientId: determinedClientId });
+      toast({ title: "Vehicle Added", description: "Successfully added to fleet." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const updateVehicle = async (vehicle: Vehicle) => {
+    if (!authIsAuthenticated) return;
+    const { id, ...data } = vehicle;
+    try {
+      await updateDoc(doc(db, 'vehicles', id), data);
+      toast({ title: "Vehicle Updated" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const deleteVehicle = async (vehicleId: string) => {
+    if (!authIsAuthenticated) return;
+    try {
+      await deleteDoc(doc(db, 'vehicles', vehicleId));
+      toast({ title: "Vehicle Deleted" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
   
@@ -513,7 +583,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const newAnnouncement: Omit<Announcement, 'id'> = {
             ...announcementData,
-            createdAt: announcementData.isScheduled ? new Date().toISOString() : new Date().toISOString(), // set create time now for both
+            createdAt: new Date().toISOString(), 
             readBy: [],
         };
         const announcementRef = doc(collection(db, 'announcements'));
@@ -561,7 +631,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const announcementRef = doc(db, 'announcements', announcementId);
     try {
         const dataToUpdate: any = { ...announcementData };
-        // Ensure status is correctly set when scheduling/updating
         dataToUpdate.status = announcementData.isScheduled ? 'scheduled' : 'sent';
 
         await updateDoc(announcementRef, dataToUpdate);
@@ -601,7 +670,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (tenant && tenant.hasAccount && tenant.username && tenant.clientId) {
         await addAnnouncement({
           title: "Your Contract is Available",
-          content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
+          content: "Your signed rental agreement is now available for viewing. You can access it anytime from your profile menu.",
           scope: tenant.clientId,
           audience: 'tenant',
           senderId: authUser.username,
@@ -612,7 +681,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           scheduledAt: new Date().toISOString(),
           status: 'sent',
         });
-        toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
+        toast({ title: "Notification Sent", description: "Renter was also notified about their available contract." });
       }
 
     } catch (error: any) {
@@ -629,24 +698,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant) {
-      toast({ variant: "destructive", title: "Error", description: "Tenant not found." });
+      toast({ variant: "destructive", title: "Error", description: "Renter not found." });
       return;
     }
     
-    // Delete old file if it exists
     if (tenant.signedContractUrl) {
         try {
             const oldStorageRef = ref(storage, tenant.signedContractUrl);
             await deleteObject(oldStorageRef);
         } catch (error: any) {
-            // If the old file doesn't exist, that's okay. We just log a warning and continue.
             if (error.code !== 'storage/object-not-found') {
                 console.error("Could not delete old contract file, proceeding with upload anyway:", error);
             }
         }
     }
     
-    // Upload new file and update tenant doc
     await uploadSignedContract(tenantId, file, newContractEndDate);
     toast({ title: "Contract Renewed", description: "The contract has been successfully renewed and updated." });
   };
@@ -660,7 +726,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const tenant = rawTenantsState.find(t => t.id === tenantId);
     if (!tenant || !tenant.signedContractUrl) {
-        toast({ variant: "destructive", title: "Error", description: "No contract found for this tenant." });
+        toast({ variant: "destructive", title: "Error", description: "No contract found for this renter." });
         return;
     }
 
@@ -671,9 +737,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (error.code !== 'storage/object-not-found') {
             console.error("Error deleting contract file from Storage:", error);
             toast({ variant: "destructive", title: "Deletion Failed", description: `Could not delete file from storage: ${error.message}` });
-            return; // Stop if storage deletion fails for reasons other than not found
+            return; 
         }
-        console.warn("File not found in storage, but proceeding to remove link from Firestore.");
     }
     
     try {
@@ -751,7 +816,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         await runTransaction(db, async (transaction) => {
             const tenantDoc = await transaction.get(tenantRef);
             if (!tenantDoc.exists()) {
-                throw new Error("Tenant document does not exist!");
+                throw new Error("Renter document does not exist!");
             }
 
             const currentDeposit = tenantDoc.data().securityDeposit || 0;
@@ -916,16 +981,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const batch = writeBatch(db);
       
-      // Add the new due to the batch
       const dueRef = doc(collection(db, 'additionalDues'));
       batch.set(dueRef, newDueData);
       
-      // If credit was applied, add a corresponding payment to the batch
       if (creditToApply > 0) {
         const paymentRef = doc(collection(db, 'payments'));
         const paymentData: Omit<Payment, 'id'> = {
           tenantId: tenantId,
-          date: newDueData.dueDate, // Match the due date for clarity
+          date: newDueData.dueDate, 
           amount: creditToApply,
           paymentMethod: 'From Credit',
           discountDescription: `Auto-applied from credit towards new ${type} charge.`,
@@ -1097,7 +1160,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
-        const subcollectionsToBackup = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
+        const subcollectionsToBackup = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles'];
         const backupData: Record<string, any[]> = {};
 
         for (const collName of subcollectionsToBackup) {
@@ -1114,10 +1177,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const batch = writeBatch(db);
 
-        // Save to deletedClients collection
         batch.set(doc(db, 'deletedClients', clientId), fullBackup);
         
-        // Delete original client and subcollections
         batch.delete(doc(db, 'clients', clientId));
         for (const collName of subcollectionsToBackup) {
           backupData[collName].forEach(item => {
@@ -1151,11 +1212,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const backup = backupDoc.data() as DeletedClientBackup;
         const batch = writeBatch(db);
 
-        // Restore the client document
         const { id: clientId, ...clientData } = backup.clientData;
         batch.set(doc(db, 'clients', clientId), clientData);
 
-        // Restore all subcollection documents
         for (const collName in backup.backupData) {
             backup.backupData[collName].forEach(item => {
                 const { id: docId, ...itemData } = item;
@@ -1163,7 +1222,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
         }
         
-        // Delete the backup document
         batch.delete(backupDocRef);
 
         await batch.commit();
@@ -1287,7 +1345,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (tenant && tenant.signedContractUrl && tenant.clientId && result.username) {
             await addAnnouncement({
               title: "Your Contract is Available",
-              content: "Your signed lease agreement is now available for viewing. You can access it anytime from your profile menu.",
+              content: "Your signed rental agreement is now available for viewing. You can access it anytime from your profile menu.",
               scope: tenant.clientId,
               audience: 'tenant',
               senderId: authUser.username,
@@ -1341,7 +1399,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const batch = writeBatch(db);
-        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses'];
+        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles'];
         
         for (const collName of collectionsToDelete) {
           const q = query(collection(db, collName), where('clientId', '==', clientId));
@@ -1351,7 +1409,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         await batch.commit();
         
-        const successMsg = "All tenants, payments, expenses, and tracking data for the client have been deleted.";
+        const successMsg = "All data for the client has been cleaned.";
         toast({ title: "Cleanup Successful", description: successMsg });
         return { success: true, message: successMsg };
 
@@ -1410,11 +1468,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const batch = writeBatch(db);
         
-        // Delete the business document
         const businessRef = doc(db, 'businesses', businessId);
         batch.delete(businessRef);
 
-        // Find and delete all associated weekly incomes
         const incomesQuery = query(collection(db, 'weeklyIncomes'), where('businessId', '==', businessId));
         const incomesSnapshot = await getDocs(incomesQuery);
         incomesSnapshot.forEach(doc => batch.delete(doc.ref));
@@ -1445,7 +1501,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       try {
           await addDoc(collection(db, 'weeklyIncomes'), newWeeklyIncomeData);
-          toast({ title: "Income Recorded", description: "Weekly income and breakdown have been saved." });
+          toast({ title: "Income Recorded", description: "Income and breakdown have been saved." });
       } catch (error: any) {
           console.error("Error adding weekly income:", error);
           toast({ variant: "destructive", title: "Error", description: `Failed to save income: ${error.message}` });
@@ -1459,21 +1515,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
         await deleteDoc(doc(db, 'weeklyIncomes', weeklyIncomeId));
-        toast({ title: "Income Entry Deleted", description: "The weekly income entry has been successfully deleted."});
+        toast({ title: "Entry Deleted" });
     } catch (error: any) {
         console.error("Error deleting weekly income:", error);
-        toast({ variant: "destructive", title: "Error", description: `Failed to delete income entry: ${error.message}` });
-    }
-  };
-  
-  const addDemoRequest = async (requestData: Omit<DemoRequest, 'id' | 'createdAt' | 'status'>) => {
-    try {
-      await serverAddDemoRequest(requestData);
-      toast({ title: "Demo Request Sent", description: "We've received your request and will be in touch shortly." });
-    } catch (error: any) {
-      console.error("Error adding demo request:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` });
-      throw error;
+        toast({ variant: "destructive", title: "Error", description: `Failed to delete entry: ${error.message}` });
     }
   };
   
@@ -1484,7 +1529,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await updateDoc(doc(db, 'demoRequests', requestId), { status });
-      toast({ title: "Status Updated", description: "The demo request status has been updated."});
+      toast({ title: "Status Updated" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error", description: `Failed to update status: ${error.message}` });
     }
@@ -1510,7 +1555,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const settingsDocRef = doc(db, 'systemSettings', 'main');
         await setDoc(settingsDocRef, { backupSchedule: settings }, { merge: true });
-        toast({ title: "Schedule Saved", description: "Backup schedule has been saved successfully." });
+        toast({ title: "Schedule Saved" });
     } catch (error: any) {
         console.error("Error updating backup schedule:", error);
         toast({ variant: "destructive", title: "Error", description: `Failed to save schedule: ${error.message}` });
@@ -1548,7 +1593,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch (error) {
       console.error("Failed to mark announcement as read:", error);
-      // No toast here to avoid bothering user
     }
   };
   
@@ -1568,7 +1612,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Restore In Progress", description: "This may take a moment. Please wait..." });
 
     const collectionsInBackup = Object.keys(backupData.data);
-    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements', 'companyFundsExpenses'];
+    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements', 'companyFundsExpenses', 'vehicles'];
 
     try {
         const allCurrentDocs: { [key: string]: string[] } = {};
@@ -1579,7 +1623,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         const batch = writeBatch(db);
 
-        // Delete any doc that is not in the backup
         for (const collName of allKnownCollections) {
           const backupIds = new Set((backupData.data[collName] || []).map((item: any) => item.id));
           for (const docId of allCurrentDocs[collName]) {
@@ -1589,18 +1632,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        // Set/overwrite documents from the backup
         for (const collName of collectionsInBackup) {
             const collectionData = backupData.data[collName];
             if (Array.isArray(collectionData)) {
                 for (const item of collectionData) {
                     if (item.id) {
                         const { id, ...itemData } = item;
-                        Object.keys(itemData).forEach(key => {
-                            if (itemData[key] === undefined) {
-                                delete itemData[key];
-                            }
-                        });
                         const docRef = doc(db, collName, id);
                         batch.set(docRef, itemData);
                     }
@@ -1626,16 +1663,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const tenant = rawTenantsState.find(t => t.id === payment.tenantId);
       if (!tenant) return null;
 
-      // We want the state of dues *just before* this payment was made.
       const paymentDate = new Date(payment.date);
-      const boundaryDate = new Date(paymentDate.getTime() - 1); // A moment before payment
+      const boundaryDate = new Date(paymentDate.getTime() - 1); 
 
-      // Get all payments for this tenant strictly *before* the current one.
       const paymentsBefore = rawPaymentsState.filter(p =>
           p.tenantId === tenant.id && new Date(p.date).getTime() < paymentDate.getTime()
       );
 
-      // Get all dues for this tenant. We will filter them inside the balance calculation.
       const allTenantDues = rawAdditionalDuesState.filter(d => d.tenantId === tenant.id);
       
       const breakdownBefore = calculateTenantBalanceBreakdown(tenant, paymentsBefore, allTenantDues, boundaryDate);
@@ -1692,9 +1726,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await updateDoc(doc(db, 'clients', clientId), { pcCount: count });
-      toast({ title: "Success", description: "Number of PCs has been updated." });
+      toast({ title: "Success", description: "Fleet count has been updated." });
     } catch (e: any) {
-      console.error("Error updating PC count:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1706,21 +1739,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       const batch = writeBatch(db);
-      
-      // Unassign any tenant currently at that PC number
       const currentOccupant = rawTenantsState.find(t => t.pcNumber === pcNumber);
       if (currentOccupant) {
-        batch.update(doc(db, 'tenants', currentOccupant.id), { pcNumber: deleteField() as any });
+        batch.update(doc(db, 'tenants', currentOccupant.id), { pcNumber: deleteField() });
       }
-
-      // Assign the new tenant
       batch.update(doc(db, 'tenants', tenantId), { pcNumber: pcNumber });
-      
       await batch.commit();
-
-      toast({ title: "Success", description: `Tenant assigned to PC ${pcNumber}.` });
+      toast({ title: "Success" });
     } catch (e: any) {
-      console.error("Error assigning tenant to PC:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1732,9 +1758,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await updateDoc(doc(db, 'tenants', tenantId), { pcNumber: deleteField() });
-      toast({ title: "Success", description: "Tenant has been unassigned." });
+      toast({ title: "Success" });
     } catch (e: any) {
-      console.error("Error unassigning tenant from PC:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1748,18 +1773,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const clientDoc = await getDoc(clientRef);
         const currentIssues = clientDoc.data()?.pcIssues || {};
-
         if (Object.keys(newIssues).length > 0) {
             currentIssues[pcNumber] = newIssues;
         } else {
             delete currentIssues[pcNumber];
         }
-
         await updateDoc(clientRef, { pcIssues: currentIssues });
-        toast({ title: "Success", description: `Issue for PC ${pcNumber} has been updated.` });
-
+        toast({ title: "Success" });
     } catch (e: any) {
-        console.error("Error updating PC issue:", e);
         toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1771,9 +1792,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await updateDoc(doc(db, 'clients', clientId), { roomCount: count });
-      toast({ title: "Success", description: "Number of rooms has been updated." });
+      toast({ title: "Success" });
     } catch (e: any) {
-      console.error("Error updating room count:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1785,19 +1805,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       const batch = writeBatch(db);
-      
       const currentOccupant = rawTenantsState.find(t => t.roomNumber === roomNumber);
       if (currentOccupant) {
-        batch.update(doc(db, 'tenants', currentOccupant.id), { roomNumber: deleteField() as any });
+        batch.update(doc(db, 'tenants', currentOccupant.id), { roomNumber: deleteField() });
       }
-
       batch.update(doc(db, 'tenants', tenantId), { roomNumber: roomNumber });
-      
       await batch.commit();
-
-      toast({ title: "Success", description: `Tenant assigned to Room ${roomNumber}.` });
+      toast({ title: "Success" });
     } catch (e: any) {
-      console.error("Error assigning tenant to room:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1809,9 +1824,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await updateDoc(doc(db, 'tenants', tenantId), { roomNumber: deleteField() });
-      toast({ title: "Success", description: "Tenant has been unassigned." });
+      toast({ title: "Success" });
     } catch (e: any) {
-      console.error("Error unassigning tenant from room:", e);
       toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
@@ -1825,29 +1839,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         const clientDoc = await getDoc(clientRef);
         const currentIssues = clientDoc.data()?.roomIssues || {};
-
         if (Object.keys(newIssues).length > 0) {
             currentIssues[roomNumber] = newIssues;
         } else {
             delete currentIssues[roomNumber];
         }
-
         await updateDoc(clientRef, { roomIssues: currentIssues });
-        toast({ title: "Success", description: `Issue for Room ${roomNumber} has been updated.` });
-
+        toast({ title: "Success" });
     } catch (e: any) {
-        console.error("Error updating room issue:", e);
         toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
   const addTechSupportRequest = async (requestData: Omit<TechSupportRequest, 'id' | 'clientId' | 'subscriberId' | 'subscriberName' | 'createdAt' | 'status' | 'attachments'>, files: File[]) => {
     if (!authIsAuthenticated || !authUser || !authUser.tenantId || !authUser.clientId) {
-        throw new Error("User is not properly authenticated or lacks tenant/client information.");
+        throw new Error("User is not properly authenticated.");
     }
     const tenant = rawTenantsState.find(t => t.id === authUser.tenantId);
     if (!tenant) {
-        throw new Error("Could not find the current subscriber's details.");
+        throw new Error("Could not find current user details.");
     }
 
     const attachmentUrls: string[] = [];
@@ -1882,71 +1892,43 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const ticketRef = doc(db, 'techSupportRequests', ticketId);
       await updateDoc(ticketRef, updates);
-      toast({ title: "Ticket Updated", description: "The support ticket has been updated successfully." });
+      toast({ title: "Ticket Updated" });
     } catch (e: any) {
-      console.error("Error updating ticket:", e);
       toast({ variant: "destructive", title: "Update Failed", description: e.message });
       throw e;
     }
   };
 
   const addContractTemplate = async (templateData: Omit<ContractTemplate, 'id' | 'clientId'>) => {
-    if (!authUser) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
+    if (!authUser) return;
     const determinedClientId = getScopedClientId();
-    if (!determinedClientId) {
-      toast({ variant: "destructive", title: "Error", description: "A client must be selected to add a template." });
-      return;
-    }
-    
+    if (!determinedClientId) return;
     try {
       await addDoc(collection(db, 'contractTemplates'), { ...templateData, clientId: determinedClientId });
       toast({ title: "Template Added" });
     } catch (error: any) {
-      console.error("Error adding contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to add template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     }
   };
 
   const updateContractTemplate = async (template: ContractTemplate) => {
-    if (!authUser) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
+    if (!authUser) return;
     const { id, ...dataToUpdate } = template;
-    const currentContextClientId = getScopedClientId();
-    if (template.clientId !== currentContextClientId) {
-        toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
-        return;
-    }
     try {
       await setDoc(doc(db, 'contractTemplates', id), dataToUpdate, { merge: true });
       toast({ title: "Template Updated" });
     } catch (error: any) {
-      console.error("Error updating contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to update template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     }
   };
 
   const deleteContractTemplate = async (templateId: string) => {
-    if (!authUser) {
-      toast({ variant: "destructive", title: "Unauthorized" });
-      return;
-    }
-    const templateToDelete = rawContractTemplatesState.find(t => t.id === templateId);
-    const currentContextClientId = getScopedClientId();
-    if (templateToDelete && templateToDelete.clientId !== currentContextClientId) {
-        toast({ variant: "destructive", title: "Unauthorized", description: "Permission denied." });
-        return;
-    }
+    if (!authUser) return;
     try {
       await deleteDoc(doc(db, 'contractTemplates', templateId));
       toast({ title: "Template Deleted" });
     } catch (error: any) {
-      console.error("Error deleting contract template:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to delete template: ${error.message}` });
+      toast({ variant: "destructive", title: "Error", description: error.message });
     }
   };
 
@@ -1969,8 +1951,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     contractTemplates,
     terminology,
     techSupportRequests,
+    vehicles,
     
-    // Chat
     chatSessions: rawChatSessionsState,
     startChatSession,
     sendChatMessage,
@@ -1999,6 +1981,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     assignTenantToRoom,
     unassignTenantFromRoom,
     updateClientRoomIssue,
+
+    addVehicle,
+    updateVehicle,
+    deleteVehicle,
 
     addPayment,
     updatePayment,
@@ -2057,13 +2043,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     rawBusinesses: rawBusinessesState,
     rawWeeklyIncomes: rawWeeklyIncomesState,
     
-    addDemoRequest,
+    addDemoRequest: serverAddDemoRequest,
     updateDemoRequestStatus,
     deleteDemoRequest,
     
     restoreFromBackup,
 
-    // Tenant Portal
     deleteClient,
     restoreClient,
     permanentlyDeleteClientBackup,

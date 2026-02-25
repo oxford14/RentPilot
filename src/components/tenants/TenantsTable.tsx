@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -14,7 +13,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown, Car } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +45,7 @@ type SortKey = 'name' | 'joinDate' | 'contractEndDate';
 type SortDirection = 'ascending' | 'descending';
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract, activeClient, vehicles, terminology } = useAppContext();
   const { toast } = useToast();
   
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
@@ -60,6 +59,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
   const [tenantForRenew, setTenantForRenew] = useState<Tenant | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'name', direction: 'ascending' });
 
+  const isVehicleRental = activeClient?.businessType === 'Vehicle_Rental';
 
   const toggleStatus = (tenant: Tenant) => {
     const newStatus = tenant.status === 'active' ? 'inactive' : 'active';
@@ -76,7 +76,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       const result = attemptDeleteTenant(tenantToDelete.id);
       if (result.success) {
         toast({
-          title: result.action === 'deleted' ? "Tenant Deleted" : "Tenant Inactivated",
+          title: result.action === 'deleted' ? `${terminology.single} Deleted` : `${terminology.single} Inactivated`,
           description: result.message,
         });
       } else {
@@ -95,7 +95,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       toast({
         variant: "destructive",
         title: "Account Exists",
-        description: "This tenant already has an account.",
+        description: "This account is already active.",
       });
       return;
     }
@@ -131,7 +131,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       toast({
         variant: "destructive",
         title: "Account Not Found",
-        description: "This tenant does not have a login account yet. Please generate one first.",
+        description: `This ${terminology.single.toLowerCase()} does not have a login account yet.`,
       });
     }
   };
@@ -167,6 +167,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
       direction = 'descending';
     }
     setSortConfig({ key, direction });
+  };
+
+  const getVehicleInfo = (vehicleId?: string) => {
+    if (!vehicleId) return 'N/A';
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.plateNumber})` : 'N/A';
   };
 
   const displayedTenants = useMemo(() => {
@@ -206,9 +212,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     const firstTenant = displayedTenants.length > 0 ? displayedTenants[0] : null;
     if (firstTenant && firstTenant.clientId) {
         const client = clients.find(c => c.id === firstTenant.clientId);
-        return client?.name || "your landlord";
+        return client?.name || "the rental manager";
     }
-    return "your landlord";
+    return "the rental manager";
   }, [displayedTenants, clients]);
 
   const formatUtcDate = (dateString?: string) => {
@@ -220,16 +226,13 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
 
   const getSortIcon = (key: SortKey) => {
     if (sortConfig.key !== key) return null;
-    if (sortConfig.direction === 'ascending') {
-      return <ArrowUp className="h-3 w-3 ml-1" />;
-    }
-    return <ArrowDown className="h-3 w-3 ml-1" />;
+    return sortConfig.direction === 'ascending' ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
   if (!displayedTenants || displayedTenants.length === 0) {
     const message = showInactiveTenants 
-      ? "No inactive tenants found."
-      : "No active tenants found.";
+      ? `No inactive ${terminology.plural.toLowerCase()} found.`
+      : `No active ${terminology.plural.toLowerCase()} found.`;
     return <p className="text-center text-muted-foreground py-8">{message}</p>;
   }
 
@@ -244,16 +247,17 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                    Name {getSortIcon('name')}
                  </Button>
               </TableHead>
+              {isVehicleRental && <TableHead>Vehicle Assigned</TableHead>}
               <TableHead className="hidden md:table-cell">Phone</TableHead>
               <TableHead className="text-right">Rent (₱)</TableHead>
               <TableHead className="hidden md:table-cell text-center">
                  <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
-                    Join Date {getSortIcon('joinDate')}
+                    {isVehicleRental ? 'Start Date' : 'Join Date'} {getSortIcon('joinDate')}
                  </Button>
               </TableHead>
               <TableHead className="hidden md:table-cell text-center">
                  <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1">
-                    Contract End {getSortIcon('contractEndDate')}
+                    {isVehicleRental ? 'Return Date' : 'Contract End'} {getSortIcon('contractEndDate')}
                  </Button>
               </TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -268,13 +272,23 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                      <span className="text-xs text-muted-foreground">{tenant.email}</span>
                   </div>
                 </TableCell>
+                {isVehicleRental && (
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Car className="h-3 w-3 text-primary" />
+                      <span className="truncate max-w-[150px]">{getVehicleInfo(tenant.vehicleId)}</span>
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
                 <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
-                <TableCell className="hidden md:table-cell text-center">{formatUtcDate(tenant.joinDate)}</TableCell>
+                <TableCell className="hidden md:table-cell text-center">
+                  {isVehicleRental ? formatUtcDate(tenant.rentStartDate) : formatUtcDate(tenant.joinDate)}
+                </TableCell>
                 <TableCell className="hidden md:table-cell text-center">
                   <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
                     {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
-                    {tenant.signedContractUrl ? formatUtcDate(tenant.contractEndDate) : "No Contract"}
+                    {isVehicleRental ? formatUtcDate(tenant.rentEndDate) : formatUtcDate(tenant.contractEndDate)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
@@ -326,12 +340,12 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                             <UserSearch className="mr-2 h-4 w-4" /> View Credentials
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
-                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Tenant Password
+                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Password
                           </DropdownMenuItem>
                         </>
                       ) : (
                         <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
-                          <KeyRound className="mr-2 h-4 w-4" /> Generate Tenant Account
+                          <KeyRound className="mr-2 h-4 w-4" /> Generate Account
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
@@ -340,7 +354,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                         Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete Tenant
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete {terminology.single}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -356,10 +370,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Action for {tenantToDelete.name}</AlertDialogTitle>
               <AlertDialogDescription>
-                Proceeding will attempt to remove this tenant. 
-                If the tenant has any payment history, they will be marked as inactive. 
-                If they have no payment history, they will be permanently deleted. 
-                This action cannot be undone for permanent deletions.
+                Proceeding will attempt to remove this {terminology.single.toLowerCase()}. 
+                If they have any payment history, they will be marked as inactive. 
+                If they have no payment history, they will be permanently deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -378,7 +391,7 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Contract for {tenantToDeleteContract.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the signed contract from storage.
+                This action cannot be undone. This will permanently delete the signed rental contract from storage.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
