@@ -1,4 +1,3 @@
-
 export type BusinessType = 'Standard' | 'PC_Rental' | 'ISP_Subscription' | 'Vehicle_Rental';
 
 export type ClientUserRole = 'admin' | 'user' | 'hub-admin' | 'technician';
@@ -404,6 +403,7 @@ export interface AppContextType {
   tenants: Tenant[];
   payments: Payment[];
   clients: Client[];
+  activeClient: Client | null; // Added activeClient to the interface
   managedUsers: ManagedUser[]; // Filtered for current client context if applicable
   rawSuperAdminUsers: SuperAdminUser[]; // Full list for super admins
   expenses: Expense[];

@@ -52,7 +52,8 @@ export default function VehiclesPage() {
     return tenants.find(t => t.vehicleId === vehicleId && t.status === 'active');
   };
 
-  if (activeClient?.businessType !== 'Vehicle_Rental') {
+  // Improved check: if activeClient is still loading, don't show the error yet.
+  if (activeClient && activeClient.businessType !== 'Vehicle_Rental') {
     return (
         <div className="container mx-auto py-12 text-center">
             <Card className="max-w-md mx-auto shadow-xl">

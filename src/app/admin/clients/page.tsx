@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser, CheckCircle2, XCircle, Car } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser, CheckCircle2, XCircle } from 'lucide-react';
 import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
 export default function AdminClientsPage() {
   const { clients, deleteClient, setViewMode, cleanClientData } = useAppContext();
@@ -135,11 +134,6 @@ export default function AdminClientsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        {client.businessType === 'Vehicle_Rental' && (
-                            <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client, '/vehicles')} title="Manage Fleet">
-                                <Car className="h-4 w-4 mr-1" /> Fleet
-                            </Button>
-                        )}
                         <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client)} title="View as Client">
                            <Eye className="h-4 w-4" />
                         </Button>
@@ -174,7 +168,7 @@ export default function AdminClientsPage() {
 
       <AlertDialog open={!!clientToDelete} onOpenChange={(isOpen) => {
         if (!isOpen) {
-          setClientToDelete(null);
+          setTenantToDelete(null);
         }
       }}>
         {clientToDelete && (

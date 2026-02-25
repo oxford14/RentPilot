@@ -23,7 +23,7 @@ const tenantFormSchema = z.object({
   monthlyRentalRate: z.coerce.number().min(0, { message: "Rental rate must be a positive number." }),
   securityDeposit: z.coerce.number().min(0, { message: "Security deposit must be a positive number." }).optional(),
   status: z.enum(['active', 'inactive']),
-  joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Join date is required." }),
+  joinDate: z.string().refine((date) => date === '' || !isNaN(new Date(date).getTime()), { message: "Invalid date" }).refine(date => date !== '', { message: "Date is required." }),
   monthlyDueDay: z.coerce.number().min(1).max(31).optional().nullable(),
   rentAdjustmentDate: z.string().optional(),
   vehicleId: z.string().optional(),
@@ -181,7 +181,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
 
             {isVehicleRental && (
               <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
-                <h3 className="font-semibold text-sm uppercase text-muted-foreground border-b pb-2">Vehicle Rental Details</h3>
+                <h3 className="font-semibold text-sm uppercase text-muted-foreground border-b pb-2">Booking Details</h3>
                 <FormField
                   control={form.control}
                   name="vehicleId"
@@ -211,7 +211,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                     name="rentStartDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Date</FormLabel>
+                        <FormLabel>Rent Start Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -224,7 +224,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                     name="rentEndDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>End Date</FormLabel>
+                        <FormLabel>Rent End Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -242,7 +242,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="monthlyRentalRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{isVehicleRental ? 'Rental Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
+                    <FormLabel>{isVehicleRental ? 'Daily Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -255,7 +255,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="securityDeposit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Security Deposit (₱)</FormLabel>
+                    <FormLabel>Security Deposit / Bond (₱)</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -271,7 +271,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="joinDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{isVehicleRental ? 'Booking Date' : 'Join Date'}</FormLabel>
+                    <FormLabel>{isVehicleRental ? 'Registration Date' : 'Join Date'}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>

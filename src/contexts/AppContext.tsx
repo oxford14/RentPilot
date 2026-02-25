@@ -1356,7 +1356,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               scheduledAt: new Date().toISOString(),
               status: 'sent',
             });
-            toast({ title: "Notification Sent", description: "Tenant was also notified about their available contract." });
+            toast({ title: "Notification Sent", description: "Renter was also notified about their available contract." });
         }
       }
       
@@ -1936,6 +1936,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     tenants,
     payments,
     clients: rawClientsState,
+    activeClient, // Now properly exposed
     managedUsers,
     rawSuperAdminUsers: rawSuperAdminUsersState,
     expenses,
