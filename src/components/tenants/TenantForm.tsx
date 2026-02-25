@@ -55,7 +55,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       joinDate: tenant.joinDate ? new Date(tenant.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       monthlyDueDay: tenant.monthlyDueDay || undefined,
       rentAdjustmentDate: undefined,
-      vehicleId: tenant.vehicleId || '',
+      vehicleId: tenant.vehicleId || 'none',
       rentStartDate: tenant.rentStartDate ? new Date(tenant.rentStartDate).toISOString().split('T')[0] : '',
       rentEndDate: tenant.rentEndDate ? new Date(tenant.rentEndDate).toISOString().split('T')[0] : '',
     } : {
@@ -68,7 +68,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       joinDate: new Date().toISOString().split('T')[0],
       monthlyDueDay: undefined,
       rentAdjustmentDate: undefined,
-      vehicleId: '',
+      vehicleId: 'none',
       rentStartDate: '',
       rentEndDate: '',
     };
@@ -103,11 +103,12 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       const finalJoinDate = new Date(`${data.joinDate}T00:00:00.000Z`).toISOString();
       const finalAdjustmentDate = data.rentAdjustmentDate ? new Date(`${data.rentAdjustmentDate}T00:00:00.000Z`).toISOString() : undefined;
       
-      const { rentAdjustmentDate, rentStartDate, rentEndDate, ...restOfData } = data;
+      const { rentAdjustmentDate, rentStartDate, rentEndDate, vehicleId, ...restOfData } = data;
 
       const submissionData: any = { 
         ...restOfData, 
         monthlyDueDay: restOfData.monthlyDueDay || null,
+        vehicleId: vehicleId === 'none' ? undefined : vehicleId,
         rentStartDate: rentStartDate ? new Date(`${rentStartDate}T00:00:00.000Z`).toISOString() : undefined,
         rentEndDate: rentEndDate ? new Date(`${rentEndDate}T00:00:00.000Z`).toISOString() : undefined,
       };
@@ -195,7 +196,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Vehicle Assigned</SelectItem>
+                          <SelectItem value="none">No Vehicle Assigned</SelectItem>
                           {availableVehicles.map(v => (
                             <SelectItem key={v.id} value={v.id}>{v.make} {v.model} ({v.plateNumber})</SelectItem>
                           ))}
@@ -343,7 +344,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
               <DialogClose asChild>
                 <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
               </DialogClose>
-              <Button type="submit" variant="default">{tenant ? 'Save Changes' : `Add ${terminology.single}`}</Button>
+              <Button type="submit" variant="default" disabled={form.formState.isSubmitting}>{tenant ? 'Save Changes' : `Add ${terminology.single}`}</Button>
             </DialogFooter>
           </form>
         </Form>
