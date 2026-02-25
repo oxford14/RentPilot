@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -20,11 +19,17 @@ import {
   useSidebar, 
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket, Car, Key } from 'lucide-react'; 
+import { 
+  Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, 
+  LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, 
+  ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, 
+  Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, 
+  Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket, 
+  Car, Key 
+} from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'; 
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,11 +38,9 @@ import type { AppSidebarNavItem, AppNavGroup, Announcement } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { startOfDay, formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AnnouncementViewerDialog } from './AnnouncementViewerDialog';
-
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -60,7 +63,6 @@ interface AdminNavGroup {
 }
 
 type AdminSidebarConfigItem = AdminTopLevelNavItem | AdminNavGroup;
-
 
 const baseAppNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
   { isGroup: false, href: '/', icon: Home },
@@ -89,7 +91,6 @@ const tenantNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
   { isGroup: false, href: '/', icon: LayoutDashboard },
   { isGroup: false, href: '/profile', icon: UserCircle },
 ];
-
 
 const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
@@ -198,9 +199,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
       e.preventDefault();
       setInstallPrompt(e);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
@@ -211,17 +210,14 @@ function AppShellContent({ children }: { children: ReactNode }) {
       installPrompt.prompt();
       installPrompt.userChoice.then((choiceResult: { outcome: string }) => {
         if (choiceResult.outcome === 'accepted') {
-          toast({ title: 'App Installed!', description: 'RentPilot has been added to your home screen.' });
-        } else {
-          toast({ title: 'Installation Cancelled', description: 'You can install the app later from the menu.' });
+          toast({ title: 'App Installed!' });
         }
         setInstallPrompt(null);
       });
     } else {
         toast({
-            title: "Manual Installation",
-            description: "To install, use your browser's 'Add to Home Screen' or 'Install App' option from the menu.",
-            duration: 9000,
+            title: "Installation",
+            description: "Use your browser menu to 'Install' or 'Add to Home Screen'.",
         });
     }
     handleMobileNavClick();
@@ -237,21 +233,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
     
     let relevant: Announcement[] = [];
     if (authUser.isSuperAdmin) {
+        // Super admins see global announcements if viewing a client
     } else if (authUser.role === 'admin' || authUser.role === 'user' || authUser.role === 'hub-admin' || authUser.role === 'technician') {
         relevant = announcements.filter(a => a.scope === 'global' && a.audience === 'client-admin' && !a.recipientId);
     } else if (authUser.role === 'tenant' && authUser.clientId && authUser.tenantId) {
         relevant = announcements.filter(a => 
             a.audience === 'tenant' &&
             a.scope === authUser.clientId &&
-            (
-                !a.recipientId || 
-                a.recipientId === authUser.tenantId 
-            )
+            (!a.recipientId || a.recipientId === authUser.tenantId)
         );
     }
     
     relevant.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
     setFilteredAnnouncements(relevant);
   }, [announcements, authUser]);
 
@@ -267,7 +260,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
       markAnnouncementAsRead(announcement.id, authUser.username);
     }
   };
-
 
   const isTenantSection = authUser?.role === 'tenant';
   const isSuperAdminViewingAsClient = !!authUser?.isSuperAdmin && !!viewingAsClientId;
@@ -321,7 +313,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
     };
   }, [terminology]);
   
-  
   if (isTrueAdminView) {
       currentAdminConfigItems = adminSidebarConfig;
       let activeItemFound = false;
@@ -356,7 +347,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
             if (item.href === '/request-support') label = 'Request Support';
             return { ...item, label };
         });
-
       } else {
         const isHubAdmin = authUser?.role === 'hub-admin' && loggedInClient?.name === 'i-VirtuaTech';
         const isTechnician = authUser?.role === 'technician';
@@ -369,43 +359,30 @@ function AppShellContent({ children }: { children: ReactNode }) {
                 const allowedHubAdminRoutes = ['/', '/tenants', '/monitoring', '/expenses', '/announcements', '/notifications'];
                 return !item.isGroup && allowedHubAdminRoutes.includes(item.href);
               }
-    
               const isClientContext = (!authUser?.isSuperAdmin && !!authUser?.clientId) || isSuperAdminViewingAsClient;
-    
               if (item.clientAdminOnly) {
                 const isActuallyClientAdmin = (authUser?.role === 'admin') && !authUser.isSuperAdmin;
                 return isActuallyClientAdmin || isSuperAdminViewingAsClient;
               }
-              if (item.clientOnly) {
-                return isClientContext;
-              }
-              if (item.superAdminOnly) { 
-                  return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
-              }
-
-              // Special Rule: Hide Payments, Additional Dues, and Monitoring for Vehicle Rental
+              if (item.clientOnly) return isClientContext;
+              if (item.superAdminOnly) return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
+              
               if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
                 const hiddenItems = ['/payments', '/additional-dues', '/monitoring'];
                 if (!item.isGroup && hiddenItems.includes(item.href)) return false;
               }
-
               return true;
             });
         }
 
         currentAppNavItems = baseNavItems.map(item => {
-            if (item.isGroup) {
-                return { ...item, label: 'Reports' };
-            }
+            if (item.isGroup) return { ...item, label: 'Reports' };
             let label = "Menu Item";
             let icon = item.icon;
-
             if(item.href === '/') label = appLabels.dashboard;
             if(item.href === '/tenants') {
                 label = appLabels.tenants;
-                if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
-                    icon = Key;
-                }
+                if (activeClientForDisplay?.businessType === 'Vehicle_Rental') icon = Key;
             }
             if(item.href === '/payments') label = appLabels.payments;
             if(item.href === '/additional-dues') label = appLabels.additionalDues;
@@ -416,90 +393,54 @@ function AppShellContent({ children }: { children: ReactNode }) {
             if(item.href === '/notifications') label = appLabels.notifications;
             if(item.href === '/subscription') label = appLabels.subscription;
             if(item.href === '/users') label = appLabels.users;
-            
             return { ...item, label, icon };
         });
 
         if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
-            const vehiclesItem: AppSidebarNavItem = {
-                isGroup: false, href: '/vehicles', label: 'Fleet Management', icon: Car,
-            };
+            const vehiclesItem: AppSidebarNavItem = { isGroup: false, href: '/vehicles', label: 'Fleet Management', icon: Car };
             const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-            if (tenantsIndex !== -1) {
-                currentAppNavItems.splice(tenantsIndex + 1, 0, vehiclesItem);
-            } else {
-                currentAppNavItems.push(vehiclesItem);
-            }
+            if (tenantsIndex !== -1) currentAppNavItems.splice(tenantsIndex + 1, 0, vehiclesItem);
+            else currentAppNavItems.push(vehiclesItem);
         }
 
         if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {
-            const pcManagementItem: AppSidebarNavItem = {
-                isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor,
-            };
+            const pcManagementItem: AppSidebarNavItem = { isGroup: false, href: '/pc-management', label: 'PC Management', icon: Monitor };
             const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-            if (tenantsIndex !== -1) {
-                currentAppNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
-            } else {
-                currentAppNavItems.push(pcManagementItem);
-            }
+            if (tenantsIndex !== -1) currentAppNavItems.splice(tenantsIndex + 1, 0, pcManagementItem);
+            else currentAppNavItems.push(pcManagementItem);
         }
 
         if (activeClientForDisplay?.businessType === 'Standard' || activeClientForDisplay?.businessType === 'Vehicle_Rental') {
             if (activeClientForDisplay?.businessType !== 'Vehicle_Rental') {
-                const roomManagementItem: AppSidebarNavItem = {
-                    isGroup: false, href: '/room-management', label: 'Room Management', icon: Home,
-                };
+                const roomManagementItem: AppSidebarNavItem = { isGroup: false, href: '/room-management', label: 'Room Management', icon: Home };
                 const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-                if (tenantsIndex !== -1) {
-                    currentAppNavItems.splice(tenantsIndex + 1, 0, roomManagementItem);
-                } else {
-                    currentAppNavItems.push(roomManagementItem);
-                }
+                if (tenantsIndex !== -1) currentAppNavItems.splice(tenantsIndex + 1, 0, roomManagementItem);
+                else currentAppNavItems.push(roomManagementItem);
             }
         }
         
         if (activeClientForDisplay?.businessType === 'ISP_Subscription') {
-            const ticketSupportItem: AppSidebarNavItem = {
-                isGroup: false, href: '/ticket-support', label: 'Ticket Support', icon: Ticket,
-            };
-            if(isTechnician) {
-                currentAppNavItems.push(ticketSupportItem);
-            } else {
+            const ticketSupportItem: AppSidebarNavItem = { isGroup: false, href: '/ticket-support', label: 'Ticket Support', icon: Ticket };
+            if(isTechnician) currentAppNavItems.push(ticketSupportItem);
+            else {
                 const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-                if (tenantsIndex !== -1) {
-                    currentAppNavItems.splice(tenantsIndex + 1, 0, ticketSupportItem);
-                } else {
-                    currentAppNavItems.push(ticketSupportItem);
-                }
+                if (tenantsIndex !== -1) currentAppNavItems.splice(tenantsIndex + 1, 0, ticketSupportItem);
+                else currentAppNavItems.push(ticketSupportItem);
             }
         }
         
         if (activeClientForDisplay?.name === 'i-VirtuaTech' && !isHubAdmin) {
-           const partnerEarningsItem: AppSidebarNavItem = {
-                isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake,
-            };
-            const companyFundsItem: AppSidebarNavItem = {
-                isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank,
-            };
-            const expensesIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
-            if (expensesIndex !== -1) {
-                currentAppNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
-            } else {
-                currentAppNavItems.push(partnerEarningsItem, companyFundsItem);
-            }
+           const partnerEarningsItem: AppSidebarNavItem = { isGroup: false, href: '/partner-earnings', label: 'Partner Earnings', icon: Handshake };
+           const companyFundsItem: AppSidebarNavItem = { isGroup: false, href: '/company-funds', label: 'Company Funds', icon: PiggyBank };
+           const expensesIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/expenses');
+           if (expensesIndex !== -1) currentAppNavItems.splice(expensesIndex + 1, 0, partnerEarningsItem, companyFundsItem);
+           else currentAppNavItems.push(partnerEarningsItem, companyFundsItem);
         }
         
         if (activeClientForDisplay && activeClientForDisplay.name === "D' First Hub") {
-            const trackingItem: AppSidebarNavItem = {
-                isGroup: false,
-                href: '/tracking',
-                label: 'Tracking',
-                icon: MapPin,
-            };
-            currentAppNavItems.push(trackingItem);
+            currentAppNavItems.push({ isGroup: false, href: '/tracking', label: 'Tracking', icon: MapPin });
         }
       }
-
 
       let activeItemFound = false;
       for (const item of currentAppNavItems) {
@@ -521,34 +462,16 @@ function AppShellContent({ children }: { children: ReactNode }) {
       }
   }
 
-  const handleReturnToAdminView = () => {
-    setViewMode(null);
-    router.push('/admin');
-  };
-
-  const handleReturnToGlobalView = () => {
-    setViewMode(null);
-    router.push('/');
-  }
-
-  const handleUserDropdownSettingsClick = () => {
-    if (authUser?.isSuperAdmin) {
-      router.push('/admin/settings'); 
-    } else {
-      router.push('/settings'); 
-    }
-  };
-  
-  const handleSidebarFooterSettingsClick = () => {
-    router.push('/profile');
-    handleMobileNavClick();
-  };
+  const handleReturnToAdminView = () => { setViewMode(null); router.push('/admin'); };
+  const handleReturnToGlobalView = () => { setViewMode(null); router.push('/'); };
+  const handleUserDropdownSettingsClick = () => router.push(authUser?.isSuperAdmin ? '/admin/settings' : '/settings');
+  const handleSidebarFooterSettingsClick = () => { router.push('/profile'); handleMobileNavClick(); };
 
   const getAccountLabel = () => {
     if (authUser?.isSuperAdmin && !viewingClient) return `${authUser.username} (Super Admin)`;
     if (viewingClient) return `${authUser?.username} (Viewing as ${viewingClient.name})`;
     if (loggedInClient && !authUser?.isSuperAdmin) {
-        if(authUser?.role === 'tenant') return `${authUser.username} (${terminology.single} at ${loggedInClient.name})`;
+      if(authUser?.role === 'tenant') return `${authUser.username} (${terminology.single} at ${loggedInClient.name})`;
       const roleLabel = authUser.role === 'hub-admin' ? 'Hub Admin' : (authUser.role === 'technician' ? 'Technician' : (authUser.role ? authUser.role.charAt(0).toUpperCase() + authUser.role.slice(1) : 'User'));
       return `${authUser.username} (${roleLabel} at ${loggedInClient.name})`;
     }
@@ -561,24 +484,8 @@ function AppShellContent({ children }: { children: ReactNode }) {
         <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
           <SidebarHeader className="p-4 flex items-center justify-center">
             <Link href="/" className="flex items-center justify-center" onClick={handleMobileNavClick}>
-                <Image 
-                  src={MAIN_APP_LOGO_URL}
-                  alt="RentPilot app logo" 
-                  width={160} 
-                  height={45}
-                  className="object-contain group-data-[collapsible=icon]:hidden"
-                  data-ai-hint="app logo"
-                  unoptimized
-                />
-                <Image 
-                  src={MAIN_APP_FAVICON_URL}
-                  alt="RentPilot icon" 
-                  width={32}
-                  height={32}
-                  className="object-contain hidden group-data-[collapsible=icon]:block"
-                  data-ai-hint="app icon"
-                  unoptimized
-                />
+                <Image src={MAIN_APP_LOGO_URL} alt="RentPilot" width={160} height={45} className="object-contain group-data-[collapsible=icon]:hidden" unoptimized />
+                <Image src={MAIN_APP_FAVICON_URL} alt="RentPilot" width={32} height={32} className="object-contain hidden group-data-[collapsible=icon]:block" unoptimized />
             </Link>
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
@@ -588,19 +495,13 @@ function AppShellContent({ children }: { children: ReactNode }) {
                   if (item.isGroup) {
                     return (
                       <React.Fragment key={`admin-group-${item.groupLabel}-${index}`}>
-                        <div className="px-2 py-2 mt-2 text-xs font-semibold text-sidebar-foreground/70 uppercase flex items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2">
-                          <item.groupIcon className="h-5 w-5 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+                        <div className="px-2 py-2 mt-2 text-xs font-semibold text-sidebar-foreground/70 uppercase flex items-center group-data-[collapsible=icon]:justify-center">
+                          <item.groupIcon className="h-5 w-5" />
                           <span className="ml-2 group-data-[collapsible=icon]:hidden">{item.groupLabel}</span>
                         </div>
                         {item.items.map(subItem => (
                           <SidebarMenuItem key={subItem.href}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
-                              tooltip={{ children: subItem.label, side: "right", className: "ml-2" }}
-                              className="justify-start"
-                              onClick={handleMobileNavClick}
-                            >
+                            <SidebarMenuButton asChild isActive={pathname === subItem.href || pathname.startsWith(subItem.href)} tooltip={subItem.label} onClick={handleMobileNavClick}>
                               <Link href={subItem.href}>
                                 <subItem.icon className="h-5 w-5" />
                                 <span className="pl-3 group-data-[collapsible=icon]:hidden">{subItem.label}</span>
@@ -610,24 +511,17 @@ function AppShellContent({ children }: { children: ReactNode }) {
                         ))}
                       </React.Fragment>
                     );
-                  } else { 
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))}
-                          tooltip={{ children: item.label, side: "right", className: "ml-2" }}
-                          className="justify-start"
-                          onClick={handleMobileNavClick}
-                        >
-                          <Link href={item.href}>
-                            <item.icon className="h-5 w-5" />
-                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
                   }
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))} tooltip={item.label} onClick={handleMobileNavClick}>
+                        <Link href={item.href}>
+                          <item.icon className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
                 })
               ) : ( 
                 currentAppNavItems.map((item) => {
@@ -638,29 +532,17 @@ function AppShellContent({ children }: { children: ReactNode }) {
                         <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} onClick={handleMobileNavClick} />
                       </Accordion>
                     );
-                  } else {
-                    let finalHref = item.href;
-                    if (item.href === '/users' && authUser?.isSuperAdmin) {
-                        finalHref = '/admin/users';
-                    }
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))}
-                          tooltip={{ children: item.label, side: "right", className: "ml-2" }}
-                          className="justify-start"
-                          disabled={subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(item.href)}
-                          onClick={handleMobileNavClick}
-                        >
-                          <Link href={finalHref}>
-                            <item.icon className="h-5 w-5" />
-                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
                   }
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))} tooltip={item.label} disabled={subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(item.href)} onClick={handleMobileNavClick}>
+                        <Link href={item.href === '/users' && authUser?.isSuperAdmin ? '/admin/users' : item.href}>
+                          <item.icon className="h-5 w-5" />
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
                 })
               )}
             </SidebarMenu>
@@ -668,22 +550,13 @@ function AppShellContent({ children }: { children: ReactNode }) {
           <SidebarFooter className="p-2 border-t">
              <SidebarMenu>
                 <SidebarMenuItem>
-                    <SidebarMenuButton
-                        tooltip={{ children: "Download App", side: "right", className: "ml-2" }}
-                        className="justify-start"
-                        onClick={handleDownloadApp}
-                        >
+                    <SidebarMenuButton tooltip="Download App" onClick={handleDownloadApp}>
                         <Download className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">Download App</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                    <SidebarMenuButton
-                        tooltip={{ children: "My Profile", side: "right", className: "ml-2" }}
-                        className="justify-start"
-                        onClick={handleSidebarFooterSettingsClick}
-                        disabled={subscriptionExpired && pathname !== '/subscription'}
-                        >
+                    <SidebarMenuButton tooltip="My Profile" onClick={handleSidebarFooterSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
                         <UserCircle className="h-5 w-5" />
                         <span className="group-data-[collapsible=icon]:hidden">My Profile</span>
                     </SidebarMenuButton>
@@ -696,49 +569,14 @@ function AppShellContent({ children }: { children: ReactNode }) {
           <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
             <SidebarTrigger className="md:hidden" />
             <div className="flex-1 flex items-center gap-3">
-              {(() => {
-                if (isTrueAdminView) {
-                  return (
-                    <Image
-                      src={MAIN_APP_LOGO_URL}
-                      alt="RentPilot app logo"
-                      width={160}
-                      height={45}
-                      className="h-12 w-auto object-contain"
-                      data-ai-hint="app logo small"
-                      unoptimized
-                    />
-                  );
-                }
-                if (activeClientForDisplay?.logoUrl) {
-                  return (
-                    <Image
-                      src={activeClientForDisplay.logoUrl}
-                      alt={`${activeClientForDisplay.name} Logo`}
-                      width={160}
-                      height={45}
-                      className="h-12 w-auto object-contain rounded"
-                      data-ai-hint="client logo small"
-                      unoptimized
-                    />
-                  );
-                }
-                return (
-                  <Image
-                    src={MAIN_APP_LOGO_URL}
-                    alt="RentPilot app logo"
-                    width={160}
-                    height={45}
-                    className="h-12 w-auto object-contain"
-                    data-ai-hint="app logo small"
-                    unoptimized
-                  />
-                );
-              })()}
+              {activeClientForDisplay?.logoUrl && !isTrueAdminView ? (
+                <Image src={activeClientForDisplay.logoUrl} alt="Logo" width={160} height={45} className="h-12 w-auto object-contain rounded" unoptimized />
+              ) : (
+                <Image src={MAIN_APP_LOGO_URL} alt="RentPilot" width={160} height={45} className="h-12 w-auto object-contain" unoptimized />
+              )}
               <h1 className="text-xl font-semibold font-headline">
                 {currentActivePageLabel}
-                 {loggedInClient && !isTrueAdminView && !viewingClient && ` - ${loggedInClient.name}`}
-                 {viewingClient && !isTrueAdminView && ` - ${viewingClient.name}`}
+                {activeClientForDisplay && !isTrueAdminView && ` - ${activeClientForDisplay.name}`}
               </h1>
             </div>
             {!authUser?.isSuperAdmin && (
@@ -746,20 +584,11 @@ function AppShellContent({ children }: { children: ReactNode }) {
                   <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="relative rounded-full">
                           <Bell className="h-5 w-5" />
-                          {unreadCount > 0 && (
-                              <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span>
-                              </span>
-                          )}
-                          <span className="sr-only">View notifications</span>
+                          {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span></span>}
                       </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80 sm:w-96">
-                      <DropdownMenuLabel className="flex justify-between items-center">
-                          Announcements
-                          <Badge variant="secondary">{unreadCount} unread</Badge>
-                      </DropdownMenuLabel>
+                      <DropdownMenuLabel className="flex justify-between items-center">Announcements <Badge variant="secondary">{unreadCount} unread</Badge></DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <ScrollArea className="h-64">
                           {filteredAnnouncements.length > 0 ? (
@@ -774,9 +603,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
                                   </DropdownMenuItem>
                               ))
                           ) : (
-                              <div className="text-center text-sm text-muted-foreground py-10">
-                                  <p>No new announcements.</p>
-                              </div>
+                              <div className="text-center text-sm text-muted-foreground py-10"><p>No new announcements.</p></div>
                           )}
                       </ScrollArea>
                   </DropdownMenuContent>
@@ -786,63 +613,18 @@ function AppShellContent({ children }: { children: ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar>
-                    <AvatarFallback>
-                      <UserCircle className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar><AvatarFallback><UserCircle className="h-6 w-6" /></AvatarFallback></Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  {getAccountLabel()}
-                </DropdownMenuLabel>
+                <DropdownMenuLabel>{getAccountLabel()}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
-                {authUser?.isSuperAdmin && viewingAsClientId && (
-                  <DropdownMenuItem onClick={handleReturnToAdminView}>
-                    <ShieldAlert className="mr-2 h-4 w-4" />
-                    Return to Admin View
-                  </DropdownMenuItem>
-                )}
-
-                {authUser?.isSuperAdmin && !viewingAsClientId && !pathname.startsWith('/admin') && (
-                  <DropdownMenuItem onClick={() => router.push('/admin')}>
-                    <ShieldAlert className="mr-2 h-4 w-4" />
-                    Go to Admin Dashboard
-                  </DropdownMenuItem>
-                )}
-
-                {authUser?.isSuperAdmin && !viewingAsClientId && pathname.startsWith('/admin') && (
-                  <DropdownMenuItem onClick={handleReturnToGlobalView}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to App (Global View)
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuItem onClick={() => router.push('/profile')} disabled={subscriptionExpired && pathname !== '/subscription'}>
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    Profile
-                </DropdownMenuItem>
-                {authUser?.role !== 'tenant' && (
-                    <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                    </DropdownMenuItem>
-                )}
-                {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && (
-                  <DropdownMenuItem asChild>
-                    <a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                      <FileText className="mr-2 h-4 w-4" />
-                      <span>View My Contract</span>
-                    </a>
-                  </DropdownMenuItem>
-                )}
+                {authUser?.isSuperAdmin && (viewingAsClientId ? <DropdownMenuItem onClick={handleReturnToAdminView}><ShieldAlert className="mr-2 h-4 w-4" />Return to Admin View</DropdownMenuItem> : pathname.startsWith('/admin') ? <DropdownMenuItem onClick={handleReturnToGlobalView}><ArrowLeft className="mr-2 h-4 w-4" />Back to App</DropdownMenuItem> : <DropdownMenuItem onClick={() => router.push('/admin')}><ShieldAlert className="mr-2 h-4 w-4" />Go to Admin Dashboard</DropdownMenuItem>)}
+                <DropdownMenuItem onClick={() => router.push('/profile')} disabled={subscriptionExpired && pathname !== '/subscription'}><UserCircle className="mr-2 h-4 w-4" />Profile</DropdownMenuItem>
+                {authUser?.role !== 'tenant' && <DropdownMenuItem onClick={handleUserDropdownSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}><Settings className="mr-2 h-4 w-4" />Settings</DropdownMenuItem>}
+                {authUser?.role === 'tenant' && currentTenant?.signedContractUrl && <DropdownMenuItem asChild><a href={currentTenant.signedContractUrl} target="_blank" rel="noopener noreferrer"><FileText className="mr-2 h-4 w-4" /><span>View My Contract</span></a></DropdownMenuItem>}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}><LogOut className="mr-2 h-4 w-4" />Logout</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
@@ -857,19 +639,11 @@ function AppShellContent({ children }: { children: ReactNode }) {
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">
                   <CardHeader>
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20">
-                        <AlertCircle className="h-8 w-8 text-destructive" />
-                    </div>
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20"><AlertCircle className="h-8 w-8 text-destructive" /></div>
                     <CardTitle className="mt-4 text-2xl text-destructive font-headline">Subscription Expired</CardTitle>
-                    <CardDescription>
-                        Your organization's subscription has ended. Access to most features has been disabled.
-                    </CardDescription>
+                    <CardDescription>Your organization's subscription has ended.</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                      <p className="text-muted-foreground">
-                          Please go to the <Link href="/subscription" className="font-semibold text-primary underline">Subscription</Link> page to renew your plan, or contact your administrator.
-                      </p>
-                  </CardContent>
+                  <CardContent><p className="text-muted-foreground">Please go to the <Link href="/subscription" className="font-semibold text-primary underline">Subscription</Link> page to renew.</p></CardContent>
                 </Card>
               </div>
             ) : (
@@ -878,15 +652,10 @@ function AppShellContent({ children }: { children: ReactNode }) {
           </main>
         </SidebarInset>
       </div>
-      <AnnouncementViewerDialog
-        isOpen={!!viewingAnnouncement}
-        onClose={() => setViewingAnnouncement(null)}
-        announcement={viewingAnnouncement}
-      />
+      <AnnouncementViewerDialog isOpen={!!viewingAnnouncement} onClose={() => setViewingAnnouncement(null)} announcement={viewingAnnouncement} />
     </>
   );
 }
-
 
 export function AppShell({ children }: { children: ReactNode }) {
     return (

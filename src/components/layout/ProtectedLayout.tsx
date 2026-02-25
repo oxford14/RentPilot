@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -16,44 +15,36 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
+    if (isLoading) return;
 
     const publicRoutes = ['/login', '/terms', '/privacy-policy', '/signup'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     const isForcePasswordChangeRoute = pathname.startsWith('/force-password-change');
 
-    // User is not authenticated
     if (!isAuthenticated) {
       if (!isPublicRoute && !isForcePasswordChangeRoute) {
         router.push('/login');
       }
-      return; // Exit early
+      return;
     }
 
-    // User IS authenticated
-    // Handle temporary password as a priority state
     if (user?.temporaryPassword) {
       if (!isForcePasswordChangeRoute) {
         router.push('/force-password-change');
       }
-      return; // Exit early, this is the only page they should be on
+      return;
     }
 
-    // Handle case where user is on the change page but doesn't need to be
     if (!user?.temporaryPassword && isForcePasswordChangeRoute) {
       router.push('/');
       return;
     }
     
-    // Handle case where authenticated user lands on a public route
     if (isPublicRoute) {
        router.push(user?.isSuperAdmin ? '/admin' : '/');
        return;
     }
       
-    // Handle normal role-based access control for all other authenticated routes
     const isSuperAdmin = !!user?.isSuperAdmin;
     const isClientAdmin = user?.role === 'admin';
     const isTenant = user?.role === 'tenant';
@@ -69,33 +60,33 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     const allowedClientAdminRoutesInAdmin = ['/admin/contracts'];
 
     if ((isHubAdmin || isRegularUser) && pathname.startsWith('/tracking')) {
-        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+        toast({ variant: "destructive", title: "Access Denied" });
         router.push('/');
         return;
     }
     
     if ((pathIsCompanyFunds || pathIsPartnerEarnings) && !isSuperAdmin && !isClientAdmin) {
-       toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+       toast({ variant: "destructive", title: "Access Denied" });
        router.push('/');
        return;
     }
     
     if (isHubAdmin && hubAdminForbiddenRoutes.some(p => pathname.startsWith(p) && !['/expenses', '/announcements', '/notifications'].includes(p))) {
-        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+        toast({ variant: "destructive", title: "Access Denied" });
         router.push('/');
         return;
     }
 
     if (isSuperAdmin && pathIsClientAdminOnly) {
-        toast({ variant: "destructive", title: "Access Denied", description: "This page is for Client Administrators." });
+        toast({ variant: "destructive", title: "Access Denied" });
         router.push('/admin');
     }
     else if (isClientAdmin && pathIsAdmin && !allowedClientAdminRoutesInAdmin.some(p => pathname.startsWith(p))) {
-        toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access admin pages." });
+        toast({ variant: "destructive", title: "Access Denied" });
         router.push('/');
     }
     else if (isTenant && !allowedTenantRoutes.some(p => pathname.startsWith(p) || pathname.startsWith('/ticket-support/'))) {
-         toast({ variant: "destructive", title: "Access Denied", description: "You do not have permission to access this page." });
+         toast({ variant: "destructive", title: "Access Denied" });
          router.push('/');
     }
   }, [isAuthenticated, isLoading, pathname, router, user]);
@@ -104,7 +95,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-3 text-lg text-muted-foreground">Loading application...</p>
       </div>
     );
   }
@@ -113,7 +103,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
      return (
        <div className="flex h-screen w-full items-center justify-center bg-background">
          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-         <p className="ml-3 text-md text-muted-foreground">Redirecting to password change...</p>
        </div>
      );
   }
@@ -134,7 +123,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-       <p className="ml-3 text-md text-muted-foreground">Redirecting...</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import React from 'react';
 // Initialize Inter font
 const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-inter', // Define CSS variable
+  variable: '--font-inter',
   display: 'swap',
 });
 
@@ -36,7 +36,6 @@ export const viewport: Viewport = {
   appleWebAppCapable: 'yes',
   appleWebAppStatusBarStyle: 'default',
 };
-
 
 export default function RootLayout({
   children,
