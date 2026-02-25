@@ -382,6 +382,13 @@ function AppShellContent({ children }: { children: ReactNode }) {
               if (item.superAdminOnly) { 
                   return !!authUser?.isSuperAdmin && !isSuperAdminViewingAsClient;
               }
+
+              // Special Rule: Hide Payments, Additional Dues, and Monitoring for Vehicle Rental
+              if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
+                const hiddenItems = ['/payments', '/additional-dues', '/monitoring'];
+                if (!item.isGroup && hiddenItems.includes(item.href)) return false;
+              }
+
               return true;
             });
         }

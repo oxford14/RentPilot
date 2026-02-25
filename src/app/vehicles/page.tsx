@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
-import { Car, PlusCircle, Edit, Trash2, ShieldCheck, Wrench, Search, Info } from 'lucide-react';
+import { Car, PlusCircle, Edit, Trash2, Search } from 'lucide-react';
 import { VehicleForm } from '@/components/vehicles/VehicleForm';
 import {
   AlertDialog,
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export default function VehiclesPage() {
   const { vehicles, deleteVehicle, tenants, activeClient } = useAppContext();
@@ -160,8 +161,8 @@ export default function VehiclesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { deleteVehicle(vehicleToDelete.id); setVehicleToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel onClick={() => setVehicleToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if(vehicleToDelete) deleteVehicle(vehicleToDelete.id); setVehicleToDelete(null); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete Vehicle
             </AlertDialogAction>
           </AlertDialogFooter>
