@@ -113,6 +113,11 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         rentEndDate: rentEndDate ? new Date(`${rentEndDate}T00:00:00.000Z`).toISOString() : undefined,
       };
 
+      // For vehicle rentals, ensure rentEndDate is also set as contractEndDate for digital signature flow
+      if (isVehicleRental && submissionData.rentEndDate) {
+          submissionData.contractEndDate = submissionData.rentEndDate;
+      }
+
       if (tenant) {
         updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
         toast({ title: `${terminology.single} Updated`, description: `${data.name} has been updated successfully.` });

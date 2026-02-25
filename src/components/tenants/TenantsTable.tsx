@@ -13,11 +13,11 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown, Car } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown, Car, CalendarClock } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, addMinutes } from 'date-fns';
+import { format, addMinutes, isBefore, isAfter, startOfDay } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -175,6 +175,24 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.plateNumber})` : 'N/A';
   };
 
+  const getBookingStatus = (tenant: Tenant) => {
+    if (tenant.status === 'inactive') return { label: 'Inactive', color: 'bg-gray-500/20 text-gray-700 border-gray-400' };
+    
+    const today = startOfDay(new Date());
+    const start = tenant.rentStartDate ? startOfDay(new Date(tenant.rentStartDate)) : null;
+    const end = tenant.rentEndDate ? startOfDay(new Date(tenant.rentEndDate)) : null;
+    
+    if (!start || !end) return { label: 'Ongoing', color: 'bg-green-500/20 text-green-700 border-green-400' };
+    
+    if (isBefore(today, start)) {
+        return { label: 'Upcoming', color: 'bg-blue-500/20 text-blue-700 border-blue-400' };
+    }
+    if (isAfter(today, end)) {
+        return { label: 'Completed', color: 'bg-purple-500/20 text-purple-700 border-purple-400' };
+    }
+    return { label: 'Ongoing', color: 'bg-green-500/20 text-green-700 border-green-400' };
+  };
+
   const displayedTenants = useMemo(() => {
     const desiredStatus = showInactiveTenants ? 'inactive' : 'active';
     let filtered = [...tenants].filter(tenant => tenant.status === desiredStatus);
@@ -247,9 +265,10 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                    Name {getSortIcon('name')}
                  </Button>
               </TableHead>
+              {isVehicleRental && <TableHead>Status</TableHead>}
               {isVehicleRental && <TableHead>Vehicle Assigned</TableHead>}
               <TableHead className="hidden md:table-cell">Phone</TableHead>
-              <TableHead className="text-right">Rent (₱)</TableHead>
+              <TableHead className="text-right">{isVehicleRental ? 'Rate' : 'Rent'} (₱)</TableHead>
               <TableHead className="hidden md:table-cell text-center">
                  <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
                     {isVehicleRental ? 'Start Date' : 'Join Date'} {getSortIcon('joinDate')}
@@ -264,103 +283,113 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedTenants.map((tenant) => (
-              <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
-                <TableCell className="font-medium">
-                  <div className="flex flex-col">
-                      <span>{tenant.name}</span>
-                     <span className="text-xs text-muted-foreground">{tenant.email}</span>
-                  </div>
-                </TableCell>
-                {isVehicleRental && (
-                  <TableCell>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Car className="h-3 w-3 text-primary" />
-                      <span className="truncate max-w-[150px]">{getVehicleInfo(tenant.vehicleId)}</span>
+            {displayedTenants.map((tenant) => {
+              const bStatus = getBookingStatus(tenant);
+              return (
+                <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                        <span>{tenant.name}</span>
+                       <span className="text-xs text-muted-foreground">{tenant.email}</span>
                     </div>
                   </TableCell>
-                )}
-                <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
-                <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
-                <TableCell className="hidden md:table-cell text-center">
-                  {isVehicleRental ? formatUtcDate(tenant.rentStartDate) : formatUtcDate(tenant.joinDate)}
-                </TableCell>
-                <TableCell className="hidden md:table-cell text-center">
-                  <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
-                    {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
-                    {isVehicleRental ? formatUtcDate(tenant.rentEndDate) : formatUtcDate(tenant.contractEndDate)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      {tenant.status === 'active' && (
-                        <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
-                          <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
+                  {isVehicleRental && (
+                    <TableCell>
+                        <Badge variant="outline" className={cn("text-xs", bStatus.color)}>
+                            {bStatus.label}
+                        </Badge>
+                    </TableCell>
+                  )}
+                  {isVehicleRental && (
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Car className="h-3 w-3 text-primary" />
+                        <span className="truncate max-w-[150px]">{getVehicleInfo(tenant.vehicleId)}</span>
+                      </div>
+                    </TableCell>
+                  )}
+                  <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
+                  <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
+                  <TableCell className="hidden md:table-cell text-center">
+                    {isVehicleRental ? formatUtcDate(tenant.rentStartDate) : formatUtcDate(tenant.joinDate)}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-center">
+                    <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
+                      {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
+                      {isVehicleRental ? formatUtcDate(tenant.rentEndDate) : formatUtcDate(tenant.contractEndDate)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEditTenant(tenant)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                       <DropdownMenuItem asChild>
-                          <Link href={`/contract/sign/${tenant.id}`}>
-                            <Edit className="mr-2 h-4 w-4" /> Request Digital Signature
-                          </Link>
+                        {tenant.status === 'active' && (
+                          <DropdownMenuItem onClick={() => handleOpenReminder(tenant)}>
+                            <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                         <DropdownMenuItem asChild>
+                            <Link href={`/contract/sign/${tenant.id}`}>
+                              <Edit className="mr-2 h-4 w-4" /> Request Digital Signature
+                            </Link>
+                          </DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => handleOpenUploadContract(tenant)} disabled={!!tenant.signedContractUrl}>
+                          <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
                         </DropdownMenuItem>
-                       <DropdownMenuItem onClick={() => handleOpenUploadContract(tenant)} disabled={!!tenant.signedContractUrl}>
-                        <FileUp className="mr-2 h-4 w-4" /> Upload Signed Contract
-                      </DropdownMenuItem>
-                      {tenant.signedContractUrl && (
-                        <>
-                           <DropdownMenuItem onClick={() => handleOpenRenewContract(tenant)}>
-                                <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
-                           </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
-                                <FileViewIcon className="mr-2 h-4 w-4" />
-                                <span>View Signed Contract</span>
-                            </a>
+                        {tenant.signedContractUrl && (
+                          <>
+                             <DropdownMenuItem onClick={() => handleOpenRenewContract(tenant)}>
+                                  <RefreshCw className="mr-2 h-4 w-4" /> Renew Contract
+                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a href={tenant.signedContractUrl} target="_blank" rel="noopener noreferrer">
+                                  <FileViewIcon className="mr-2 h-4 w-4" />
+                                  <span>View Signed Contract</span>
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Contract
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        <DropdownMenuSeparator />
+                        {tenant.hasAccount ? (
+                          <>
+                            <DropdownMenuItem onClick={() => handleViewCredentials(tenant)}>
+                              <UserSearch className="mr-2 h-4 w-4" /> View Credentials
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
+                              <RefreshCw className="mr-2 h-4 w-4" /> Reset Password
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
+                            <KeyRound className="mr-2 h-4 w-4" /> Generate Account
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleOpenDeleteContract(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete Contract
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      {tenant.hasAccount ? (
-                        <>
-                          <DropdownMenuItem onClick={() => handleViewCredentials(tenant)}>
-                            <UserSearch className="mr-2 h-4 w-4" /> View Credentials
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleResetPassword(tenant)}>
-                            <RefreshCw className="mr-2 h-4 w-4" /> Reset Password
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <DropdownMenuItem onClick={() => handleGenerateAccount(tenant)}>
-                          <KeyRound className="mr-2 h-4 w-4" /> Generate Account
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
+                          {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+                          Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => toggleStatus(tenant)}>
-                        {tenant.status === 'active' ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
-                        Mark as {tenant.status === 'active' ? 'Inactive' : 'Active'}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete {terminology.single}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+                        <DropdownMenuItem onClick={() => confirmDeleteTenant(tenant)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete {terminology.single}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

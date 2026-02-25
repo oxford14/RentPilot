@@ -398,8 +398,15 @@ function AppShellContent({ children }: { children: ReactNode }) {
                 return { ...item, label: 'Reports' };
             }
             let label = "Menu Item";
+            let icon = item.icon;
+
             if(item.href === '/') label = appLabels.dashboard;
-            if(item.href === '/tenants') label = appLabels.tenants;
+            if(item.href === '/tenants') {
+                label = appLabels.tenants;
+                if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
+                    icon = Key;
+                }
+            }
             if(item.href === '/payments') label = appLabels.payments;
             if(item.href === '/additional-dues') label = appLabels.additionalDues;
             if(item.href === '/monitoring') label = appLabels.monitoring;
@@ -410,7 +417,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
             if(item.href === '/subscription') label = appLabels.subscription;
             if(item.href === '/users') label = appLabels.users;
             
-            return { ...item, label };
+            return { ...item, label, icon };
         });
 
         if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {

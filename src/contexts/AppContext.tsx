@@ -216,7 +216,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       case 'ISP_Subscription':
         return { single: 'Subscriber', plural: 'Subscribers' };
       case 'Vehicle_Rental':
-        return { single: 'Renter', plural: 'Renters' };
+        return { single: 'Renter', plural: 'Bookings' };
       default:
         return { single: 'Tenant', plural: 'Tenants' };
     }
@@ -1351,7 +1351,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               senderId: authUser.username,
               senderName: authUser.username,
               recipientId: tenant.id,
-              recipientUsername: result.username,
+              recipientUsername: tenant.username,
               isScheduled: false,
               scheduledAt: new Date().toISOString(),
               status: 'sent',
@@ -1543,6 +1543,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       await deleteDoc(doc(db, 'demoRequests', requestId));
     } catch (error: any) {
+      console.error("Error deleting demo request:", error);
       toast({ variant: "destructive", title: "Error", description: `Failed to delete request: ${error.message}` });
     }
   };
