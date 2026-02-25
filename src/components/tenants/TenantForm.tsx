@@ -180,62 +180,60 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
             </div>
 
             {isVehicleRental && (
-              <>
-                <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
-                  <h3 className="font-semibold text-sm uppercase text-muted-foreground">Rental Assignment</h3>
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+                <h3 className="font-semibold text-sm uppercase text-muted-foreground border-b pb-2">Vehicle Rental Details</h3>
+                <FormField
+                  control={form.control}
+                  name="vehicleId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assign Vehicle</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a vehicle..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">No Vehicle Assigned</SelectItem>
+                          {availableVehicles.map(v => (
+                            <SelectItem key={v.id} value={v.id}>{v.make} {v.model} ({v.plateNumber})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="vehicleId"
+                    name="rentStartDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Assign Vehicle</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a vehicle..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="">No Vehicle Assigned</SelectItem>
-                            {availableVehicles.map(v => (
-                              <SelectItem key={v.id} value={v.id}>{v.make} {v.model} ({v.plateNumber})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="rentStartDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rent Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="rentEndDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rent End Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="rentEndDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </>
+              </div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -244,7 +242,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="monthlyRentalRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{isVehicleRental ? 'Daily/Weekly Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
+                    <FormLabel>{isVehicleRental ? 'Rental Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -273,7 +271,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                 name="joinDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contract Date</FormLabel>
+                    <FormLabel>{isVehicleRental ? 'Booking Date' : 'Join Date'}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>

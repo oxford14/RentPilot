@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
 import type { Client } from '@/lib/types';
-import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser, CheckCircle2, XCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, ImageOff, Eraser, CheckCircle2, XCircle, Car } from 'lucide-react';
 import { ClientForm } from '@/components/admin/ClientForm';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,9 +45,9 @@ export default function AdminClientsPage() {
     setIsFormOpen(false);
   };
   
-  const handleViewAsClient = (client: Client) => {
+  const handleViewAsClient = (client: Client, targetPath: string = '/') => {
     setViewMode(client.id);
-    router.push('/'); 
+    router.push(targetPath); 
     toast({ title: "Viewing as Client", description: `Now viewing data for ${client.name}.`});
   }
   
@@ -70,7 +70,6 @@ export default function AdminClientsPage() {
   const handleCleanClient = async () => {
     if (clientToClean) {
       await cleanClientData(clientToClean.id);
-      // The toast is handled within the context function now
       setClientToClean(null);
     }
   };
@@ -98,8 +97,8 @@ export default function AdminClientsPage() {
                   <TableRow>
                     <TableHead>Logo</TableHead>
                     <TableHead>Client Name</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Subscription Status</TableHead>
-                    <TableHead>Sub. End Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -125,15 +124,22 @@ export default function AdminClientsPage() {
                       </TableCell>
                       <TableCell className="font-medium">{client.name}</TableCell>
                       <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                            {client.businessType?.replace('_', ' ') || 'Standard'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={client.subscriptionStatus === 'active' ? 'default' : 'secondary'} className={client.subscriptionStatus === 'active' ? 'bg-green-500/20 text-green-700 border-green-400' : 'bg-red-500/20 text-red-700 border-red-400'}>
                           {client.subscriptionStatus === 'active' ? <CheckCircle2 className="mr-1 h-3 w-3" /> : <XCircle className="mr-1 h-3 w-3" />}
                           {client.subscriptionStatus ? client.subscriptionStatus.charAt(0).toUpperCase() + client.subscriptionStatus.slice(1) : 'N/A'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {client.subscriptionEndDate ? format(new Date(client.subscriptionEndDate), 'PP') : 'N/A'}
-                      </TableCell>
                       <TableCell className="text-right space-x-2">
+                        {client.businessType === 'Vehicle_Rental' && (
+                            <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client, '/vehicles')} title="Manage Fleet">
+                                <Car className="h-4 w-4 mr-1" /> Fleet
+                            </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={() => handleViewAsClient(client)} title="View as Client">
                            <Eye className="h-4 w-4" />
                         </Button>
@@ -176,7 +182,7 @@ export default function AdminClientsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the client "{clientToDelete.name}" and all associated data (tenants, payments, users, etc.).
+                This action cannot be undone. This will permanently delete the client "{clientToDelete.name}" and all associated data.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -197,7 +203,7 @@ export default function AdminClientsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete ALL tenants, payments, and expenses associated with the client "{clientToClean.name}". The client entry itself will NOT be deleted.
+                This action cannot be undone. This will permanently delete ALL renters, payments, and expenses associated with the client "{clientToClean.name}".
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

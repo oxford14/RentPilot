@@ -53,7 +53,18 @@ export default function VehiclesPage() {
   };
 
   if (activeClient?.businessType !== 'Vehicle_Rental') {
-    return <div className="p-8 text-center">This feature is exclusive to Vehicle Rental businesses.</div>;
+    return (
+        <div className="container mx-auto py-12 text-center">
+            <Card className="max-w-md mx-auto shadow-xl">
+                <CardHeader>
+                    <CardTitle>Feature Unavailable</CardTitle>
+                    <CardDescription>
+                        This feature is exclusive to Vehicle Rental businesses. Your current business type is {activeClient?.businessType?.replace('_', ' ') || 'Standard'}.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        </div>
+    );
   }
 
   return (
@@ -66,8 +77,8 @@ export default function VehiclesPage() {
           </h1>
           <p className="text-muted-foreground">Manage your vehicles and their rental status.</p>
         </div>
-        <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-5 w-5" /> Add New Vehicle
+        <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto h-12 text-lg">
+          <PlusCircle className="mr-2 h-6 w-6" /> Add New Vehicle
         </Button>
       </div>
 
@@ -79,7 +90,7 @@ export default function VehiclesPage() {
               placeholder="Search by make, model, or plate number..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-11"
             />
           </div>
         </CardHeader>
@@ -133,8 +144,10 @@ export default function VehiclesPage() {
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      No vehicles found in your fleet.
+                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                      <Car className="mx-auto h-12 w-12 opacity-20 mb-2" />
+                      <p>No vehicles found in your fleet.</p>
+                      <Button variant="link" onClick={() => handleOpenForm()}>Add your first vehicle</Button>
                     </TableCell>
                   </TableRow>
                 )}
