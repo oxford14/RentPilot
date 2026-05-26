@@ -1,5 +1,18 @@
 
 {
+  "apphosting": [
+    {
+      "backendId": "rentpilotweb",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions"
+      ]
+    }
+  ],
   "hosting": {
     "site": "tenanttracker-u4wuw",
     "public": "public",
