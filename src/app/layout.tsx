@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedLayout } from '@/components/layout/ProtectedLayout';
 import { Toaster } from "@/components/ui/toaster";
 import React from 'react';
+import { MAIN_APP_LOGO_URL } from '@/lib/branding';
 
 // Initialize Inter font
 const inter = Inter({
@@ -13,8 +14,6 @@ const inter = Inter({
   display: 'swap',
 });
 
-const iconUrl = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a631f6b78299";
-
 export const metadata: Metadata = {
   title: {
     default: 'RentPilot',
@@ -22,8 +21,12 @@ export const metadata: Metadata = {
   },
   description: 'Efficiently manage tenants, payments, and reports.',
   icons: {
-    icon: iconUrl,
-    apple: iconUrl,
+    icon: '/favicon.ico?v=3',
+    apple: '/favicon.ico?v=3',
+    shortcut: '/favicon.ico?v=3',
+  },
+  openGraph: {
+    images: [{ url: MAIN_APP_LOGO_URL }],
   },
 };
 

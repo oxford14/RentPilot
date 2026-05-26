@@ -72,6 +72,10 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       keyframes: {
+        'dashboard-shimmer': {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '0.7' },
+        },
         'accordion-down': {
           from: {
             height: '0',
@@ -90,6 +94,7 @@ export default {
         },
       },
       animation: {
+        'dashboard-shimmer': 'dashboard-shimmer 3s ease-in-out infinite',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },

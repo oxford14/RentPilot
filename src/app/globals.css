@@ -6,52 +6,52 @@
 
 @layer base {
   :root {
-    --background: 0 0% 94.1%; /* #F0F0F0 */
-    --foreground: 0 0% 3.9%; /* Default dark text */
+    --background: 220 33% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 210 50% 60%; /* #6699CC */
-    --primary-foreground: 0 0% 100%; /* White text on primary */
+    --primary: 221 83% 56%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 220 20% 95%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 0 0% 90%; /* Slightly darker muted for better visibility on light gray */
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 220 18% 94%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 26 67% 57%; /* #D9884B */
-    --accent-foreground: 0 0% 100%; /* White text on accent */
+    --accent: 258 90% 96%;
+    --accent-foreground: 252 56% 40%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 85%; /* Slightly darker border for better visibility */
-    --input: 0 0% 89.8%;
-    --ring: 210 50% 50%; /* Ring color based on primary */
+    --border: 220 17% 88%;
+    --input: 220 17% 91%;
+    --ring: 221 83% 56%;
 
     /* Updated chart colors for better distinction */
-    --chart-1: 210 70% 55%; /* Blue */
-    --chart-2: 145 60% 45%; /* Green */
-    --chart-3: 45 80% 55%;  /* Yellow/Gold */
-    --chart-4: 0 70% 60%;   /* Red */
-    --chart-5: 270 60% 65%; /* Purple */
+    --chart-1: 221 83% 56%;
+    --chart-2: 155 65% 45%;
+    --chart-3: 41 94% 55%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 265 83% 64%;
 
-    --radius: 0.5rem;
+    --radius: 0.875rem;
 
     /* Sidebar specific theme variables - can be customized further if needed */
-    --sidebar-background: 0 0% 98%; /* Slightly off-white for sidebar */
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 210 50% 60%; /* Using main primary for sidebar active items */
+    --sidebar-background: 220 30% 97%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 50% 90%; /* Lighter primary for hover/accent */
-    --sidebar-accent-foreground: 210 50% 20%;
-    --sidebar-border: 0 0% 85%;
-    --sidebar-ring: 210 50% 50%;
+    --sidebar-accent: 220 20% 93%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 17% 88%;
+    --sidebar-ring: 221 83% 56%;
   }
 
   .dark {
@@ -65,7 +65,7 @@
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 210 50% 60%; /* #6699CC */
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 14.9%;
@@ -74,32 +74,32 @@
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
 
-    --accent: 26 67% 57%; /* #D9884B */
-    --accent-foreground: 0 0% 100%;
+    --accent: 226 20% 18%;
+    --accent-foreground: 220 15% 92%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
-    --ring: 210 50% 70%;
+    --ring: 217 91% 60%;
 
     /* Updated chart colors for better distinction in dark mode */
-    --chart-1: 210 70% 65%; /* Lighter Blue */
-    --chart-2: 145 60% 55%; /* Lighter Green */
-    --chart-3: 45 80% 65%;  /* Lighter Yellow/Gold */
-    --chart-4: 0 70% 70%;   /* Lighter Red */
-    --chart-5: 270 60% 75%; /* Lighter Purple */
+    --chart-1: 217 91% 60%;
+    --chart-2: 155 65% 45%;
+    --chart-3: 41 94% 55%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 265 83% 64%;
 
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 210 50% 60%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 50% 25%;
     --sidebar-accent-foreground: 0 0% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 210 50% 70%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -109,7 +109,29 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 5% 0%, hsl(var(--primary) / 0.14) 0%, transparent 32%),
+      radial-gradient(circle at 95% 100%, hsl(var(--accent-foreground) / 0.08) 0%, transparent 28%);
+    background-attachment: fixed;
     /* font-family: 'Inter', Arial, Helvetica, sans-serif; <- This line was removed */
+  }
+}
+
+@layer components {
+  .app-surface {
+    @apply rounded-2xl border border-border/70 bg-card/85 shadow-sm backdrop-blur;
+  }
+
+  .app-glass {
+    @apply rounded-2xl border border-white/40 bg-white/60 shadow-xl backdrop-blur-xl;
+  }
+
+  [data-sidebar="sidebar"] {
+    @apply border border-sidebar-border/60 shadow-sm;
+  }
+
+  [data-variant="inset"] [data-sidebar="sidebar"] {
+    @apply rounded-2xl bg-sidebar/90 backdrop-blur-xl;
   }
 }
 

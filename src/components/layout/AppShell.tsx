@@ -12,6 +12,8 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarTrigger,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -20,12 +22,11 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { 
-  Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert, 
-  LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck, 
-  ImageOff, ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, Award, 
-  Wrench, DatabaseBackup, MapPin, BellRing, MessageSquare, ListPlus, CalendarCheck, 
-  Bell, Check, Download, Megaphone, Monitor, PiggyBank, Handshake, Trash2, Ticket, 
-  Car, Key 
+  Home, Users, CreditCard, BarChart3, Settings, LogOut, Building, ShieldAlert,
+  LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck,
+  ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, DatabaseBackup, MapPin,
+  MessageSquare, ListPlus, CalendarCheck, Bell, Download, Megaphone, Monitor, PiggyBank,
+  Handshake, Trash2, Ticket, Car, Key, Menu, X
 } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -41,6 +42,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AnnouncementViewerDialog } from './AnnouncementViewerDialog';
+import { MAIN_APP_LOGO_URL } from '@/lib/branding';
 
 interface AdminTopLevelNavItem {
   isGroup: false;
@@ -69,12 +71,12 @@ const baseAppNavItems: Omit<AppSidebarNavItem, 'label'>[] = [
   { isGroup: false, href: '/tenants', icon: Users },
   { isGroup: false, href: '/payments', icon: CreditCard },
   { isGroup: false, href: '/additional-dues', icon: ListPlus },
-  { isGroup: false, href: '/monitoring', icon: BellRing },
+  { isGroup: false, href: '/monitoring', icon: BarChart3 },
   { isGroup: false, href: '/expenses', icon: ReceiptText },
   { isGroup: false, href: '/announcements', icon: Megaphone, clientAdminOnly: true },
   { isGroup: false, href: '/contracts', icon: FileText, clientAdminOnly: true },
   { isGroup: false, href: '/notifications', icon: Bell, clientAdminOnly: true },
-  { isGroup: false, href: '/subscription', icon: Award, clientOnly: true },
+  { isGroup: false, href: '/subscription', icon: ShieldCheck, clientOnly: true },
   {
     isGroup: true,
     icon: BarChart3,
@@ -96,7 +98,7 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   { isGroup: false, href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
   { isGroup: false, href: '/admin/clients', label: 'Clients', icon: Building },
   { isGroup: false, href: '/admin/users', label: 'All Client Users', icon: UsersRound },
-  { isGroup: false, href: '/admin/subscriptions', label: 'Subscriptions', icon: Award },
+  { isGroup: false, href: '/admin/subscriptions', label: 'Subscriptions', icon: BarChart3 },
   { isGroup: false, href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { isGroup: false, href: '/admin/chat', label: 'Live Chat', icon: MessageSquare },
   { isGroup: false, href: '/admin/maintenance/demo-requests', label: 'Demo Requests', icon: CalendarCheck },
@@ -113,28 +115,26 @@ const adminSidebarConfig: AdminSidebarConfigItem[] = [
   }
 ];
 
-const MAIN_APP_LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.firebasestorage.app/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(1).png?alt=media";
-const MAIN_APP_FAVICON_URL = "https://firebasestorage.googleapis.com/v0/b/tenanttracker-u4wuw.appspot.com/o/Whisk_storyboard1c1ee4a7bebe492d87191d51%20(2).png?alt=media&token=d8fdb3e6-1585-46ef-bd7a-a631f6b78299";
-
 const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNavGroup; pathname: string; disabled: boolean, onClick?: () => void }) => {
   const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
+  const isIconCollapsed = sidebarState === 'collapsed' && !sidebarIsMobile;
   const isGroupActive = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
-  const showTooltip = sidebarState === 'collapsed' && !sidebarIsMobile;
+  const showTooltip = isIconCollapsed;
 
   const trigger = (
     <AccordionTrigger
       disabled={disabled}
       className={cn(
-        "flex w-full items-center rounded-md p-2 text-left text-sm font-medium outline-none ring-sidebar-ring transition-colors hover:no-underline focus-visible:ring-2",
-        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center",
-        (isGroupActive && "data-[state=closed]:bg-sidebar-accent data-[state=closed]:text-sidebar-accent-foreground"),
-        "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+        "flex w-full items-center rounded-xl border border-transparent p-2.5 text-left text-sm font-medium outline-none ring-sidebar-ring transition-all duration-200 hover:-translate-y-[1px] hover:no-underline focus-visible:ring-2",
+        "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+        isIconCollapsed && "!size-10 !p-2.5 justify-center",
+        (isGroupActive && "data-[state=closed]:border-sidebar-border/80 data-[state=closed]:bg-white/75 data-[state=closed]:text-sidebar-primary"),
+        "data-[state=open]:border-sidebar-border/80 data-[state=open]:bg-white/75 data-[state=open]:text-sidebar-primary"
       )}
     >
       <div className="flex flex-1 items-center gap-2">
-        <item.icon className="h-5 w-5 shrink-0" />
-        <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+        <item.icon className="h-[18px] w-[18px] shrink-0" />
+        {!isIconCollapsed && <span className="truncate">{item.label}</span>}
       </div>
     </AccordionTrigger>
   );
@@ -151,7 +151,7 @@ const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNav
       ) : (
         trigger
       )}
-      <AccordionContent className="group-data-[collapsible=icon]:hidden">
+      <AccordionContent className={cn(isIconCollapsed && "hidden")}>
         <div className="pt-1 pb-1 pl-[calc(theme(spacing.2)_+_theme(spacing.4))] space-y-1">
           {item.items.map(subItem => (
             <SidebarMenuItem key={subItem.href} className="p-0">
@@ -164,7 +164,7 @@ const GroupedAppNavItem = ({ item, pathname, disabled, onClick }: { item: AppNav
                 onClick={onClick}
               >
                 <Link href={subItem.href}>
-                  <subItem.icon className="h-4 w-4" />
+                  <subItem.icon className="h-[18px] w-[18px]" />
                   <span className="pl-2">{subItem.label}</span>
                 </Link>
               </SidebarMenuButton>
@@ -181,12 +181,14 @@ function AppShellContent({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { user: authUser, logout } = useAuth();
   const { viewingAsClientId, clients, setViewMode, tenants, announcements, markAnnouncementAsRead, terminology } = useAppContext();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state: sidebarState } = useSidebar();
   const [subscriptionExpired, setSubscriptionExpired] = React.useState(false);
   const { toast } = useToast();
 
   const [installPrompt, setInstallPrompt] = React.useState<any>(null);
   const [viewingAnnouncement, setViewingAnnouncement] = React.useState<Announcement | null>(null);
+  const [sidebarIconFailed, setSidebarIconFailed] = React.useState(false);
+  const [clientLogoFailed, setClientLogoFailed] = React.useState(false);
 
   const handleMobileNavClick = () => {
     if (isMobile) {
@@ -277,6 +279,10 @@ function AppShellContent({ children }: { children: ReactNode }) {
       if (authUser?.role !== 'tenant' || !authUser.tenantId) return null;
       return tenants.find(t => t.id === authUser.tenantId);
   }, [authUser, tenants]);
+
+  React.useEffect(() => {
+    setClientLogoFailed(false);
+  }, [activeClientForDisplay?.logoUrl]);
 
   React.useEffect(() => {
     if (loggedInClient && !authUser?.isSuperAdmin) {
@@ -478,111 +484,169 @@ function AppShellContent({ children }: { children: ReactNode }) {
     return authUser?.username || 'My Account';
   };
 
+  const mobileToggleLabel = openMobile ? 'Close menu' : 'Open menu';
+  const isIconCollapsed = sidebarState === 'collapsed' && !isMobile;
+  const shouldUseClientLogo = !!activeClientForDisplay?.logoUrl && !isTrueAdminView && !clientLogoFailed;
+  const headerLogoSrc = shouldUseClientLogo ? activeClientForDisplay!.logoUrl! : MAIN_APP_LOGO_URL;
+  const headerLogoAlt = shouldUseClientLogo ? `${activeClientForDisplay?.name || 'Client'} logo` : 'RentPilot';
+  const collapsedBrandSrc = shouldUseClientLogo ? headerLogoSrc : MAIN_APP_LOGO_URL;
+
   return (
     <>
       <div className="flex min-h-screen w-full">
-        <Sidebar variant="sidebar" collapsible="icon" side="left" className="border-r">
-          <SidebarHeader className="p-4 flex items-center justify-center">
+        <Sidebar variant="inset" collapsible="icon" side="left">
+          <SidebarHeader className="flex h-14 items-center justify-center border-b border-sidebar-border/60 px-2">
             <Link href="/" className="flex items-center justify-center" onClick={handleMobileNavClick}>
-                <Image src={MAIN_APP_LOGO_URL} alt="RentPilot" width={160} height={45} className="object-contain group-data-[collapsible=icon]:hidden" unoptimized />
-                <Image src={MAIN_APP_FAVICON_URL} alt="RentPilot" width={32} height={32} className="object-contain hidden group-data-[collapsible=icon]:block" unoptimized />
+              {!isIconCollapsed ? (
+                <Image
+                  src={shouldUseClientLogo ? headerLogoSrc : MAIN_APP_LOGO_URL}
+                  alt={headerLogoAlt}
+                  width={160}
+                  height={45}
+                  className="h-9 w-auto max-w-[150px] object-contain"
+                  onError={() => {
+                    if (shouldUseClientLogo) setClientLogoFailed(true);
+                  }}
+                  unoptimized
+                />
+              ) : !sidebarIconFailed ? (
+                <Image
+                  src={collapsedBrandSrc}
+                  alt={headerLogoAlt}
+                  width={36}
+                  height={36}
+                  className="h-9 w-9 rounded-xl object-contain"
+                  onError={() => setSidebarIconFailed(true)}
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-xs font-bold text-primary-foreground">
+                  RP
+                </div>
+              )}
             </Link>
           </SidebarHeader>
-          <SidebarContent className="flex-1 p-2">
-            <SidebarMenu>
-              {isTrueAdminView ? (
-                currentAdminConfigItems.map((item, index) => {
-                  if (item.isGroup) {
+          <SidebarContent className="flex-1 gap-1 px-2 py-3">
+            <SidebarGroup className="p-0">
+              {!isIconCollapsed && <SidebarGroupLabel className="px-2">Menu</SidebarGroupLabel>}
+              <SidebarMenu>
+                {isTrueAdminView ? (
+                  currentAdminConfigItems.map((item, index) => {
+                    if (item.isGroup) {
+                      return (
+                        <React.Fragment key={`admin-group-${item.groupLabel}-${index}`}>
+                          {!isIconCollapsed && (
+                            <div className="mt-3 flex items-center px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/60">
+                              <item.groupIcon className="h-[18px] w-[18px]" />
+                              <span className="ml-2">{item.groupLabel}</span>
+                            </div>
+                          )}
+                          {item.items.map(subItem => (
+                            <SidebarMenuItem key={subItem.href}>
+                              <SidebarMenuButton asChild isActive={pathname === subItem.href || pathname.startsWith(subItem.href)} tooltip={subItem.label} onClick={handleMobileNavClick}>
+                                <Link href={subItem.href}>
+                                  <subItem.icon className="h-[18px] w-[18px]" />
+                                  {!isIconCollapsed && <span>{subItem.label}</span>}
+                                </Link>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </React.Fragment>
+                      );
+                    }
                     return (
-                      <React.Fragment key={`admin-group-${item.groupLabel}-${index}`}>
-                        <div className="px-2 py-2 mt-2 text-xs font-semibold text-sidebar-foreground/70 uppercase flex items-center group-data-[collapsible=icon]:justify-center">
-                          <item.groupIcon className="h-5 w-5" />
-                          <span className="ml-2 group-data-[collapsible=icon]:hidden">{item.groupLabel}</span>
-                        </div>
-                        {item.items.map(subItem => (
-                          <SidebarMenuItem key={subItem.href}>
-                            <SidebarMenuButton asChild isActive={pathname === subItem.href || pathname.startsWith(subItem.href)} tooltip={subItem.label} onClick={handleMobileNavClick}>
-                              <Link href={subItem.href}>
-                                <subItem.icon className="h-5 w-5" />
-                                <span className="pl-3 group-data-[collapsible=icon]:hidden">{subItem.label}</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        ))}
-                      </React.Fragment>
-                    );
-                  }
-                  return (
-                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton asChild isActive={pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))} tooltip={item.label} onClick={handleMobileNavClick}>
-                        <Link href={item.href}>
-                          <item.icon className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })
-              ) : ( 
-                currentAppNavItems.map((item) => {
-                  if (item.isGroup) {
-                    const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
-                    return (
-                       <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
-                        <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} onClick={handleMobileNavClick} />
-                      </Accordion>
+                          <Link href={item.href}>
+                          <item.icon className="h-[18px] w-[18px]" />
+                            {!isIconCollapsed && <span>{item.label}</span>}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                     );
-                  }
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))} tooltip={item.label} disabled={subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(item.href)} onClick={handleMobileNavClick}>
-                        <Link href={item.href === '/users' && authUser?.isSuperAdmin ? '/admin/users' : item.href}>
-                          <item.icon className="h-5 w-5" />
-                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })
-              )}
-            </SidebarMenu>
+                  })
+                ) : ( 
+                  currentAppNavItems.map((item) => {
+                    if (item.isGroup) {
+                      const isGroupActiveForAccordion = item.items.some(subItem => pathname === subItem.href || pathname.startsWith(subItem.href));
+                      return (
+                        <Accordion type="single" collapsible className="w-full" key={`app-group-${item.label}`} defaultValue={isGroupActiveForAccordion ? item.label : undefined}>
+                          <GroupedAppNavItem item={item as AppNavGroup} pathname={pathname} disabled={subscriptionExpired} onClick={handleMobileNavClick} />
+                        </Accordion>
+                      );
+                    }
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton asChild isActive={item.href === '/' ? pathname === '/' : (pathname === item.href || pathname.startsWith(item.href + '/'))} tooltip={item.label} disabled={subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(item.href)} onClick={handleMobileNavClick}>
+                          <Link href={item.href === '/users' && authUser?.isSuperAdmin ? '/admin/users' : item.href}>
+                            <item.icon className="h-[18px] w-[18px]" />
+                            {!isIconCollapsed && <span>{item.label}</span>}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })
+                )}
+              </SidebarMenu>
+            </SidebarGroup>
           </SidebarContent>
-          <SidebarFooter className="p-2 border-t">
+          <SidebarFooter className="p-3 border-t border-sidebar-border/70">
              <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Download App" onClick={handleDownloadApp}>
                         <Download className="h-5 w-5" />
-                        <span className="group-data-[collapsible=icon]:hidden">Download App</span>
+                        {!isIconCollapsed && <span>Download App</span>}
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <SidebarMenuButton tooltip="My Profile" onClick={handleSidebarFooterSettingsClick} disabled={subscriptionExpired && pathname !== '/subscription'}>
                         <UserCircle className="h-5 w-5" />
-                        <span className="group-data-[collapsible=icon]:hidden">My Profile</span>
+                        {!isIconCollapsed && <span>My Profile</span>}
                     </SidebarMenuButton>
                 </SidebarMenuItem>
              </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex-1 flex flex-col bg-background">
-          <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-card px-6 shadow-sm">
-            <SidebarTrigger className="md:hidden" />
-            <div className="flex-1 flex items-center gap-3">
-              {activeClientForDisplay?.logoUrl && !isTrueAdminView ? (
-                <Image src={activeClientForDisplay.logoUrl} alt="Logo" width={160} height={45} className="h-12 w-auto object-contain rounded" unoptimized />
-              ) : (
-                <Image src={MAIN_APP_LOGO_URL} alt="RentPilot" width={160} height={45} className="h-12 w-auto object-contain" unoptimized />
+        <SidebarInset className="flex-1 flex flex-col bg-transparent overflow-x-hidden">
+          <header className="sticky top-0 z-10 mx-3 mt-3 flex h-16 items-center gap-2 rounded-2xl border border-border/70 bg-card/85 px-3 shadow-sm backdrop-blur-lg sm:gap-3 sm:px-4 md:mx-4 md:px-5">
+            <div className="fixed left-4 top-4 z-50 flex shrink-0 items-center gap-1 rounded-xl border border-border/60 bg-card/90 p-1 shadow-md backdrop-blur md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+              <SidebarTrigger className="hidden h-9 w-9 shrink-0 rounded-xl border border-border/60 bg-background/80 md:inline-flex" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setOpenMobile(!openMobile)}
+                aria-label={mobileToggleLabel}
+              >
+                {openMobile ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              {shouldUseClientLogo && (
+                <Image
+                  src={headerLogoSrc}
+                  alt={headerLogoAlt}
+                  width={120}
+                  height={36}
+                  className="hidden h-8 w-auto shrink-0 object-contain sm:block md:h-9"
+                  onError={() => setClientLogoFailed(true)}
+                  unoptimized
+                />
               )}
-              <h1 className="text-xl font-semibold font-headline">
+              <h1 className="truncate text-base font-semibold tracking-tight font-headline sm:text-lg md:text-xl">
                 {currentActivePageLabel}
-                {activeClientForDisplay && !isTrueAdminView && ` - ${activeClientForDisplay.name}`}
+                {activeClientForDisplay && !isTrueAdminView && (
+                  <span className="ml-1.5 hidden font-normal text-muted-foreground md:inline">
+                    · {activeClientForDisplay.name}
+                  </span>
+                )}
               </h1>
             </div>
             {!authUser?.isSuperAdmin && (
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="relative rounded-full">
+                      <Button variant="ghost" size="icon" className="relative shrink-0 rounded-full">
                           <Bell className="h-5 w-5" />
                           {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive"></span></span>}
                       </Button>
@@ -612,8 +676,8 @@ function AppShellContent({ children }: { children: ReactNode }) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar><AvatarFallback><UserCircle className="h-6 w-6" /></AvatarFallback></Avatar>
+                <Button variant="ghost" size="icon" className="shrink-0 rounded-full">
+                  <Avatar className="h-8 w-8"><AvatarFallback><UserCircle className="h-5 w-5" /></AvatarFallback></Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -629,12 +693,12 @@ function AppShellContent({ children }: { children: ReactNode }) {
             </DropdownMenu>
           </header>
           {authUser?.isSuperAdmin && viewingClient && !isTrueAdminView && ( 
-            <div className="bg-primary/10 text-primary-foreground py-2 px-6 text-sm flex items-center justify-center shadow">
+            <div className="mx-3 mt-3 flex items-center justify-center rounded-xl border border-primary/20 bg-primary/10 px-6 py-2 text-sm text-primary shadow-sm md:mx-4">
               <Eye className="mr-2 h-4 w-4 text-primary" />
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          <main className={cn("flex-1 overflow-y-auto", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && !pathname.startsWith('/partner-earnings') && 'p-6')}>
+          <main className={cn("flex-1 overflow-y-auto pb-4", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && !pathname.startsWith('/partner-earnings') && 'p-3 pt-4 md:p-4 md:pt-5')}>
             {subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">

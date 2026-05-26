@@ -58,14 +58,34 @@ export async function POST(request: Request) {
         throw new Error(errorDetails);
     }
     
+    const linkId = data.data.id;
     const checkoutUrl = data.data.attributes.checkout_url;
 
-    if (!checkoutUrl) {
+    if (!checkoutUrl || !linkId) {
       console.error("Checkout URL not found in PayMongo response:", JSON.stringify(data, null, 2));
       throw new Error('Checkout URL not found in PayMongo response.');
     }
 
-    return NextResponse.json({ checkoutUrl });
+    // Store linkId in remarks so webhooks can resolve metadata reliably
+    const metadataWithLink = { ...metadata, linkId };
+    const patchAuth = Buffer.from(`${secretKey}:`).toString('base64');
+    await fetch(`https://api.paymongo.com/v1/links/${linkId}`, {
+      method: 'PATCH',
+      headers: {
+        accept: 'application/json',
+        'Content-Type': 'application/json',
+        authorization: `Basic ${patchAuth}`,
+      },
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            remarks: JSON.stringify(metadataWithLink),
+          },
+        },
+      }),
+    });
+
+    return NextResponse.json({ checkoutUrl, linkId });
 
   } catch (error: any) {
     console.error('[PayMongo Create Link Error]:', error.message);

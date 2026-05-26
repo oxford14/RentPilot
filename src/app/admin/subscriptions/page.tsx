@@ -11,20 +11,9 @@ import { useAppContext } from '@/contexts/AppContext';
 import { ClientForm } from '@/components/admin/ClientForm';
 import { Award, CheckCircle2, AlertTriangle, Clock, Edit, ListFilter } from 'lucide-react';
 import type { Client } from '@/lib/types';
-import { format, isPast, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-type SubscriptionStatus = 'Active' | 'Expired' | 'Expiring Soon' | 'Inactive';
-
-const getClientStatus = (client: Client): SubscriptionStatus => {
-  if (client.subscriptionStatus === 'inactive') return 'Inactive';
-  if (!client.subscriptionEndDate) return 'Active';
-  const endDate = new Date(client.subscriptionEndDate);
-  if (isPast(endDate)) return 'Expired';
-  const daysUntilExpiry = differenceInDays(endDate, new Date());
-  if (daysUntilExpiry <= 7) return 'Expiring Soon';
-  return 'Active';
-};
+import { getClientSubscriptionStatus, type SubscriptionStatus } from '@/lib/subscription-status';
 
 export default function AdminSubscriptionsPage() {
   const { clients } = useAppContext();
@@ -46,7 +35,7 @@ export default function AdminSubscriptionsPage() {
 
   const filteredClients = useMemo(() => {
     return clients
-      .map(client => ({ ...client, status: getClientStatus(client) }))
+      .map(client => ({ ...client, status: getClientSubscriptionStatus(client) }))
       .filter(client => {
         if (filter === 'all') return true;
         if (filter === 'active') return client.status === 'Active';
