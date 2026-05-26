@@ -126,7 +126,7 @@ function SubscriptionPageContent() {
   }, [user, authIsLoading, router]);
 
   const activateSubscription = useCallback(
-    async (sessionId: string) => {
+    async (params: { sessionId?: string; paymentRef?: string }) => {
       if (!client) return;
 
       const maxAttempts = 8;
@@ -134,15 +134,22 @@ function SubscriptionPageContent() {
         const response = await fetch('/api/paymongo/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, clientId: client.id }),
+          body: JSON.stringify({
+            sessionId: params.sessionId,
+            paymentRef: params.paymentRef,
+            clientId: client.id,
+          }),
         });
         const data = await response.json();
 
-        if (response.ok && (data.processed || data.duplicate)) {
+        if (response.ok && (data.processed || data.duplicate || data.alreadyActivated)) {
           sessionStorage.removeItem(PENDING_SUBSCRIPTION_KEY);
           router.replace('/subscription');
           toast({
-            title: data.duplicate ? 'Subscription active' : 'Subscription activated',
+            title:
+              data.alreadyActivated || data.duplicate
+                ? 'Payment received'
+                : 'Subscription activated',
             description: 'Your plan is extended one month from your previous due date.',
           });
           return;
@@ -178,31 +185,25 @@ function SubscriptionPageContent() {
 
     if (payment !== 'success') return;
 
+    let paymentRef = searchParams.get('ref');
     let sessionId = searchParams.get('session_id');
-    if (!sessionId) {
-      try {
-        const raw = sessionStorage.getItem(PENDING_SUBSCRIPTION_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as { sessionId?: string };
-          sessionId = parsed.sessionId ?? null;
-        }
-      } catch {
-        sessionStorage.removeItem(PENDING_SUBSCRIPTION_KEY);
-      }
-    }
 
-    if (!sessionId) {
-      router.replace('/subscription');
-      toast({
-        variant: 'destructive',
-        title: 'Could not verify payment',
-        description: 'Please try again from the plan options below.',
-      });
-      return;
+    try {
+      const raw = sessionStorage.getItem(PENDING_SUBSCRIPTION_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { sessionId?: string; paymentRef?: string };
+        sessionId = sessionId ?? parsed.sessionId ?? null;
+        paymentRef = paymentRef ?? parsed.paymentRef ?? null;
+      }
+    } catch {
+      sessionStorage.removeItem(PENDING_SUBSCRIPTION_KEY);
     }
 
     setIsActivating(true);
-    activateSubscription(sessionId)
+    activateSubscription({
+      sessionId: sessionId ?? undefined,
+      paymentRef: paymentRef ?? undefined,
+    })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Could not activate subscription.';
         toast({ variant: 'destructive', title: 'Activation failed', description: message });
@@ -302,13 +303,14 @@ function SubscriptionPageContent() {
       }
 
       const sessionId = data.sessionId as string | undefined;
-      if (!sessionId || !data.checkoutUrl) {
+      const paymentRef = data.paymentRef as string | undefined;
+      if (!data.checkoutUrl || (!sessionId && !paymentRef)) {
         throw new Error('Invalid checkout response from server.');
       }
 
       sessionStorage.setItem(
         PENDING_SUBSCRIPTION_KEY,
-        JSON.stringify({ sessionId, clientId: client.id })
+        JSON.stringify({ sessionId, paymentRef, clientId: client.id })
       );
       window.location.href = data.checkoutUrl;
     } catch (err: unknown) {

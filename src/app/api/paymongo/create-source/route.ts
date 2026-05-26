@@ -1,5 +1,6 @@
-
+import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
+import { savePendingCheckout } from '@/lib/paymongo-pending';
 
 function getAppOrigin(request: Request): string {
   const origin = request.headers.get('origin');
@@ -27,12 +28,14 @@ export async function POST(request: Request) {
     if (paymentType === 'subscription') {
         const { clientId, clientName, planName, billingEndDate } = details;
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
+        const paymentRef = randomUUID();
         metadata = {
           clientId,
           clientName,
           paymentType: 'subscription',
           planName,
           amount: String(amount),
+          paymentRef,
           ...(billingEndDate ? { billingEndDate: String(billingEndDate) } : {}),
         };
         description = `RentPilot Subscription: ${planName}`;
@@ -58,8 +61,8 @@ export async function POST(request: Request) {
                   },
                 ],
                 payment_method_types: ['card', 'gcash', 'grab_pay', 'qrph', 'paymaya'],
-                success_url: `${origin}/subscription?payment=success`,
-                cancel_url: `${origin}/subscription?payment=cancelled`,
+                success_url: `${origin}/subscription?payment=success&ref=${paymentRef}`,
+                cancel_url: `${origin}/subscription?payment=cancelled&ref=${paymentRef}`,
                 metadata,
               },
             },
@@ -80,7 +83,13 @@ export async function POST(request: Request) {
           throw new Error('Checkout URL not found in PayMongo response.');
         }
 
-        return NextResponse.json({ checkoutUrl, sessionId });
+        await savePendingCheckout(paymentRef, {
+          sessionId,
+          clientId,
+          billingEndDate: billingEndDate ? String(billingEndDate) : undefined,
+        });
+
+        return NextResponse.json({ checkoutUrl, sessionId, paymentRef });
     } else { // 'rent'
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');

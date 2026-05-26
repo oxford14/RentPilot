@@ -9,6 +9,8 @@ export type PaymongoPaymentMetadata =
       amount?: string;
       /** Subscription due date at checkout — used to extend from billing date, not payment date */
       billingEndDate?: string;
+      /** Return URL lookup when sessionStorage is unavailable after PayMongo redirect */
+      paymentRef?: string;
       linkId?: string;
     }
   | {
@@ -123,6 +125,7 @@ export function metadataFromPaymongoRecord(
       planName: record.planName,
       amount: record.amount,
       billingEndDate: record.billingEndDate,
+      paymentRef: record.paymentRef,
     };
   }
   if (record.paymentType === 'rent') {
