@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -12,11 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppContext } from '@/contexts/AppContext';
-import { User, UserCircle, Shield, ShieldCheck, Building, Mail, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { User, UserCircle, ShieldCheck, Mail, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { serverChangeTenantPassword } from '@/actions/user-actions';
+import { ClientUserProfile } from '@/components/profile/ClientUserProfile';
 
-// Schema for password change form
 const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required."),
   newPassword: z.string().min(6, "New password must be at least 6 characters."),
@@ -28,11 +27,9 @@ const passwordChangeSchema = z.object({
 
 type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
 
-
-// The main component
 export default function ProfilePage() {
   const { user: authUser } = useAuth();
-  const { clients, tenants } = useAppContext();
+  const { clients, tenants, rawManagedUsers } = useAppContext();
   const { toast } = useToast();
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -69,8 +66,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
-  // Conditional rendering based on user role
+
   if (authUser.role === 'tenant') {
     const currentTenant = tenants.find(t => t.id === authUser.tenantId);
     
@@ -179,67 +175,48 @@ export default function ProfilePage() {
     );
   }
 
-  // Fallback for Admins/Client Users
+  if (authUser.isSuperAdmin) {
+    return (
+      <div className="container mx-auto py-2 space-y-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold font-headline flex items-center">
+            <ShieldCheck className="mr-3 h-8 w-8 text-primary" />
+            User Profile
+          </h1>
+          <p className="text-muted-foreground">Super administrator account.</p>
+        </div>
+        <Card className="max-w-lg shadow-xl">
+          <CardHeader>
+            <CardTitle>{authUser.username}</CardTitle>
+            <CardDescription>Super Administrator</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Super admin accounts are managed from the admin panel.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const client = authUser.clientId ? clients.find(c => c.id === authUser.clientId) : null;
-
-  const getRoleInfo = () => {
-    if (authUser.isSuperAdmin) {
-      return { text: "Super Administrator", Icon: ShieldCheck };
-    }
-    if (authUser.role === 'admin') {
-      return { text: "Client Administrator", Icon: Shield };
-    }
-    return { text: "Client User", Icon: User };
-  };
-
-  const { text: roleText, Icon: RoleIcon } = getRoleInfo();
-  const PageIcon = authUser.isSuperAdmin || authUser.role === 'admin' ? ShieldCheck : UserCircle;
+  const managedUser = rawManagedUsers.find(
+    (mu) =>
+      (authUser.id && mu.id === authUser.id) ||
+      (mu.username === authUser.username && mu.clientId === authUser.clientId)
+  ) ?? null;
 
   return (
     <div className="container mx-auto py-2 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold font-headline flex items-center">
-          <PageIcon className="mr-3 h-8 w-8 text-primary" />
+          <UserCircle className="mr-3 h-8 w-8 text-primary" />
           User Profile
         </h1>
         <p className="text-muted-foreground">View and manage your profile information.</p>
       </div>
-
-      <Card className="shadow-xl">
-        <CardHeader className="items-center text-center border-b pb-6">
-          <Avatar className="h-24 w-24 mb-4 ring-2 ring-primary ring-offset-2">
-            <AvatarFallback>
-              <UserCircle className="h-20 w-20 text-muted-foreground" />
-            </AvatarFallback>
-          </Avatar>
-          <CardTitle className="text-2xl font-headline">{authUser.username}</CardTitle>
-          <CardDescription className="flex items-center gap-1">
-            <RoleIcon className="h-4 w-4 text-muted-foreground" /> {roleText}
-          </CardDescription>
-          {client && (
-            <CardDescription className="flex items-center gap-1 mt-1">
-              <Building className="h-4 w-4 text-muted-foreground" /> {client.name}
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center">
-            <Mail className="mr-3 h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">
-                {authUser.email || `${authUser.username.toLowerCase().replace(/\s+/g, '.')}@example.com`}
-              </p>
-            </div>
-          </div>
-          
-          <div className="border-t pt-4 mt-4">
-             <p className="text-sm text-muted-foreground">
-                To change your password, please go to the <a href="/settings" className="underline text-primary">Account Settings</a> page.
-             </p>
-          </div>
-        </CardContent>
-      </Card>
+      <ClientUserProfile client={client ?? null} managedUser={managedUser} />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import {
   verifyPaymongoSignature,
-  parsePaymongoMetadata,
-  fetchPaymongoLink,
 } from '@/lib/paymongo';
-import { processPaymongoMetadata } from '@/lib/paymongo-handlers';
+import {
+  processPaidPaymongoLink,
+  processPaidPaymongoCheckoutSession,
+} from '@/lib/paymongo-process-link';
 import { getAdminDb } from '@/lib/firebase-admin';
 
 export const runtime = 'nodejs';
@@ -12,6 +13,7 @@ export const runtime = 'nodejs';
 const HANDLED_EVENTS = new Set([
   'link.payment.paid',
   'payment.paid',
+  'checkout_session.payment.paid',
 ]);
 
 async function markEventProcessed(eventId: string): Promise<boolean> {
@@ -23,7 +25,10 @@ async function markEventProcessed(eventId: string): Promise<boolean> {
   return true;
 }
 
-function extractLinkId(payload: Record<string, unknown>): string | null {
+function extractPaymentResource(payload: Record<string, unknown>): {
+  id: string;
+  kind: 'link' | 'checkout_session';
+} | null {
   const data = payload?.data as {
     attributes?: {
       type?: string;
@@ -33,18 +38,17 @@ function extractLinkId(payload: Record<string, unknown>): string | null {
   const attrs = data?.attributes;
   const inner = attrs?.data;
   if (!inner?.id) return null;
+
   if (inner.type === 'link' || attrs?.type === 'link.payment.paid') {
-    return inner.id;
+    return { id: inner.id, kind: 'link' };
+  }
+  if (
+    inner.type === 'checkout_session' ||
+    attrs?.type === 'checkout_session.payment.paid'
+  ) {
+    return { id: inner.id, kind: 'checkout_session' };
   }
   return null;
-}
-
-function extractPaymentAmount(payload: Record<string, unknown>): number | undefined {
-  const attrs = (payload?.data as { attributes?: { data?: { attributes?: { amount?: number } } } })
-    ?.attributes;
-  const amount = attrs?.data?.attributes?.amount;
-  if (typeof amount === 'number') return amount / 100;
-  return undefined;
 }
 
 export async function POST(request: Request) {
@@ -94,30 +98,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    const linkId = extractLinkId(payload);
-    if (!linkId) {
-      console.warn('[PayMongo Webhook] No link id in event — cannot resolve metadata');
-      return NextResponse.json({ received: true, warning: 'no_link_id' });
+    const resource = extractPaymentResource(payload);
+    if (!resource) {
+      console.warn('[PayMongo Webhook] No payment resource in event — cannot resolve metadata');
+      return NextResponse.json({ received: true, warning: 'no_payment_resource' });
     }
 
-    const link = await fetchPaymongoLink(linkId, secretKey);
-    if (!link?.remarks) {
-      throw new Error(`Link ${linkId} has no remarks/metadata`);
+    const result =
+      resource.kind === 'checkout_session'
+        ? await processPaidPaymongoCheckoutSession(resource.id, secretKey)
+        : await processPaidPaymongoLink(resource.id, secretKey);
+
+    if (!result.processed) {
+      return NextResponse.json({ received: true, warning: result.message });
     }
-
-    const metadata = parsePaymongoMetadata(link.remarks);
-    if (!metadata?.paymentType) {
-      throw new Error(`Unrecognized metadata on link ${linkId}`);
-    }
-
-    const paidAmount = extractPaymentAmount(payload) ?? link.amount;
-
-    await processPaymongoMetadata(metadata, paidAmount);
 
     return NextResponse.json({
       received: true,
-      processed: metadata.paymentType,
-      linkId,
+      processed: result.paymentType,
+      paymentId: resource.id,
+      duplicate: result.duplicate,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Webhook processing failed';

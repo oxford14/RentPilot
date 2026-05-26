@@ -2,6 +2,7 @@
 const admin = require("firebase-admin");
 const db = admin.firestore();
 const fetch = require("node-fetch").default;
+const { sendEmail, announcementEmail } = require("./email");
 
 
 // Helper to get start of day in a specific timezone
@@ -81,26 +82,23 @@ async function runNotificationChecks() {
         .where('scheduledAt', '<=', now.toISOString())
         .get();
         
-    scheduledAnnouncementsQuery.forEach(doc => {
-        batch.update(doc.ref, { status: 'sent', createdAt: new Date().toISOString() });
-        const announcement = doc.data();
+    for (const docSnap of scheduledAnnouncementsQuery.docs) {
+        announcementBatch.update(docSnap.ref, { status: 'sent', createdAt: new Date().toISOString() });
+        const announcement = docSnap.data();
         if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
             const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
             const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
             const fromName = client?.name || announcement.senderName;
-            
-            clientTenants.forEach(tenant => {
-                const mailRef = db.collection('mail').doc();
-                batch.set(mailRef, {
-                    to: [tenant.email],
-                    message: {
-                        subject: `${fromName}: ${announcement.title}`,
-                        html: `<p>${announcement.content}</p>`,
-                    },
-                });
+            const { subject, html } = announcementEmail({
+                fromName,
+                title: announcement.title,
+                content: announcement.content,
             });
+            for (const tenant of clientTenants) {
+                await sendEmail({ to: tenant.email, subject, html });
+            }
         }
-    });
+    }
     await announcementBatch.commit();
 
 
@@ -208,16 +206,14 @@ async function createNotification(batch, tenant, client, title, content) {
         batch.set(announcementRef, announcementData);
     }
 
-    // Email notification
+    // Email notification (Resend)
     if (tenant.email) {
-        const mailRef = db.collection('mail').doc();
-        batch.set(mailRef, {
-            to: [tenant.email],
-            message: {
-                subject: `${client.name}: ${title}`,
-                html: `<p>${content}</p>`,
-            },
+        const { subject, html } = announcementEmail({
+            fromName: client.name,
+            title,
+            content,
         });
+        await sendEmail({ to: tenant.email, subject, html });
     }
 
     // SMS notification

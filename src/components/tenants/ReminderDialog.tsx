@@ -99,6 +99,9 @@ export function ReminderDialog({ isOpen, onClose, tenant }: ReminderDialogProps)
         senderName: user.username,
         recipientId: tenant.id,
         recipientUsername: tenant.username,
+        status: 'sent',
+        isScheduled: false,
+        scheduledAt: new Date().toISOString(),
       });
 
       toast({

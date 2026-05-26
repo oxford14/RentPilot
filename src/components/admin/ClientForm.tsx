@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils';
 import { Switch } from '../ui/switch';
 import { Separator } from '../ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ADMIN_SUBSCRIPTION_PLAN_OPTIONS, resolvePlanFormValue } from '@/lib/subscription-plans';
+import { cropImageToOptimizedBlob } from '@/lib/logo-image';
 
 const timezones = [
   { value: 'Etc/UTC', label: 'Coordinated Universal Time (UTC)' },
@@ -46,12 +48,7 @@ const businessTypes: { value: BusinessType; label: string }[] = [
     { value: 'Vehicle_Rental', label: 'Vehicle Rental' },
 ];
 
-const subscriptionPlans = [
-    { name: 'Trial', rate: 0 },
-    { name: 'Basic', rate: 200 },
-    { name: 'Pro', rate: 500 },
-    { name: 'Custom Price', rate: null },
-];
+const subscriptionPlans = ADMIN_SUBSCRIPTION_PLAN_OPTIONS;
 
 const clientFormSchema = z.object({
   name: z.string().min(2, { message: "Client name must be at least 2 characters." }),
@@ -72,44 +69,6 @@ interface ClientFormProps {
   isOpen: boolean;
   onClose: () => void;
   client?: Client | null;
-}
-
-// Helper to get the cropped image as a blob
-function getCroppedImg(image: HTMLImageElement, crop: Crop): Promise<Blob | null> {
-  const canvas = document.createElement('canvas');
-  const scaleX = image.naturalWidth / image.width;
-  const scaleY = image.naturalHeight / image.height;
-  canvas.width = crop.width;
-  canvas.height = crop.height;
-  const ctx = canvas.getContext('2d');
-
-  if (!ctx) {
-    return Promise.resolve(null);
-  }
-  
-  const pixelRatio = window.devicePixelRatio || 1;
-  canvas.width = crop.width * pixelRatio;
-  canvas.height = crop.height * pixelRatio;
-  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  ctx.imageSmoothingQuality = 'high';
-
-  ctx.drawImage(
-    image,
-    crop.x * scaleX,
-    crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
-    0,
-    0,
-    crop.width,
-    crop.height
-  );
-
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(blob);
-    }, 'image/png', 1);
-  });
 }
 
 export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
@@ -136,7 +95,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       businessType: client?.businessType || 'Standard',
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
-      subscriptionPlanName: client?.subscriptionPlanName || '',
+      subscriptionPlanName: resolvePlanFormValue(client?.subscriptionPlanName),
       subscriptionRate: client?.subscriptionRate || 0,
       companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
       companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
@@ -154,7 +113,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         businessType: client?.businessType || 'Standard',
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
-        subscriptionPlanName: client?.subscriptionPlanName || '',
+        subscriptionPlanName: resolvePlanFormValue(client?.subscriptionPlanName),
         subscriptionRate: client?.subscriptionRate || 0,
         companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
         companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
@@ -201,7 +160,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   
   const handleCropComplete = async () => {
     if (imgRef.current && crop?.width && crop?.height) {
-        const blob = await getCroppedImg(imgRef.current, crop);
+        const blob = await cropImageToOptimizedBlob(imgRef.current, crop);
         setCroppedImageBlob(blob);
         if (blob) {
             setPreview(URL.createObjectURL(blob));
@@ -319,6 +278,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                     <FormItem>
                       <FormLabel>Subscription Plan</FormLabel>
                        <Select
+                        value={field.value || undefined}
                         onValueChange={(value) => {
                           field.onChange(value);
                           if (value !== 'Custom Price') {
@@ -330,7 +290,6 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                             }
                           }
                         }}
-                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>

@@ -32,6 +32,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, uploadString } from "fi
 import { useToast } from '@/hooks/use-toast'; 
 import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
+import { serverSendAnnouncementEmails } from '@/actions/email-actions';
+import { getOptimizedLogoFileName, optimizeLogoBlob } from '@/lib/logo-image';
 import {
   startChatSession,
   sendChatMessage,
@@ -589,32 +591,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const announcementRef = doc(collection(db, 'announcements'));
         batch.set(announcementRef, newAnnouncement);
 
-        if (newAnnouncement.status === 'sent') {
+        await batch.commit();
+
+        const shouldEmail =
+          newAnnouncement.status === 'sent' || Boolean(newAnnouncement.recipientId);
+        if (shouldEmail) {
             let emailRecipients: string[] = [];
-            
             if (newAnnouncement.recipientId) {
                 const tenant = rawTenantsState.find(t => t.id === newAnnouncement.recipientId);
                 if (tenant?.email) emailRecipients.push(tenant.email);
             } else if (newAnnouncement.scope !== 'global' && newAnnouncement.audience === 'tenant') {
-                const tenantsForClient = rawTenantsState.filter(t => t.clientId === newAnnouncement.scope && t.email && t.hasAccount);
-                emailRecipients = tenantsForClient.map(t => t.email);
+                const tenantsForClient = rawTenantsState.filter(
+                  (t) => t.clientId === newAnnouncement.scope && t.email && t.hasAccount
+                );
+                emailRecipients = tenantsForClient.map((t) => t.email);
             }
 
             if (emailRecipients.length > 0) {
                 const client = rawClientsState.find(c => c.id === newAnnouncement.scope);
                 const fromName = client?.name || newAnnouncement.senderName;
-                const mailRef = doc(collection(db, 'mail'));
-                batch.set(mailRef, {
-                    to: emailRecipients,
-                    message: {
-                        subject: `${fromName}: ${newAnnouncement.title}`,
-                        html: `<p>${newAnnouncement.content}</p>`,
-                    },
+                const emailResult = await serverSendAnnouncementEmails({
+                  recipients: emailRecipients,
+                  fromName,
+                  title: newAnnouncement.title,
+                  content: newAnnouncement.content,
                 });
+                if (emailResult.skipped) {
+                  console.warn('[Email] RESEND_API_KEY not set — in-app notification saved only.');
+                }
             }
         }
-        
-        await batch.commit();
+
         toast({ title: announcementData.isScheduled ? "Announcement Scheduled" : "Announcement Posted", description: "Your announcement has been saved." });
 
     } catch (error: any) {
@@ -1045,12 +1052,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       let logoUrl: string | null = null;
       if (logoFile) {
-        const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
-        const uniqueFileName = `${uuidv4()}-${fileName}`;
-        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
-        
-        const uploadResult = await uploadBytes(storageRef, logoFile);
-        logoUrl = await getDownloadURL(uploadResult.ref);
+        logoUrl = await uploadClientLogo(logoFile);
       }
 
       const dataToSave: Partial<Client> = {
@@ -1072,6 +1074,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const uploadClientLogo = async (logoFile: File | Blob): Promise<string> => {
+    const optimized = await optimizeLogoBlob(logoFile);
+    const uniqueFileName = `${uuidv4()}-${getOptimizedLogoFileName(optimized)}`;
+    const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
+    const uploadResult = await uploadBytes(storageRef, optimized, {
+      contentType: optimized.type || 'image/webp',
+    });
+    return getDownloadURL(uploadResult.ref);
+  };
+
   const updateClient = async (client: Client, logoFile?: File | Blob | null) => {
     if (!authUser?.isSuperAdmin) {
        throw new Error("You do not have permission to update clients.");
@@ -1081,18 +1093,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const dataToUpdate: Partial<Client> = { ...clientData };
 
       if (logoFile) {
-        const fileName = logoFile instanceof File ? logoFile.name : 'cropped.png';
-        const uniqueFileName = `${uuidv4()}-${fileName}`;
-        const storageRef = ref(storage, `client_logos/${uniqueFileName}`);
-        
-        const uploadResult = await uploadBytes(storageRef, logoFile);
-        dataToUpdate.logoUrl = await getDownloadURL(uploadResult.ref);
+        dataToUpdate.logoUrl = await uploadClientLogo(logoFile);
       }
       
       await setDoc(doc(db, 'clients', id), dataToUpdate, { merge: true });
     } catch (error: any) {
       console.error("Error updating client:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to update client: ${error.message}` });
+      throw error;
+    }
+  };
+
+  const updateOwnClientProfile = async (params: { name?: string; logoFile?: File | Blob | null }) => {
+    if (!authUser || authUser.isSuperAdmin || authUser.role === 'tenant') {
+      throw new Error("You do not have permission to update company profile.");
+    }
+    if (authUser.role !== 'admin') {
+      throw new Error("Only client administrators can update company branding.");
+    }
+    const clientId = authUser.clientId;
+    if (!clientId) {
+      throw new Error("No company context found.");
+    }
+    try {
+      const dataToUpdate: Partial<Client> = {};
+      if (params.name?.trim()) {
+        dataToUpdate.name = params.name.trim();
+      }
+      if (params.logoFile) {
+        dataToUpdate.logoUrl = await uploadClientLogo(params.logoFile);
+      }
+      if (Object.keys(dataToUpdate).length === 0) {
+        return;
+      }
+      await updateDoc(doc(db, 'clients', clientId), dataToUpdate);
+      toast({ title: "Company Updated", description: "Your company profile has been saved." });
+    } catch (error: any) {
+      console.error("Error updating own client profile:", error);
+      toast({ variant: "destructive", title: "Save Failed", description: error.message });
       throw error;
     }
   };
@@ -1996,6 +2034,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     addClient,
     updateClient,
+    updateOwnClientProfile,
     updateClientNotificationSettings,
     runNotificationTrigger,
 

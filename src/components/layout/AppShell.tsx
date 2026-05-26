@@ -608,14 +608,20 @@ function AppShellContent({ children }: { children: ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex-1 flex flex-col bg-transparent overflow-x-hidden">
-          <header className="sticky top-0 z-10 mx-3 mt-3 flex h-16 items-center gap-2 rounded-2xl border border-border/70 bg-card/85 px-3 shadow-sm backdrop-blur-lg sm:gap-3 sm:px-4 md:mx-4 md:px-5">
-            <div className="fixed left-4 top-4 z-50 flex shrink-0 items-center gap-1 rounded-xl border border-border/60 bg-card/90 p-1 shadow-md backdrop-blur md:static md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <SidebarInset className="flex min-h-svh flex-1 flex-col bg-transparent overflow-x-clip">
+          <header
+            className={cn(
+              'z-50 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-card px-3 shadow-sm sm:gap-3 sm:px-4',
+              'fixed inset-x-0 top-0 supports-[backdrop-filter]:bg-card/95 supports-[backdrop-filter]:backdrop-blur-lg',
+              'md:sticky md:inset-x-auto md:top-0 md:mx-4 md:mt-3 md:h-16 md:rounded-2xl md:border md:bg-card/85 md:backdrop-blur-lg'
+            )}
+          >
+            <div className="flex shrink-0 items-center gap-1">
               <SidebarTrigger className="hidden h-9 w-9 shrink-0 rounded-xl border border-border/60 bg-background/80 md:inline-flex" />
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="h-9 w-9 shrink-0 md:hidden"
                 onClick={() => setOpenMobile(!openMobile)}
                 aria-label={mobileToggleLabel}
               >
@@ -692,13 +698,23 @@ function AppShellContent({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
+          {/* Reserve space for fixed mobile header (header is out of document flow on small screens) */}
+          <div className="h-14 shrink-0 md:hidden" aria-hidden="true" />
           {authUser?.isSuperAdmin && viewingClient && !isTrueAdminView && ( 
-            <div className="mx-3 mt-3 flex items-center justify-center rounded-xl border border-primary/20 bg-primary/10 px-6 py-2 text-sm text-primary shadow-sm md:mx-4">
+            <div className="mx-3 mt-3 flex shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 px-6 py-2 text-sm text-primary shadow-sm md:mx-4">
               <Eye className="mr-2 h-4 w-4 text-primary" />
               You are currently viewing data for: <strong className="ml-1 font-semibold text-primary">{viewingClient.name}</strong>.
             </div>
           )}
-          <main className={cn("flex-1 overflow-y-auto pb-4", pathname !== '/monitoring' && !pathname.startsWith('/contract/sign') && !pathname.startsWith('/partner-earnings') && 'p-3 pt-4 md:p-4 md:pt-5')}>
+          <main
+            className={cn(
+              'flex-1 overflow-y-auto overscroll-y-contain pb-4 md:pt-5',
+              pathname !== '/monitoring' &&
+                !pathname.startsWith('/contract/sign') &&
+                !pathname.startsWith('/partner-earnings') &&
+                'p-3 pt-4 md:p-4'
+            )}
+          >
             {subscriptionExpired && !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(pathname) ? (
               <div className="flex h-full items-center justify-center">
                 <Card className="w-full max-w-lg text-center shadow-2xl">

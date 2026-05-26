@@ -1,30 +1,12 @@
-import { addMonths, startOfDay, isBefore } from 'date-fns';
 import { getAdminDb } from '@/lib/firebase-admin';
 import type { PaymongoPaymentMetadata } from '@/lib/paymongo';
+import { canonicalPlanName, getPlanDefinition, normalizePlanKey } from '@/lib/subscription-plans';
+import {
+  canRenewSubscription,
+  computeSubscriptionEndDate,
+} from '@/lib/subscription-status';
 
-const PLAN_RATES: Record<string, number> = {
-  'basic plan': 200,
-  'pro plan': 500,
-  trial: 0,
-};
-
-function normalizePlanName(planName: string): string {
-  return planName.trim().toLowerCase();
-}
-
-export function computeSubscriptionEndDate(currentEndDate?: string): string {
-  const today = startOfDay(new Date());
-  let baseDate = today;
-
-  if (currentEndDate) {
-    const existingEnd = startOfDay(new Date(currentEndDate));
-    if (isBefore(today, existingEnd) || today.getTime() === existingEnd.getTime()) {
-      baseDate = existingEnd;
-    }
-  }
-
-  return addMonths(baseDate, 1).toISOString();
-}
+export { computeSubscriptionEndDate };
 
 export async function handleSubscriptionPayment(
   metadata: Extract<PaymongoPaymentMetadata, { paymentType: 'subscription' }>,
@@ -39,19 +21,54 @@ export async function handleSubscriptionPayment(
   }
 
   const clientData = clientSnap.data()!;
-  const planKey = normalizePlanName(metadata.planName);
+  const planDef = getPlanDefinition(metadata.planName);
+  const storedPlanName = canonicalPlanName(metadata.planName);
   const rate =
     paidAmount && paidAmount > 0
       ? paidAmount
-      : PLAN_RATES[planKey] ?? clientData.subscriptionRate ?? 0;
+      : planDef?.rate ?? clientData.subscriptionRate ?? 0;
 
-  const newEndDate = computeSubscriptionEndDate(clientData.subscriptionEndDate);
+  // Due date frozen at checkout — webhook may activate before the browser confirm step runs
+  const billingAnchor =
+    metadata.billingEndDate?.trim() || clientData.subscriptionEndDate;
+  const newEndDate = computeSubscriptionEndDate(billingAnchor);
+
+  const alreadyApplied =
+    clientData.subscriptionStatus === 'active' &&
+    clientData.subscriptionEndDate === newEndDate &&
+    normalizePlanKey(clientData.subscriptionPlanName) === normalizePlanKey(storedPlanName);
+
+  if (alreadyApplied) {
+    console.log(
+      `[PayMongo] Subscription already active for client ${metadata.clientId} until ${newEndDate}`
+    );
+    return;
+  }
+
+  const currentPlanKey = normalizePlanKey(clientData.subscriptionPlanName);
+  const paidPlanKey = normalizePlanKey(metadata.planName);
+  const isSamePlanRenewal =
+    currentPlanKey !== 'unknown' &&
+    paidPlanKey !== 'unknown' &&
+    currentPlanKey === paidPlanKey;
+
+  if (isSamePlanRenewal) {
+    const clientForRenewalCheck = {
+      subscriptionStatus: clientData.subscriptionStatus,
+      subscriptionEndDate: billingAnchor,
+    };
+    if (!canRenewSubscription(clientForRenewalCheck)) {
+      throw new Error(
+        'Renewal is only available within 3 days of your subscription end date.'
+      );
+    }
+  }
 
   await clientRef.set(
     {
       subscriptionStatus: 'active',
       subscriptionEndDate: newEndDate,
-      subscriptionPlanName: metadata.planName,
+      subscriptionPlanName: storedPlanName,
       subscriptionRate: rate,
     },
     { merge: true }

@@ -1,6 +1,13 @@
 
 import { NextResponse } from 'next/server';
 
+function getAppOrigin(request: Request): string {
+  const origin = request.headers.get('origin');
+  if (origin) return origin;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  return 'http://localhost:3000';
+}
+
 export async function POST(request: Request) {
   try {
     const { amount, paymentType, details } = await request.json();
@@ -14,18 +21,75 @@ export async function POST(request: Request) {
       throw new Error('Missing required payment details.');
     }
 
-    let metadata = {};
+    let metadata: Record<string, string> = {};
     let description = 'Payment for RentPilot';
 
     if (paymentType === 'subscription') {
-        const { clientId, clientName, planName } = details;
+        const { clientId, clientName, planName, billingEndDate } = details;
         if (!clientId || !clientName || !planName) throw new Error('Client and plan details are required for subscription payment.');
-        metadata = { clientId, clientName, paymentType: 'subscription', planName, amount: String(amount) };
-        description = `RentPilot Subscription: ${planName} Plan`;
+        metadata = {
+          clientId,
+          clientName,
+          paymentType: 'subscription',
+          planName,
+          amount: String(amount),
+          ...(billingEndDate ? { billingEndDate: String(billingEndDate) } : {}),
+        };
+        description = `RentPilot Subscription: ${planName}`;
+
+        const origin = getAppOrigin(request);
+        const authString = Buffer.from(`${secretKey}:`).toString('base64');
+        const checkoutResponse = await fetch('https://api.paymongo.com/v2/checkout_sessions', {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+            authorization: `Basic ${authString}`,
+          },
+          body: JSON.stringify({
+            data: {
+              attributes: {
+                line_items: [
+                  {
+                    name: description,
+                    amount: Math.round(amount * 100),
+                    currency: 'PHP',
+                    quantity: 1,
+                  },
+                ],
+                payment_method_types: ['card', 'gcash', 'grab_pay', 'qrph', 'paymaya'],
+                success_url: `${origin}/subscription?payment=success`,
+                cancel_url: `${origin}/subscription?payment=cancelled`,
+                metadata,
+              },
+            },
+          }),
+        });
+
+        const checkoutData = await checkoutResponse.json();
+        if (!checkoutResponse.ok || checkoutData.errors) {
+          const errorDetails =
+            checkoutData.errors?.map((e: { detail?: string }) => e.detail).join(', ') ||
+            'Could not start PayMongo checkout.';
+          throw new Error(errorDetails);
+        }
+
+        const sessionId = checkoutData.data?.id;
+        const checkoutUrl = checkoutData.data?.attributes?.checkout_url;
+        if (!checkoutUrl || !sessionId) {
+          throw new Error('Checkout URL not found in PayMongo response.');
+        }
+
+        return NextResponse.json({ checkoutUrl, sessionId });
     } else { // 'rent'
         const { tenantId, tenantName, clientId } = details;
         if (!tenantId || !clientId) throw new Error('Tenant and Client IDs are required for rent payment.');
-        metadata = { tenantId, tenantName, clientId, paymentType: 'rent' };
+        metadata = {
+          tenantId,
+          tenantName: tenantName ?? '',
+          clientId,
+          paymentType: 'rent',
+        };
         description = `Rent Payment for ${tenantName}`;
     }
 

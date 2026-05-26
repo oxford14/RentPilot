@@ -151,7 +151,7 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <DashboardChartCard
           title="Subscription Health"
-          description={`${expiringSoon} client${expiringSoon === 1 ? '' : 's'} expiring within 7 days`}
+          description={`${expiringSoon} client${expiringSoon === 1 ? '' : 's'} expiring within 3 days`}
           icon={Award}
           staggerIndex={0}
         >

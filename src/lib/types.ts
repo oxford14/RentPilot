@@ -354,6 +354,7 @@ export interface AuthContextType {
   isLoading: boolean;
   login: (usernameInput: string, passwordInput: string) => Promise<boolean>;
   logout: () => void;
+  updateSessionUser: (updates: Partial<User>) => void;
 }
 
 export type AttemptDeleteTenantResult = {
@@ -463,6 +464,7 @@ export interface AppContextType {
   
   addClient: (clientData: Partial<Omit<Client, 'id'>>, logoFile?: File | Blob | null) => Promise<void>;
   updateClient: (client: Client, logoFile?: File | Blob | null) => Promise<void>;
+  updateOwnClientProfile: (params: { name?: string; logoFile?: File | Blob | null }) => Promise<void>;
   updateClientNotificationSettings: (settings: NotificationSettings) => Promise<void>;
   runNotificationTrigger: () => Promise<{success: boolean, message: string}>;
 
