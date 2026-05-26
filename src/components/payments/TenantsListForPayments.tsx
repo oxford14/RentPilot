@@ -20,13 +20,23 @@ interface TenantsListForPaymentsProps {
   onSelectTenant: (tenant: Tenant) => void;
   searchTerm: string;
   selectedTenantId?: string | null;
+  showInactive?: boolean;
 }
 
-export function TenantsListForPayments({ onSelectTenant, searchTerm, selectedTenantId }: TenantsListForPaymentsProps) {
+export function TenantsListForPayments({
+  onSelectTenant,
+  searchTerm,
+  selectedTenantId,
+  showInactive = false,
+}: TenantsListForPaymentsProps) {
   const { tenants } = useAppContext();
 
   const filteredTenants = useMemo(() => {
     let processedTenants = [...tenants].sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!showInactive) {
+      processedTenants = processedTenants.filter((tenant) => tenant.status === 'active');
+    }
 
     if (searchTerm && searchTerm.trim() !== '') {
       const lowercasedSearchTerm = searchTerm.toLowerCase();
@@ -36,12 +46,14 @@ export function TenantsListForPayments({ onSelectTenant, searchTerm, selectedTen
       );
     }
     return processedTenants;
-  }, [tenants, searchTerm]);
+  }, [tenants, searchTerm, showInactive]);
 
   if (!filteredTenants || filteredTenants.length === 0) {
     const message = searchTerm && searchTerm.trim() !== ''
       ? "No tenants found matching your search."
-      : "No tenants available.";
+      : showInactive
+        ? "No tenants available."
+        : "No active tenants. Turn on “Show inactive” to include inactive tenants.";
     return (
       <div className="text-center text-muted-foreground py-8">
         {searchTerm && searchTerm.trim() !== '' && <Search className="mx-auto h-10 w-10 mb-2 text-gray-400" />}

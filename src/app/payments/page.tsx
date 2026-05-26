@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 
@@ -44,6 +46,7 @@ const formatCurrency = (num: number) => num.toLocaleString(undefined, { minimumF
 export default function PaymentsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const { deletePayment, tenants, payments, additionalDues, terminology } = useAppContext(); 
   const { toast } = useToast();
@@ -165,12 +168,24 @@ export default function PaymentsPage() {
                   autoComplete="off"
               />
             </div>
+            <div className="flex items-center gap-2 pt-3">
+              <Switch
+                id="show-inactive-payments"
+                checked={showInactive}
+                onCheckedChange={setShowInactive}
+                aria-label="Show inactive tenants in list"
+              />
+              <Label htmlFor="show-inactive-payments" className="text-sm font-normal cursor-pointer">
+                Show inactive
+              </Label>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <TenantsListForPayments 
               onSelectTenant={handleSelectTenant} 
               searchTerm={searchTerm} 
               selectedTenantId={selectedTenantId}
+              showInactive={showInactive}
             />
           </CardContent>
         </Card>

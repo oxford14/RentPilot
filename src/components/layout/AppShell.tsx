@@ -608,12 +608,12 @@ function AppShellContent({ children }: { children: ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset className="flex min-h-svh flex-1 flex-col bg-transparent overflow-x-clip">
+        <SidebarInset className="flex min-h-svh flex-1 flex-col bg-transparent overflow-x-clip max-md:h-svh max-md:max-h-svh max-md:overflow-hidden">
           <header
             className={cn(
               'z-50 flex h-14 shrink-0 items-center gap-2 border-b border-border/70 bg-card px-3 shadow-sm sm:gap-3 sm:px-4',
-              'fixed inset-x-0 top-0 supports-[backdrop-filter]:bg-card/95 supports-[backdrop-filter]:backdrop-blur-lg',
-              'md:sticky md:inset-x-auto md:top-0 md:mx-4 md:mt-3 md:h-16 md:rounded-2xl md:border md:bg-card/85 md:backdrop-blur-lg'
+              'sticky top-0 supports-[backdrop-filter]:bg-card/95 supports-[backdrop-filter]:backdrop-blur-lg',
+              'md:mx-4 md:mt-3 md:h-16 md:rounded-2xl md:border md:bg-card/85 md:backdrop-blur-lg'
             )}
           >
             <div className="flex shrink-0 items-center gap-1">
@@ -698,8 +698,6 @@ function AppShellContent({ children }: { children: ReactNode }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </header>
-          {/* Reserve space for fixed mobile header (header is out of document flow on small screens) */}
-          <div className="h-14 shrink-0 md:hidden" aria-hidden="true" />
           {authUser?.isSuperAdmin && viewingClient && !isTrueAdminView && ( 
             <div className="mx-3 mt-3 flex shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 px-6 py-2 text-sm text-primary shadow-sm md:mx-4">
               <Eye className="mr-2 h-4 w-4 text-primary" />
@@ -708,7 +706,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
           )}
           <main
             className={cn(
-              'flex-1 overflow-y-auto overscroll-y-contain pb-4 md:pt-5',
+              'flex-1 min-h-0 overflow-y-auto overscroll-y-contain pb-4 md:overflow-visible md:pt-5',
               pathname !== '/monitoring' &&
                 !pathname.startsWith('/contract/sign') &&
                 !pathname.startsWith('/partner-earnings') &&
