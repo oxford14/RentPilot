@@ -71,3 +71,8 @@ export function getAdminDb() {
   initFirebaseAdmin();
   return admin.firestore();
 }
+
+export function getAdminAuth() {
+  initFirebaseAdmin();
+  return admin.auth();
+}

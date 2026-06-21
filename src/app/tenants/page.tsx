@@ -25,7 +25,7 @@ import {
 import Link from 'next/link';
 
 export default function TenantsPage() {
-  const { terminology, tenants, clients, viewingAsClientId } = useAppContext();
+  const { terminology, tenants, clients, viewingAsClientId, activeClient } = useAppContext();
   const { user } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
@@ -70,14 +70,20 @@ export default function TenantsPage() {
     setIsFormOpen(false);
   };
 
+  const isVehicleRental = activeClient?.businessType === 'Vehicle_Rental';
+  const pageTitle = isVehicleRental ? 'Renters Data' : `${terminology.plural} Management`;
+  const pageDescription = isVehicleRental
+    ? 'Save and manage renter contact profiles. Use Booking to schedule rentals.'
+    : `Add, edit, and manage your ${terminology.plural.toLowerCase()} profiles.`;
+
   return (
     <div className="container mx-auto py-2 space-y-6">
       <Card className="shadow-xl">
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl font-bold font-headline">{terminology.plural} Management</CardTitle>
-              <CardDescription>Add, edit, and manage your {terminology.plural.toLowerCase()} profiles.</CardDescription>
+              <CardTitle className="text-2xl font-bold font-headline">{pageTitle}</CardTitle>
+              <CardDescription>{pageDescription}</CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 w-full sm:w-auto">
                 <div className="flex items-center space-x-2 pt-2 sm:pt-0">

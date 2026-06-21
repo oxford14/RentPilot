@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest, ContractTemplate, Vehicle } from '@/lib/types';
+import type { Tenant, Payment, AppContextType, Client, ManagedUser, ClientUserRole, SuperAdminUser, Expense, ExpenseCategory, AttemptDeleteTenantResult, PaymentMethod, Business, WeeklyIncome, AdditionalDue, ChatSession, ChatMessage, DemoRequest, BackupScheduleSettings, Announcement, PaymentAllocation, AllocatedRentPayment, AllocatedDuePayment, CompanyFundsExpense, DeletedClientBackup, PcIssue, NotificationSettings, TechSupportRequest, ContractTemplate, Vehicle, VehicleBooking, VehicleCategory } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,6 +58,19 @@ import {
 } from '@/actions/chat-actions';
 import { serverAddDemoRequest, serverGetDemoRequests } from '@/actions/demo-actions';
 import { calculateTenantBalance, calculateTenantBalanceBreakdown } from '@/lib/utils';
+import {
+  buildScopedCollectionQuery,
+  shouldListenToSystemSettings,
+} from '@/lib/firestore-query-scope';
+import {
+  calculateBookingTotal,
+  findConflictingBooking,
+  resolveBookingLifecycleStatus,
+} from '@/lib/vehicle-booking-status';
+import {
+  DEFAULT_VEHICLE_CATEGORIES,
+  DEFAULT_VEHICLE_CATEGORY_SEED_KEY,
+} from '@/lib/vehicle-categories';
 
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -87,6 +100,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [rawTechSupportRequests, setRawTechSupportRequests] = useState<TechSupportRequest[]>([]);
   const [rawContractTemplatesState, setRawContractTemplatesState] = useState<ContractTemplate[]>([]);
   const [rawVehiclesState, setRawVehiclesState] = useState<Vehicle[]>([]);
+  const [rawVehicleBookingsState, setRawVehicleBookingsState] = useState<VehicleBooking[]>([]);
+  const [rawVehicleCategoriesState, setRawVehicleCategoriesState] = useState<VehicleCategory[]>([]);
 
 
   const [viewingAsClientId, setViewingAsClientId] = useState<string | null>(null);
@@ -96,7 +111,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Firestore listeners
   useEffect(() => {
-    if (!authIsAuthenticated) {
+    if (!authIsAuthenticated || !authUser) {
       setRawClientsState([]);
       setRawTenantsState([]);
       setRawPaymentsState([]);
@@ -114,6 +129,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setRawTechSupportRequests([]);
       setRawContractTemplatesState([]);
       setRawVehiclesState([]);
+      setRawVehicleBookingsState([]);
+      setRawVehicleCategoriesState([]);
       setBackupScheduleSettings(null);
       setSystemTimezoneState(DEFAULT_TIMEZONE);
       setIsDataLoading(false);
@@ -142,42 +159,64 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       { name: 'techSupportRequests', setter: setRawTechSupportRequests, label: 'tech support requests' },
       { name: 'contractTemplates', setter: setRawContractTemplatesState, label: 'contract templates' },
       { name: 'vehicles', setter: setRawVehiclesState, label: 'vehicles' },
+      { name: 'vehicleBookings', setter: setRawVehicleBookingsState, label: 'vehicle bookings' },
+      { name: 'vehicleCategories', setter: setRawVehicleCategoriesState, label: 'vehicle categories' },
     ];
     
-    const unsubs = collectionsToListen.map(coll => 
-      onSnapshot(query(collection(db, coll.name)),
+    const activeListeners = collectionsToListen.flatMap((coll) => {
+      const scopedQuery = buildScopedCollectionQuery(coll.name, authUser);
+      if (!scopedQuery) {
+        (coll.setter as (items: unknown[]) => void)([]);
+        return [];
+      }
+
+      const unsub = onSnapshot(
+        scopedQuery,
         (snapshot) => {
           if (!isMounted) return;
-          const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          coll.setter(items);
-        }, 
+          const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          (coll.setter as (items: unknown[]) => void)(items);
+        },
         (error) => {
           if (!isMounted) return;
           console.error(`Error fetching ${coll.label}: `, error);
           toast({ variant: "destructive", title: `Error loading ${coll.label}`, description: error.message });
         }
-      )
-    );
-
-    const settingsDocRef = doc(db, 'systemSettings', 'main');
-    const unsubSettings = onSnapshot(settingsDocRef, (doc) => {
-      if (isMounted) {
-        if (doc.exists()) {
-          const settingsData = doc.data();
-          setSystemTimezoneState(settingsData.timezone || DEFAULT_TIMEZONE);
-          setBackupScheduleSettings(settingsData.backupSchedule || null);
-        } else {
-          setSystemTimezoneState(DEFAULT_TIMEZONE);
-          setBackupScheduleSettings(null);
-        }
-      }
-    }, (error) => {
-      if (isMounted) console.error("Error fetching system settings:", error);
+      );
+      return [unsub];
     });
-    unsubs.push(unsubSettings);
 
+    const unsubs = [...activeListeners];
 
-    Promise.all(collectionsToListen.map(c => getDocs(query(collection(db, c.name))))).then(() => {
+    if (shouldListenToSystemSettings(authUser)) {
+      const settingsDocRef = doc(db, 'systemSettings', 'main');
+      const unsubSettings = onSnapshot(settingsDocRef, (docSnap) => {
+        if (isMounted) {
+          if (docSnap.exists()) {
+            const settingsData = docSnap.data();
+            setSystemTimezoneState(settingsData.timezone || DEFAULT_TIMEZONE);
+            setBackupScheduleSettings(settingsData.backupSchedule || null);
+          } else {
+            setSystemTimezoneState(DEFAULT_TIMEZONE);
+            setBackupScheduleSettings(null);
+          }
+        }
+      }, (error) => {
+        if (isMounted) console.error("Error fetching system settings:", error);
+      });
+      unsubs.push(unsubSettings);
+    } else {
+      setSystemTimezoneState(DEFAULT_TIMEZONE);
+      setBackupScheduleSettings(null);
+    }
+
+    Promise.all(
+      collectionsToListen.map(async (coll) => {
+        const scopedQuery = buildScopedCollectionQuery(coll.name, authUser);
+        if (!scopedQuery) return;
+        await getDocs(scopedQuery);
+      })
+    ).then(() => {
         if (isMounted) {
             setInitialLoadComplete(true);
             setIsDataLoading(false);
@@ -193,7 +232,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isMounted = false;
       unsubs.forEach(unsub => unsub());
     };
-  }, [authIsAuthenticated, toast]);
+  }, [authIsAuthenticated, authUser, toast]);
 
   const setViewMode = (clientId: string | null) => {
     setViewingAsClientId(clientId);
@@ -234,7 +273,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       case 'ISP_Subscription':
         return { single: 'Subscriber', plural: 'Subscribers' };
       case 'Vehicle_Rental':
-        return { single: 'Renter', plural: 'Bookings' };
+        return { single: 'Renter', plural: 'Renters' };
       default:
         return { single: 'Tenant', plural: 'Tenants' };
     }
@@ -256,6 +295,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!clientId && authUser?.isSuperAdmin) return rawVehiclesState;
     return rawVehiclesState.filter(v => v.clientId === clientId);
   }, [rawVehiclesState, getScopedClientId, authIsAuthenticated, authUser]);
+
+  const vehicleBookings = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    if (!clientId && authUser?.isSuperAdmin) return rawVehicleBookingsState;
+    return rawVehicleBookingsState.filter((b) => b.clientId === clientId);
+  }, [rawVehicleBookingsState, getScopedClientId, authIsAuthenticated, authUser]);
+
+  const vehicleCategories = useMemo(() => {
+    if (!authIsAuthenticated) return [];
+    const clientId = getScopedClientId();
+    if (!clientId && authUser?.isSuperAdmin) return rawVehicleCategoriesState;
+    return rawVehicleCategoriesState
+      .filter((c) => c.clientId === clientId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [rawVehicleCategoriesState, getScopedClientId, authIsAuthenticated, authUser]);
 
   const payments = useMemo(() => {
     if (!authIsAuthenticated) return [];
@@ -350,10 +405,184 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return [];
   }, [rawTechSupportRequests, authIsAuthenticated, authUser, getScopedClientId]);
 
-  const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => {
+  // One-time migration: legacy tenant vehicle fields -> vehicleBookings collection
+  useEffect(() => {
+    if (!authIsAuthenticated || !initialLoadComplete) return;
+    if (activeClient?.businessType !== 'Vehicle_Rental') return;
+    const clientId = getScopedClientId();
+    if (!clientId) return;
+
+    const migrationKey = `vehicleBookingsMigrated_${clientId}`;
+    if (typeof window !== 'undefined' && localStorage.getItem(migrationKey) === 'done') return;
+
+    const legacyTenants = rawTenantsState.filter(
+      (t) =>
+        t.clientId === clientId &&
+        t.vehicleId &&
+        (t.rentStartDate || t.rentEndDate || t.status === 'active')
+    );
+    if (legacyTenants.length === 0) {
+      if (typeof window !== 'undefined') localStorage.setItem(migrationKey, 'done');
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const batch = writeBatch(db);
+        let writes = 0;
+
+        for (const tenant of legacyTenants) {
+          if (!tenant.vehicleId) continue;
+          const vehicle = rawVehiclesState.find((v) => v.id === tenant.vehicleId);
+          const startDate = tenant.rentStartDate || tenant.joinDate;
+          const endDate = tenant.rentEndDate || tenant.contractEndDate || startDate;
+          const dailyRate = vehicle?.dailyRate ?? tenant.monthlyRentalRate ?? 0;
+          const totalAmount = calculateBookingTotal(dailyRate, startDate, endDate);
+
+          const bookingRef = doc(collection(db, 'vehicleBookings'));
+          const bookingPayload: Omit<VehicleBooking, 'id'> = {
+            clientId,
+            renterId: tenant.id,
+            vehicleId: tenant.vehicleId,
+            startDate,
+            endDate,
+            dailyRate,
+            totalAmount,
+            status: resolveBookingLifecycleStatus({
+              id: bookingRef.id,
+              clientId,
+              renterId: tenant.id,
+              vehicleId: tenant.vehicleId,
+              startDate,
+              endDate,
+              dailyRate,
+              totalAmount,
+              status: 'reserved',
+              createdAt: new Date().toISOString(),
+            }),
+            createdAt: new Date().toISOString(),
+          };
+          batch.set(bookingRef, bookingPayload);
+          writes++;
+
+          const tenantRef = doc(db, 'tenants', tenant.id);
+          batch.update(tenantRef, {
+            vehicleId: deleteField(),
+            rentStartDate: deleteField(),
+            rentEndDate: deleteField(),
+            monthlyRentalRate: 0,
+          });
+          writes++;
+
+          if (vehicle && vehicle.status !== 'Maintenance') {
+            batch.update(doc(db, 'vehicles', vehicle.id), { status: 'Available' });
+            writes++;
+          }
+        }
+
+        if (writes > 0 && !cancelled) {
+          await batch.commit();
+        }
+        if (!cancelled && typeof window !== 'undefined') {
+          localStorage.setItem(migrationKey, 'done');
+        }
+      } catch (error) {
+        console.error('Vehicle booking migration failed:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authIsAuthenticated,
+    initialLoadComplete,
+    activeClient?.businessType,
+    getScopedClientId,
+    rawTenantsState,
+    rawVehiclesState,
+  ]);
+
+  // Seed default vehicle categories and assign legacy vehicles without categoryId
+  useEffect(() => {
+    if (!authIsAuthenticated || !initialLoadComplete) return;
+    if (activeClient?.businessType !== 'Vehicle_Rental') return;
+    const clientId = getScopedClientId();
+    if (!clientId) return;
+
+    const seedKey = `${DEFAULT_VEHICLE_CATEGORY_SEED_KEY}_${clientId}`;
+    const clientCategories = rawVehicleCategoriesState.filter((c) => c.clientId === clientId);
+    const needsSeed =
+      typeof window !== 'undefined' &&
+      localStorage.getItem(seedKey) !== 'done' &&
+      clientCategories.length === 0;
+
+    const legacyVehicles = rawVehiclesState.filter(
+      (v) => v.clientId === clientId && !v.categoryId
+    );
+
+    if (!needsSeed && legacyVehicles.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let categories = clientCategories;
+
+        if (needsSeed && categories.length === 0) {
+          const batch = writeBatch(db);
+          const created: VehicleCategory[] = [];
+          for (const name of DEFAULT_VEHICLE_CATEGORIES) {
+            const ref = doc(collection(db, 'vehicleCategories'));
+            const payload: Omit<VehicleCategory, 'id'> = {
+              clientId,
+              name,
+              createdAt: new Date().toISOString(),
+            };
+            batch.set(ref, payload);
+            created.push({ id: ref.id, ...payload });
+          }
+          if (!cancelled) {
+            await batch.commit();
+            categories = created;
+            if (typeof window !== 'undefined') localStorage.setItem(seedKey, 'done');
+          }
+        }
+
+        if (legacyVehicles.length === 0 || cancelled) return;
+
+        const sedanCategory =
+          categories.find((c) => c.name === 'Sedan') ?? categories[0];
+        if (!sedanCategory) return;
+
+        const batch = writeBatch(db);
+        for (const vehicle of legacyVehicles) {
+          batch.update(doc(db, 'vehicles', vehicle.id), {
+            categoryId: sedanCategory.id,
+          });
+        }
+        if (!cancelled) await batch.commit();
+      } catch (error) {
+        console.error('Vehicle category seed/migration failed:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authIsAuthenticated,
+    initialLoadComplete,
+    activeClient?.businessType,
+    getScopedClientId,
+    rawVehicleCategoriesState,
+    rawVehiclesState,
+  ]);
+
+  const addTenant = async (tenantData: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>): Promise<string | undefined> => {
     if (!authIsAuthenticated) {
       toast({ variant: "destructive", title: "Unauthorized", description: "You must be logged in." });
-      return;
+      return undefined;
     }
     const determinedClientId: string | undefined = getScopedClientId();
     
@@ -386,18 +615,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         };
         batch.set(paymentRef, paymentData);
       }
-      
-      // Update vehicle status to Rented if assigned
-      if (tenantData.vehicleId) {
+
+      const isVehicleRentalClient = activeClient?.businessType === 'Vehicle_Rental';
+      if (!isVehicleRentalClient && tenantData.vehicleId) {
         const vehicleRef = doc(db, 'vehicles', tenantData.vehicleId);
         batch.update(vehicleRef, { status: 'Rented' });
       }
 
       await batch.commit();
+      return tenantRef.id;
 
     } catch (error: any) {
       console.error("Error adding tenant to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add ${terminology.single}: ${error.message}` });
+      return undefined;
     }
   };
 
@@ -413,6 +644,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const batch = writeBatch(db);
 
         const originalTenant = rawTenantsState.find(t => t.id === id);
+        const originalClient = originalTenant?.clientId
+          ? rawClientsState.find((c) => c.id === originalTenant.clientId)
+          : activeClient;
+        const isVehicleRentalClient = originalClient?.businessType === 'Vehicle_Rental';
         let newHistory = JSON.parse(JSON.stringify(updatedTenant.rent_history || []));
         let historyWasModified = false;
         
@@ -426,10 +661,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (originalTenant?.roomNumber) {
                 dataToUpdate.roomNumber = deleteField() as any;
             }
-            if (originalTenant?.vehicleId) {
+            if (originalTenant?.vehicleId && !isVehicleRentalClient) {
                 const vehicleRef = doc(db, 'vehicles', originalTenant.vehicleId);
                 batch.update(vehicleRef, { status: 'Available' });
                 dataToUpdate.vehicleId = deleteField() as any;
+            } else if (originalTenant?.vehicleId && isVehicleRentalClient) {
+                dataToUpdate.vehicleId = deleteField() as any;
+                dataToUpdate.rentStartDate = deleteField() as any;
+                dataToUpdate.rentEndDate = deleteField() as any;
             }
         }
         
@@ -489,8 +728,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             batch.set(paymentRef, paymentData);
         }
 
-        // Handle vehicle reassignment
-        if (originalTenant?.vehicleId !== updatedTenant.vehicleId) {
+        if (!isVehicleRentalClient && originalTenant?.vehicleId !== updatedTenant.vehicleId) {
             if (originalTenant?.vehicleId) {
                 const oldVehicleRef = doc(db, 'vehicles', originalTenant.vehicleId);
                 batch.update(oldVehicleRef, { status: 'Available' });
@@ -587,6 +825,176 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: "Vehicle Deleted" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const addVehicleCategory = async (
+    name: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: 'Unauthorized.' };
+    }
+    const clientId = getScopedClientId();
+    if (!clientId) {
+      return { success: false, message: 'No client context.' };
+    }
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return { success: false, message: 'Category name is required.' };
+    }
+    const duplicate = vehicleCategories.some(
+      (c) => c.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      return { success: false, message: 'A category with this name already exists.' };
+    }
+    try {
+      await addDoc(collection(db, 'vehicleCategories'), {
+        clientId,
+        name: trimmed,
+        createdAt: new Date().toISOString(),
+      });
+      toast({ title: 'Category Added', description: `"${trimmed}" has been added.` });
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to add category.';
+      return { success: false, message };
+    }
+  };
+
+  const updateVehicleCategory = async (
+    category: VehicleCategory
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: 'Unauthorized.' };
+    }
+    const trimmed = category.name.trim();
+    if (!trimmed) {
+      return { success: false, message: 'Category name is required.' };
+    }
+    const duplicate = vehicleCategories.some(
+      (c) => c.id !== category.id && c.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      return { success: false, message: 'A category with this name already exists.' };
+    }
+    try {
+      const { id, ...data } = category;
+      await updateDoc(doc(db, 'vehicleCategories', id), { ...data, name: trimmed });
+      toast({ title: 'Category Updated' });
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update category.';
+      return { success: false, message };
+    }
+  };
+
+  const deleteVehicleCategory = async (
+    categoryId: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: 'Unauthorized.' };
+    }
+    const inUse = vehicles.some((v) => v.categoryId === categoryId);
+    if (inUse) {
+      const message = 'This category is assigned to one or more vehicles. Reassign them before deleting.';
+      toast({ variant: 'destructive', title: 'Cannot Delete', description: message });
+      return { success: false, message };
+    }
+    try {
+      await deleteDoc(doc(db, 'vehicleCategories', categoryId));
+      toast({ title: 'Category Deleted' });
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to delete category.';
+      return { success: false, message };
+    }
+  };
+
+  const addVehicleBooking = async (
+    bookingData: Omit<VehicleBooking, 'id' | 'clientId' | 'createdAt' | 'status'>,
+    payment?: {
+      amount: number;
+      paymentMethod: PaymentMethod;
+      discountApplied?: number;
+      discountDescription?: string;
+    }
+  ): Promise<{ success: boolean; message?: string; bookingId?: string }> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: 'Unauthorized.' };
+    }
+    const clientId = getScopedClientId();
+    if (!clientId) {
+      return { success: false, message: 'No client context.' };
+    }
+
+    const conflict = findConflictingBooking(
+      bookingData.vehicleId,
+      bookingData.startDate,
+      bookingData.endDate,
+      rawVehicleBookingsState.filter((b) => b.clientId === clientId)
+    );
+    if (conflict) {
+      return { success: false, message: 'This vehicle is already booked for overlapping dates.' };
+    }
+
+    try {
+      const batch = writeBatch(db);
+      const bookingRef = doc(collection(db, 'vehicleBookings'));
+      const lifecycleStatus = resolveBookingLifecycleStatus({
+        id: bookingRef.id,
+        clientId,
+        ...bookingData,
+        status: 'reserved',
+        createdAt: new Date().toISOString(),
+      });
+
+      const newBooking: Omit<VehicleBooking, 'id'> = {
+        ...bookingData,
+        clientId,
+        status: lifecycleStatus,
+        createdAt: new Date().toISOString(),
+      };
+      batch.set(bookingRef, omitUndefinedFields(newBooking as Record<string, unknown>));
+
+      if (payment && payment.amount > 0) {
+        const paymentRef = doc(collection(db, 'payments'));
+        batch.set(
+          paymentRef,
+          omitUndefinedFields({
+            tenantId: bookingData.renterId,
+            bookingId: bookingRef.id,
+            date: new Date().toISOString(),
+            amount: payment.amount,
+            paymentMethod: payment.paymentMethod,
+            discountApplied: payment.discountApplied || 0,
+            discountDescription: payment.discountDescription || '',
+            clientId,
+          } as Record<string, unknown>)
+        );
+      }
+
+      await batch.commit();
+      return { success: true, bookingId: bookingRef.id };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to create booking.';
+      console.error('Error adding vehicle booking:', error);
+      return { success: false, message };
+    }
+  };
+
+  const cancelVehicleBooking = async (
+    bookingId: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!authIsAuthenticated) {
+      return { success: false, message: 'Unauthorized.' };
+    }
+    try {
+      await updateDoc(doc(db, 'vehicleBookings', bookingId), { status: 'cancelled' });
+      return { success: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to cancel booking.';
+      return { success: false, message };
     }
   };
   
@@ -791,10 +1199,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       checkNumber: paymentData.checkNumber,
       discountApplied: paymentData.discountApplied || 0,
       discountDescription: paymentData.discountDescription || '',
+      ...(paymentData.bookingId ? { bookingId: paymentData.bookingId } : {}),
       ...(determinedClientId && { clientId: determinedClientId })
      };
     try {
-      await addDoc(collection(db, 'payments'), newPaymentData);
+      await addDoc(collection(db, 'payments'), omitUndefinedFields(newPaymentData as Record<string, unknown>));
     } catch (error: any) {
       console.error("Error adding payment to Firestore:", error);
       toast({ variant: "destructive", title: "Firestore Error", description: `Failed to add payment: ${error.message}` });
@@ -1214,7 +1623,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }
         const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
-        const subcollectionsToBackup = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles'];
+        const subcollectionsToBackup = ['tenants', 'payments', 'managedUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles', 'vehicleCategories', 'vehicleBookings'];
         const backupData: Record<string, any[]> = {};
 
         for (const collName of subcollectionsToBackup) {
@@ -1453,7 +1862,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
         const batch = writeBatch(db);
-        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles'];
+        const collectionsToDelete = ['tenants', 'payments', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'companyFundsExpenses', 'vehicles', 'vehicleCategories', 'vehicleBookings'];
         
         for (const collName of collectionsToDelete) {
           const q = query(collection(db, collName), where('clientId', '==', clientId));
@@ -1667,7 +2076,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     toast({ title: "Restore In Progress", description: "This may take a moment. Please wait..." });
 
     const collectionsInBackup = Object.keys(backupData.data);
-    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements', 'companyFundsExpenses', 'vehicles'];
+    const allKnownCollections = ['clients', 'tenants', 'payments', 'managedUsers', 'superAdminUsers', 'expenses', 'additionalDues', 'businesses', 'weeklyIncomes', 'announcements', 'companyFundsExpenses', 'vehicles', 'vehicleCategories', 'vehicleBookings'];
 
     try {
         const allCurrentDocs: { [key: string]: string[] } = {};
@@ -2008,7 +2417,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     terminology,
     techSupportRequests,
     vehicles,
-    
+    vehicleBookings,
+    vehicleCategories,
+
     chatSessions: rawChatSessionsState,
     startChatSession,
     sendChatMessage,
@@ -2041,6 +2452,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addVehicle,
     updateVehicle,
     deleteVehicle,
+
+    addVehicleCategory,
+    updateVehicleCategory,
+    deleteVehicleCategory,
+
+    addVehicleBooking,
+    cancelVehicleBooking,
 
     addPayment,
     updatePayment,

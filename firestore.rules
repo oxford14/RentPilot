@@ -3,11 +3,235 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are permissive and are meant for development.
-    // They allow any authenticated user to read and write all data.
-    // For a production application, you should implement more granular security rules.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.isSuperAdmin == true;
+    }
+
+    function clientId() {
+      return request.auth.token.clientId;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function tenantId() {
+      return request.auth.token.tenantId;
+    }
+
+    function docId() {
+      return request.auth.token.docId;
+    }
+
+    function sameClient(docClientId) {
+      return clientId() == docClientId;
+    }
+
+    function isClientStaff() {
+      return role() in ['admin', 'user', 'hub-admin', 'technician'];
+    }
+
+    function isClientAdmin() {
+      return role() == 'admin';
+    }
+
+    function isTenant() {
+      return role() == 'tenant';
+    }
+
+    function subscriptionFields() {
+      return [
+        'subscriptionStatus',
+        'subscriptionEndDate',
+        'subscriptionPlanName',
+        'subscriptionRate',
+        'subscriptionBillingCycle',
+        'subscriptionStartedAt',
+      ];
+    }
+
+    // ---- Server-only (Admin SDK) ----
+    match /paymongoCheckoutPending/{id} {
+      allow read, write: if false;
+    }
+    match /paymongoProcessedLinks/{id} {
+      allow read, write: if false;
+    }
+    match /paymongoWebhookEvents/{id} {
+      allow read, write: if false;
+    }
+    match /mail/{id} {
+      allow read, write: if false;
+    }
+
+    // ---- Super admin collections ----
+    match /superAdminUsers/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /deletedClients/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /systemSettings/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    match /demoRequests/{id} {
+      allow read, update, delete: if isSuperAdmin();
+      allow create: if false;
+    }
+
+    match /chatSessions/{sessionId} {
+      allow read, write: if isSuperAdmin();
+      match /chatMessages/{messageId} {
+        allow read, write: if isSuperAdmin();
+      }
+    }
+
+    // ---- Clients ----
+    match /clients/{id} {
+      allow read: if isSuperAdmin() || (isSignedIn() && sameClient(id));
+      allow create: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      allow update: if isSuperAdmin()
+        || (isClientAdmin() && sameClient(id)
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(subscriptionFields()));
+    }
+
+    // ---- Client-scoped operational data ----
+    match /tenants/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId))
+        || (isTenant() && id == tenantId());
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /payments/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId))
+        || (isTenant() && resource.data.tenantId == tenantId());
+      allow create, update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+    }
+
+    match /expenses/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /companyFundsExpenses/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /additionalDues/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId))
+        || (isTenant() && resource.data.tenantId == tenantId());
+      allow create, update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+    }
+
+    match /managedUsers/{id} {
+      allow read: if isSuperAdmin() || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create, update, delete: if isSuperAdmin()
+        || (isClientAdmin() && sameClient(request.resource.data.clientId));
+    }
+
+    match /businesses/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /weeklyIncomes/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /vehicles/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /vehicleCategories/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /vehicleBookings/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /contractTemplates/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId));
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId));
+    }
+
+    match /techSupportRequests/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId))
+        || (isTenant() && resource.data.subscriberId == tenantId())
+        || (role() == 'technician' && resource.data.assignedTechnicianId == docId());
+      allow create: if isSuperAdmin()
+        || (isClientStaff() && sameClient(request.resource.data.clientId))
+        || (isTenant() && request.resource.data.subscriberId == tenantId());
+      allow update, delete: if isSuperAdmin()
+        || (isClientStaff() && sameClient(resource.data.clientId))
+        || (role() == 'technician' && resource.data.assignedTechnicianId == docId());
+    }
+
+    match /announcements/{id} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && (resource.data.scope == 'global' || sameClient(resource.data.scope)))
+        || (isTenant() && (resource.data.scope == 'global' || sameClient(resource.data.scope)));
+      allow create, delete: if isSuperAdmin() || isClientAdmin();
+      allow update: if isSuperAdmin()
+        || isClientAdmin()
+        || (isTenant()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
     }
   }
 }

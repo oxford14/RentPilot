@@ -26,7 +26,7 @@ import {
   LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck,
   ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, DatabaseBackup, MapPin,
   MessageSquare, ListPlus, CalendarCheck, Bell, Download, Megaphone, Monitor, PiggyBank,
-  Handshake, Trash2, Ticket, Car, Key, Menu, X
+  Handshake, Trash2, Ticket, Car, Key, Menu, X, Tags
 } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -387,8 +387,8 @@ function AppShellContent({ children }: { children: ReactNode }) {
             let icon = item.icon;
             if(item.href === '/') label = appLabels.dashboard;
             if(item.href === '/tenants') {
-                label = appLabels.tenants;
-                if (activeClientForDisplay?.businessType === 'Vehicle_Rental') icon = Key;
+                label = activeClientForDisplay?.businessType === 'Vehicle_Rental' ? 'Renters Data' : appLabels.tenants;
+                if (activeClientForDisplay?.businessType === 'Vehicle_Rental') icon = Users;
             }
             if(item.href === '/payments') label = appLabels.payments;
             if(item.href === '/additional-dues') label = appLabels.additionalDues;
@@ -403,10 +403,15 @@ function AppShellContent({ children }: { children: ReactNode }) {
         });
 
         if (activeClientForDisplay?.businessType === 'Vehicle_Rental') {
+            const bookingsItem: AppSidebarNavItem = { isGroup: false, href: '/bookings', label: 'Booking', icon: CalendarCheck };
             const vehiclesItem: AppSidebarNavItem = { isGroup: false, href: '/vehicles', label: 'Fleet Management', icon: Car };
+            const categoriesItem: AppSidebarNavItem = { isGroup: false, href: '/vehicle-categories', label: 'Vehicle Categories', icon: Tags };
             const tenantsIndex = currentAppNavItems.findIndex(item => !item.isGroup && item.href === '/tenants');
-            if (tenantsIndex !== -1) currentAppNavItems.splice(tenantsIndex + 1, 0, vehiclesItem);
-            else currentAppNavItems.push(vehiclesItem);
+            if (tenantsIndex !== -1) {
+              currentAppNavItems.splice(tenantsIndex + 1, 0, bookingsItem, vehiclesItem, categoriesItem);
+            } else {
+              currentAppNavItems.push(bookingsItem, vehiclesItem, categoriesItem);
+            }
         }
 
         if (activeClientForDisplay?.businessType === 'PC_Rental' || activeClientForDisplay?.businessType === 'ISP_Subscription') {

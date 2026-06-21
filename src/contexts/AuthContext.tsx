@@ -6,13 +6,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Client, AuthContextType } from '@/lib/types';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { signInWithCustomToken, signOut as firebaseSignOut } from 'firebase/auth';
 import { serverVerifyCredentials } from '@/actions/user-actions';
+import { serverCreateFirebaseCustomToken } from '@/actions/auth-actions';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'rentPilotAuth'; 
+const AUTH_STORAGE_KEY = 'rentPilotAuth';
+
+async function establishFirebaseSession(user: User, token?: string): Promise<void> {
+  const firebaseToken = token ?? (await serverCreateFirebaseCustomToken(user));
+  await signInWithCustomToken(auth, firebaseToken);
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -22,20 +29,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    try {
-      const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (storedAuth) {
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!storedAuth) {
+          return;
+        }
+
         const parsedAuth = JSON.parse(storedAuth);
-        if (parsedAuth.isAuthenticated && parsedAuth.user) {
+        if (!parsedAuth.isAuthenticated || !parsedAuth.user) {
+          return;
+        }
+
+        await establishFirebaseSession(parsedAuth.user as User);
+        if (!cancelled) {
           setIsAuthenticated(true);
           setUser(parsedAuth.user);
         }
+      } catch (error) {
+        console.error('Failed to restore auth session', error);
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        try {
+          await firebaseSignOut(auth);
+        } catch {
+          // Ignore sign-out errors during cleanup.
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-    } catch (error) {
-      console.error("Failed to load auth state from localStorage", error);
-      localStorage.removeItem(AUTH_STORAGE_KEY); 
     }
-    setIsLoading(false);
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (
@@ -44,9 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-        const validatedUser = await serverVerifyCredentials(usernameInput, passwordInput);
+        const loginResult = await serverVerifyCredentials(usernameInput, passwordInput);
 
-        if (validatedUser) {
+        if (loginResult) {
+            const { user: validatedUser, firebaseToken } = loginResult;
+            await signInWithCustomToken(auth, firebaseToken);
+
             setIsAuthenticated(true);
             setUser(validatedUser);
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ isAuthenticated: true, user: validatedUser }));
@@ -64,7 +99,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     const roleName = validatedUser.role ? validatedUser.role.charAt(0).toUpperCase() + validatedUser.role.slice(1) : 'User';
                     toastDescription = `Welcome, ${roleName} ${validatedUser.username} from ${clientName}!`;
                 } catch (e) {
-                    // Could fail if client is deleted but user still exists. Fallback.
                     console.error("Could not fetch client name for login toast:", e);
                 }
             }
@@ -92,10 +126,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [router, toast]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setIsAuthenticated(false);
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Firebase sign-out error:', error);
+    }
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
     router.push('/login');
   }, [router, toast]);

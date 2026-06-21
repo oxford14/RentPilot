@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -21,12 +21,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import {
+  formatShortDate,
+  getVehicleAvailability,
+  isBookingCompleted,
+  vehicleDisplayStatusColors,
+} from '@/lib/vehicle-booking-status';
+import type { Vehicle } from '@/lib/types';
 
 export default function VehiclesPage() {
-  const { vehicles, deleteVehicle, tenants, activeClient } = useAppContext();
+  const { vehicles, deleteVehicle, tenants, vehicleBookings, vehicleCategories, activeClient } = useAppContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingVehicle, setEditingVehicle] = useState<any>(null);
-  const [vehicleToDelete, setVehicleToDelete] = useState<any>(null);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredVehicles = useMemo(() => {
@@ -37,22 +44,26 @@ export default function VehiclesPage() {
     );
   }, [vehicles, searchTerm]);
 
-  const handleOpenForm = (vehicle?: any) => {
+  const handleOpenForm = (vehicle?: Vehicle) => {
     setEditingVehicle(vehicle || null);
     setIsFormOpen(true);
   };
 
-  const statusColors = {
-    Available: 'bg-green-500/20 text-green-700 border-green-400',
-    Rented: 'bg-blue-500/20 text-blue-700 border-blue-400',
-    Maintenance: 'bg-yellow-500/20 text-yellow-700 border-yellow-400',
+  const getCategoryName = (categoryId?: string) => {
+    if (!categoryId) return 'Uncategorized';
+    return vehicleCategories.find((c) => c.id === categoryId)?.name ?? 'Uncategorized';
   };
 
-  const getAssignedRenter = (vehicleId: string) => {
-    return tenants.find(t => t.vehicleId === vehicleId && t.status === 'active');
+  const getActiveBookingInfo = (vehicleId: string) => {
+    const openBookings = vehicleBookings
+      .filter((b) => b.vehicleId === vehicleId && b.status !== 'cancelled' && !isBookingCompleted(b))
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const booking = openBookings[0];
+    if (!booking) return null;
+    const renter = tenants.find((t) => t.id === booking.renterId);
+    return { booking, renter };
   };
 
-  // Improved check: if activeClient is still loading, don't show the error yet.
   if (activeClient && activeClient.businessType !== 'Vehicle_Rental') {
     return (
         <div className="container mx-auto py-12 text-center">
@@ -72,14 +83,14 @@ export default function VehiclesPage() {
     <div className="container mx-auto py-2 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline flex items-center">
-            <Car className="mr-3 h-8 w-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold font-headline flex items-center">
+            <Car className="mr-3 h-8 w-8 text-primary shrink-0" />
             Fleet Management
           </h1>
           <p className="text-muted-foreground">Manage your vehicles and their rental status.</p>
         </div>
-        <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto h-12 text-lg">
-          <PlusCircle className="mr-2 h-6 w-6" /> Add New Vehicle
+        <Button onClick={() => handleOpenForm()} variant="default" className="shadow-md hover:shadow-lg transition-shadow w-full sm:w-auto h-12">
+          <PlusCircle className="mr-2 h-5 w-5" /> Add New Vehicle
         </Button>
       </div>
 
@@ -96,38 +107,53 @@ export default function VehiclesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border shadow-sm overflow-hidden bg-card">
+          <div className="rounded-lg border shadow-sm overflow-x-auto bg-card">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
-                  <TableHead>Plate Number</TableHead>
+                  <TableHead className="hidden sm:table-cell">Plate Number</TableHead>
+                  <TableHead className="hidden md:table-cell">Category</TableHead>
                   <TableHead>Daily Rate</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Current Renter</TableHead>
+                  <TableHead className="hidden md:table-cell">Current Renter</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => {
-                  const renter = getAssignedRenter(vehicle.id);
+                  const availability = getVehicleAvailability(vehicle, vehicleBookings);
+                  const bookingInfo = getActiveBookingInfo(vehicle.id);
                   return (
                     <TableRow key={vehicle.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell className="font-medium">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
+                        <div>
+                          {vehicle.year} {vehicle.make} {vehicle.model}
+                          <p className="text-xs text-muted-foreground sm:hidden">{vehicle.plateNumber}</p>
+                        </div>
                       </TableCell>
-                      <TableCell>{vehicle.plateNumber}</TableCell>
-                      <TableCell>₱{vehicle.dailyRate.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("text-xs", statusColors[vehicle.status as keyof typeof statusColors])}>
-                          {vehicle.status}
+                      <TableCell className="hidden sm:table-cell">{vehicle.plateNumber}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {getCategoryName(vehicle.categoryId)}
                         </Badge>
                       </TableCell>
+                      <TableCell>₱{vehicle.dailyRate.toLocaleString()}</TableCell>
                       <TableCell>
-                        {renter ? (
+                        <Badge variant="outline" className={cn("text-xs", vehicleDisplayStatusColors[availability.displayStatus])}>
+                          {availability.displayStatus}
+                        </Badge>
+                        {availability.subtitle && (
+                          <p className="text-[10px] text-muted-foreground mt-1 max-w-[140px] leading-tight">{availability.subtitle}</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {bookingInfo?.renter ? (
                           <div className="flex flex-col">
-                            <span className="text-sm font-semibold">{renter.name}</span>
-                            <span className="text-xs text-muted-foreground">Ends: {renter.rentEndDate ? new Date(renter.rentEndDate).toLocaleDateString() : 'N/A'}</span>
+                            <span className="text-sm font-semibold">{bookingInfo.renter.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatShortDate(bookingInfo.booking.startDate)} – {formatShortDate(bookingInfo.booking.endDate)}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">None</span>
@@ -137,7 +163,7 @@ export default function VehiclesPage() {
                         <Button variant="outline" size="sm" onClick={() => handleOpenForm(vehicle)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => setVehicleToDelete(vehicle)} disabled={!!renter}>
+                        <Button variant="destructive" size="sm" onClick={() => setVehicleToDelete(vehicle)} disabled={!!bookingInfo}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -145,7 +171,7 @@ export default function VehiclesPage() {
                   );
                 }) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                       <Car className="mx-auto h-12 w-12 opacity-20 mb-2" />
                       <p>No vehicles found in your fleet.</p>
                       <Button variant="link" onClick={() => handleOpenForm()}>Add your first vehicle</Button>

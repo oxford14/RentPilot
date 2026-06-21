@@ -13,11 +13,11 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown, Car, CalendarClock } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserX, Edit, Trash2, KeyRound, MessageSquare, RefreshCw, UserSearch, FileUp, FileText as FileViewIcon, ArrowUp, ArrowDown, CalendarClock } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, addMinutes, isBefore, isAfter, startOfDay } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +45,7 @@ type SortKey = 'name' | 'joinDate' | 'contractEndDate';
 type SortDirection = 'ascending' | 'descending';
 
 export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTableProps) {
-  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract, activeClient, vehicles, terminology } = useAppContext();
+  const { tenants, clients, updateTenant, attemptDeleteTenant, generateTenantAccount, resetTenantPassword, deleteSignedContract, activeClient, terminology } = useAppContext();
   const { toast } = useToast();
   
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
@@ -169,30 +169,6 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setSortConfig({ key, direction });
   };
 
-  const getVehicleInfo = (vehicleId?: string) => {
-    if (!vehicleId) return 'N/A';
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    return vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.plateNumber})` : 'N/A';
-  };
-
-  const getBookingStatus = (tenant: Tenant) => {
-    if (tenant.status === 'inactive') return { label: 'Inactive', color: 'bg-gray-500/20 text-gray-700 border-gray-400' };
-    
-    const today = startOfDay(new Date());
-    const start = tenant.rentStartDate ? startOfDay(new Date(tenant.rentStartDate)) : null;
-    const end = tenant.rentEndDate ? startOfDay(new Date(tenant.rentEndDate)) : null;
-    
-    if (!start || !end) return { label: 'Ongoing', color: 'bg-green-500/20 text-green-700 border-green-400' };
-    
-    if (isBefore(today, start)) {
-        return { label: 'Upcoming', color: 'bg-blue-500/20 text-blue-700 border-blue-400' };
-    }
-    if (isAfter(today, end)) {
-        return { label: 'Completed', color: 'bg-purple-500/20 text-purple-700 border-purple-400' };
-    }
-    return { label: 'Ongoing', color: 'bg-green-500/20 text-green-700 border-green-400' };
-  };
-
   const displayedTenants = useMemo(() => {
     const desiredStatus = showInactiveTenants ? 'inactive' : 'active';
     let filtered = [...tenants].filter(tenant => tenant.status === desiredStatus);
@@ -265,26 +241,35 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                    Name {getSortIcon('name')}
                  </Button>
               </TableHead>
-              {isVehicleRental && <TableHead>Status</TableHead>}
-              {isVehicleRental && <TableHead>Vehicle Assigned</TableHead>}
-              <TableHead className="hidden md:table-cell">Phone</TableHead>
-              <TableHead className="text-right">{isVehicleRental ? 'Rate' : 'Rent'} (₱)</TableHead>
-              <TableHead className="hidden md:table-cell text-center">
-                 <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
-                    {isVehicleRental ? 'Start Date' : 'Join Date'} {getSortIcon('joinDate')}
-                 </Button>
-              </TableHead>
-              <TableHead className="hidden md:table-cell text-center">
-                 <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1">
-                    {isVehicleRental ? 'Return Date' : 'Contract End'} {getSortIcon('contractEndDate')}
-                 </Button>
-              </TableHead>
+              {isVehicleRental ? (
+                <>
+                  <TableHead className="hidden sm:table-cell">Phone</TableHead>
+                  <TableHead>Status</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead className="hidden md:table-cell">Phone</TableHead>
+                  <TableHead className="text-right">Rent (₱)</TableHead>
+                  <TableHead className="hidden md:table-cell text-center">
+                     <Button variant="ghost" onClick={() => requestSort('joinDate')} className="px-1">
+                        Join Date {getSortIcon('joinDate')}
+                     </Button>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell text-center">
+                     <Button variant="ghost" onClick={() => requestSort('contractEndDate')} className="px-1">
+                        Contract End {getSortIcon('contractEndDate')}
+                     </Button>
+                  </TableHead>
+                </>
+              )}
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {displayedTenants.map((tenant) => {
-              const bStatus = getBookingStatus(tenant);
+              const renterStatus = tenant.status === 'active'
+                ? { label: 'Active', color: 'bg-green-500/20 text-green-700 border-green-400' }
+                : { label: 'Inactive', color: 'bg-gray-500/20 text-gray-700 border-gray-400' };
               return (
                 <TableRow key={tenant.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium">
@@ -293,32 +278,30 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
                        <span className="text-xs text-muted-foreground">{tenant.email}</span>
                     </div>
                   </TableCell>
-                  {isVehicleRental && (
-                    <TableCell>
-                        <Badge variant="outline" className={cn("text-xs", bStatus.color)}>
-                            {bStatus.label}
+                  {isVehicleRental ? (
+                    <>
+                      <TableCell className="hidden sm:table-cell">{tenant.phone}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("text-xs", renterStatus.color)}>
+                          {renterStatus.label}
                         </Badge>
-                    </TableCell>
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
+                      <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
+                      <TableCell className="hidden md:table-cell text-center">
+                        {formatUtcDate(tenant.joinDate)}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-center">
+                        <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
+                          {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
+                          {formatUtcDate(tenant.contractEndDate)}
+                        </Badge>
+                      </TableCell>
+                    </>
                   )}
-                  {isVehicleRental && (
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-xs">
-                        <Car className="h-3 w-3 text-primary" />
-                        <span className="truncate max-w-[150px]">{getVehicleInfo(tenant.vehicleId)}</span>
-                      </div>
-                    </TableCell>
-                  )}
-                  <TableCell className="hidden md:table-cell">{tenant.phone}</TableCell>
-                  <TableCell className="text-right">{tenant.monthlyRentalRate.toLocaleString()}</TableCell>
-                  <TableCell className="hidden md:table-cell text-center">
-                    {isVehicleRental ? formatUtcDate(tenant.rentStartDate) : formatUtcDate(tenant.joinDate)}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-center">
-                    <Badge variant={tenant.signedContractUrl ? "outline" : "secondary"} className="gap-1">
-                      {tenant.signedContractUrl && <FileViewIcon className="h-3 w-3" />}
-                      {isVehicleRental ? formatUtcDate(tenant.rentEndDate) : formatUtcDate(tenant.contractEndDate)}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

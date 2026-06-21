@@ -73,9 +73,17 @@ export interface Vehicle {
   plateNumber: string;
   status: 'Available' | 'Rented' | 'Maintenance';
   dailyRate: number;
+  categoryId?: string;
 }
 
-export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
+export interface VehicleCategory {
+  id: string;
+  clientId: string;
+  name: string;
+  createdAt: string;
+}
+
+export type PaymentMethod = 'Credit Card' | 'Bank Transfer' | 'Cash' | 'Gcash' | 'PayMaya' | 'Check' | 'From Deposit' | 'From Credit' | 'Security Deposit' | 'Other';
 
 export interface Payment {
   id: string; // Firestore document ID
@@ -85,8 +93,35 @@ export interface Payment {
   paymentMethod?: PaymentMethod;
   checkNumber?: string;
   discountApplied?: number;
-  discountDescription?: string; 
+  discountDescription?: string;
+  bookingId?: string;
   clientId?: string; // Firestore document ID of the client, or undefined/null for global payments
+}
+
+export type VehicleBookingStatus = 'reserved' | 'active' | 'completed' | 'cancelled';
+
+export interface VehicleBooking {
+  id: string;
+  clientId: string;
+  renterId: string;
+  vehicleId: string;
+  startDate: string;
+  endDate: string;
+  dailyRate: number;
+  totalAmount: number;
+  downPayment?: number;
+  status: VehicleBookingStatus;
+  createdAt: string;
+}
+
+export type VehicleDisplayStatus = 'Available' | 'Reserved' | 'Rented' | 'Maintenance';
+
+export interface VehicleAvailabilityInfo {
+  displayStatus: VehicleDisplayStatus;
+  subtitle?: string;
+  activeBooking?: VehicleBooking;
+  upcomingBooking?: VehicleBooking;
+  availableFrom?: string;
 }
 
 export type PcSubIssue = {
@@ -421,7 +456,9 @@ export interface AppContextType {
   terminology: { single: string; plural: string };
   techSupportRequests: TechSupportRequest[];
   vehicles: Vehicle[];
-  
+  vehicleBookings: VehicleBooking[];
+  vehicleCategories: VehicleCategory[];
+
   // Chat
   chatSessions: ChatSession[];
   startChatSession: (visitorId: string, initialMessage: { text: string }) => Promise<string>;
@@ -433,7 +470,7 @@ export interface AppContextType {
   updateSystemTimezone: (timezone: string) => void;
   updateBackupScheduleSettings: (settings: BackupScheduleSettings) => Promise<void>;
 
-  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<void>;
+  addTenant: (tenant: Omit<Tenant, 'id' | 'clientId' | 'rent_history'>) => Promise<string | undefined>;
   updateTenant: (tenant: Tenant, rentAdjustmentDate?: string) => Promise<void>;
   attemptDeleteTenant: (tenantId: string) => Promise<AttemptDeleteTenantResult>;
   generateTenantAccount: (tenantId: string) => Promise<{success: boolean, username?: string, password?: string, message?: string}>;
@@ -456,7 +493,22 @@ export interface AppContextType {
   updateVehicle: (vehicle: Vehicle) => Promise<void>;
   deleteVehicle: (vehicleId: string) => Promise<void>;
 
-  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod }) => Promise<void>;
+  addVehicleCategory: (name: string) => Promise<{ success: boolean; message?: string }>;
+  updateVehicleCategory: (category: VehicleCategory) => Promise<{ success: boolean; message?: string }>;
+  deleteVehicleCategory: (categoryId: string) => Promise<{ success: boolean; message?: string }>;
+
+  addVehicleBooking: (
+    booking: Omit<VehicleBooking, 'id' | 'clientId' | 'createdAt' | 'status'>,
+    payment?: {
+      amount: number;
+      paymentMethod: PaymentMethod;
+      discountApplied?: number;
+      discountDescription?: string;
+    }
+  ) => Promise<{ success: boolean; message?: string; bookingId?: string }>;
+  cancelVehicleBooking: (bookingId: string) => Promise<{ success: boolean; message?: string }>;
+
+  addPayment: (payment: Omit<Payment, 'id' | 'clientId'> & { discountApplied?: number; discountDescription?: string; paymentMethod?: PaymentMethod; bookingId?: string }) => Promise<void>;
   updatePayment: (payment: Payment) => Promise<void>;
   deletePayment: (paymentId: string) => Promise<void>;
   applySecurityDeposit: (tenantId: string, amountToApply: number) => Promise<void>;

@@ -1,8 +1,63 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if true;
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.isSuperAdmin == true;
+    }
+
+    function clientId() {
+      return request.auth.token.clientId;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function tenantId() {
+      return request.auth.token.tenantId;
+    }
+
+    function isClientStaff() {
+      return role() in ['admin', 'user', 'hub-admin', 'technician'];
+    }
+
+    function isClientAdmin() {
+      return role() == 'admin';
+    }
+
+    function isTenant() {
+      return role() == 'tenant';
+    }
+
+    function tenantBelongsToClient(tId) {
+      return firestore.get(/databases/(default)/documents/tenants/$(tId)).data.clientId == clientId();
+    }
+
+    match /client_logos/{fileName} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || (isClientAdmin() && isSignedIn());
+    }
+
+    match /signed_contracts/{tId}/{fileName} {
+      allow read: if isSuperAdmin()
+        || (isClientStaff() && tenantBelongsToClient(tId))
+        || (isTenant() && tenantId() == tId);
+      allow write: if isSuperAdmin()
+        || (isClientStaff() && role() in ['admin', 'user'] && tenantBelongsToClient(tId));
+      allow delete: if isSuperAdmin()
+        || (isClientStaff() && role() in ['admin', 'user'] && tenantBelongsToClient(tId));
+    }
+
+    match /ticket_attachments/{cId}/{fileName} {
+      allow read: if isSuperAdmin() || (isSignedIn() && clientId() == cId);
+      allow create: if isTenant() && clientId() == cId;
+      allow delete: if isSuperAdmin() || (isClientAdmin() && clientId() == cId);
     }
   }
 }

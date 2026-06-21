@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,6 +15,7 @@ import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const tenantFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -40,7 +41,7 @@ interface TenantFormProps {
 }
 
 export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
-  const { addTenant, updateTenant, activeClient, vehicles, terminology } = useAppContext();
+  const { addTenant, updateTenant, activeClient, terminology } = useAppContext();
   const { toast } = useToast();
   const [initialRentRate, setInitialRentRate] = useState<number | null>(null);
 
@@ -94,7 +95,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
   const rentRateChanged = tenant && initialRentRate !== null && watchedRentRate !== initialRentRate;
 
   const onSubmit = (data: TenantFormValues) => {
-    if (rentRateChanged && !data.rentAdjustmentDate) {
+    if (!isVehicleRental && rentRateChanged && !data.rentAdjustmentDate) {
       form.setError("rentAdjustmentDate", { type: "manual", message: "Effective date is required for rent changes." });
       return;
     }
@@ -110,35 +111,53 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
         monthlyDueDay: restOfData.monthlyDueDay || null,
       };
 
-      if (vehicleId && vehicleId !== 'none') {
-        submissionData.vehicleId = vehicleId;
-      } else if (tenant?.vehicleId) {
-        submissionData.vehicleId = null;
-      }
-
-      if (rentStartDate) {
-        submissionData.rentStartDate = new Date(`${rentStartDate}T00:00:00.000Z`).toISOString();
-      } else if (tenant?.rentStartDate) {
-        submissionData.rentStartDate = null;
-      }
-
-      if (rentEndDate) {
-        submissionData.rentEndDate = new Date(`${rentEndDate}T00:00:00.000Z`).toISOString();
-        if (isVehicleRental) {
-          submissionData.contractEndDate = submissionData.rentEndDate;
+      if (!isVehicleRental) {
+        if (vehicleId && vehicleId !== 'none') {
+          submissionData.vehicleId = vehicleId;
+        } else if (tenant?.vehicleId) {
+          submissionData.vehicleId = null;
         }
-      } else if (tenant?.rentEndDate) {
-        submissionData.rentEndDate = null;
-        if (isVehicleRental) {
-          submissionData.contractEndDate = null;
+
+        if (rentStartDate) {
+          submissionData.rentStartDate = new Date(`${rentStartDate}T00:00:00.000Z`).toISOString();
+        } else if (tenant?.rentStartDate) {
+          submissionData.rentStartDate = null;
         }
+
+        if (rentEndDate) {
+          submissionData.rentEndDate = new Date(`${rentEndDate}T00:00:00.000Z`).toISOString();
+        } else if (tenant?.rentEndDate) {
+          submissionData.rentEndDate = null;
+        }
+      } else {
+        delete submissionData.securityDeposit;
       }
 
       if (tenant) {
-        updateTenant({ ...tenant, ...submissionData, joinDate: finalJoinDate }, finalAdjustmentDate);
+        if (isVehicleRental) {
+          updateTenant({
+            ...tenant,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            status: data.status,
+            joinDate: finalJoinDate,
+            monthlyRentalRate: 0,
+          });
+        } else {
+          updateTenant(
+            { ...tenant, ...submissionData, joinDate: finalJoinDate, monthlyRentalRate: submissionData.monthlyRentalRate as number },
+            finalAdjustmentDate
+          );
+        }
         toast({ title: `${terminology.single} Updated`, description: `${data.name} has been updated successfully.` });
       } else {
-        addTenant({...submissionData, joinDate: finalJoinDate});
+        addTenant({
+          ...submissionData,
+          joinDate: finalJoinDate,
+          monthlyRentalRate: isVehicleRental ? 0 : (submissionData.monthlyRentalRate as number),
+          ...(isVehicleRental ? { securityDeposit: 0 } : {}),
+        });
         toast({ title: `${terminology.single} Added`, description: `${data.name} has been added successfully.` });
       }
       onClose();
@@ -146,10 +165,6 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save information." });
     }
   };
-
-  const availableVehicles = useMemo(() => {
-    return vehicles.filter(v => v.status === 'Available' || v.id === tenant?.vehicleId);
-  }, [vehicles, tenant]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -201,70 +216,14 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
               />
             </div>
 
-            {isVehicleRental && (
-              <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
-                <h3 className="font-semibold text-sm uppercase text-muted-foreground border-b pb-2">Booking Details</h3>
-                <FormField
-                  control={form.control}
-                  name="vehicleId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assign Vehicle</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a vehicle..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Vehicle Assigned</SelectItem>
-                          {availableVehicles.map(v => (
-                            <SelectItem key={v.id} value={v.id}>{v.make} {v.model} ({v.plateNumber})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="rentStartDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Rent Start Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="rentEndDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Rent End Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={cn('grid gap-4', !isVehicleRental ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1')}>
+              {!isVehicleRental && (
               <FormField
                 control={form.control}
                 name="monthlyRentalRate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{isVehicleRental ? 'Daily Rate (₱)' : 'Monthly Rental Rate (₱)'}</FormLabel>
+                    <FormLabel>Monthly Rental Rate (₱)</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} />
                     </FormControl>
@@ -272,6 +231,8 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
+              )}
+              {!isVehicleRental && (
               <FormField
                 control={form.control}
                 name="securityDeposit"
@@ -285,6 +246,7 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
                   </FormItem>
                 )}
               />
+              )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
