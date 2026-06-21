@@ -71,9 +71,9 @@ export function TenantsTable({ onEditTenant, showInactiveTenants }: TenantsTable
     setTenantToDelete(tenant);
   };
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (tenantToDelete) {
-      const result = attemptDeleteTenant(tenantToDelete.id);
+      const result = await attemptDeleteTenant(tenantToDelete.id);
       if (result.success) {
         toast({
           title: result.action === 'deleted' ? `${terminology.single} Deleted` : `${terminology.single} Inactivated`,

@@ -105,17 +105,33 @@ export function TenantForm({ isOpen, onClose, tenant }: TenantFormProps) {
       
       const { rentAdjustmentDate, rentStartDate, rentEndDate, vehicleId, ...restOfData } = data;
 
-      const submissionData: any = { 
-        ...restOfData, 
+      const submissionData: Record<string, unknown> = {
+        ...restOfData,
         monthlyDueDay: restOfData.monthlyDueDay || null,
-        vehicleId: vehicleId === 'none' ? undefined : vehicleId,
-        rentStartDate: rentStartDate ? new Date(`${rentStartDate}T00:00:00.000Z`).toISOString() : undefined,
-        rentEndDate: rentEndDate ? new Date(`${rentEndDate}T00:00:00.000Z`).toISOString() : undefined,
       };
 
-      // For vehicle rentals, ensure rentEndDate is also set as contractEndDate for digital signature flow
-      if (isVehicleRental && submissionData.rentEndDate) {
+      if (vehicleId && vehicleId !== 'none') {
+        submissionData.vehicleId = vehicleId;
+      } else if (tenant?.vehicleId) {
+        submissionData.vehicleId = null;
+      }
+
+      if (rentStartDate) {
+        submissionData.rentStartDate = new Date(`${rentStartDate}T00:00:00.000Z`).toISOString();
+      } else if (tenant?.rentStartDate) {
+        submissionData.rentStartDate = null;
+      }
+
+      if (rentEndDate) {
+        submissionData.rentEndDate = new Date(`${rentEndDate}T00:00:00.000Z`).toISOString();
+        if (isVehicleRental) {
           submissionData.contractEndDate = submissionData.rentEndDate;
+        }
+      } else if (tenant?.rentEndDate) {
+        submissionData.rentEndDate = null;
+        if (isVehicleRental) {
+          submissionData.contractEndDate = null;
+        }
       }
 
       if (tenant) {

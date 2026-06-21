@@ -33,6 +33,22 @@ import { useToast } from '@/hooks/use-toast';
 import { addDays, startOfDay } from 'date-fns';
 import { serverAddManagedUser, serverAddSuperAdminUser, serverUpdateManagedUser, serverUpdateSuperAdminUser, serverGenerateTenantAccount, serverForceChangeTenantPassword, serverResetTenantPassword } from '@/actions/user-actions';
 import { serverSendAnnouncementEmails } from '@/actions/email-actions';
+
+function omitUndefinedFields<T extends Record<string, unknown>>(data: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  ) as Partial<T>;
+}
+
+/** Firestore rejects `undefined`; use `null` in update payloads to remove optional fields. */
+function prepareTenantFirestoreUpdate(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    result[key] = value === null ? deleteField() : value;
+  }
+  return result;
+}
 import { getOptimizedLogoFileName, optimizeLogoBlob } from '@/lib/logo-image';
 import {
   startChatSession,
@@ -357,7 +373,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ],
         ...(determinedClientId && { clientId: determinedClientId })
       };
-      batch.set(tenantRef, newTenantData);
+      batch.set(tenantRef, omitUndefinedFields(newTenantData as Record<string, unknown>));
 
       if (tenantData.securityDeposit && tenantData.securityDeposit > 0) {
         const paymentRef = doc(collection(db, 'payments'));
@@ -459,7 +475,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const newDeposit = updatedTenant.securityDeposit || 0;
         const depositDifference = newDeposit - oldDeposit;
 
-        batch.set(tenantRef, dataToUpdate, { merge: true });
+        batch.set(tenantRef, prepareTenantFirestoreUpdate(dataToUpdate as Record<string, unknown>), { merge: true });
         
         if (depositDifference !== 0) {
             const paymentRef = doc(collection(db, 'payments'));
