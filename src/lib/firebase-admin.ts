@@ -26,20 +26,59 @@ function loadServiceAccountFromFile(filePath: string): admin.ServiceAccount {
   return JSON.parse(fileContents) as admin.ServiceAccount;
 }
 
-function loadServiceAccountFromEnv(): admin.ServiceAccount | null {
-  const credentialsPath =
-    process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() ||
-    (fs.existsSync(DEFAULT_SERVICE_ACCOUNT_FILE)
-      ? './firebase-service-account.json'
-      : '');
-
-  if (credentialsPath) {
-    return loadServiceAccountFromFile(credentialsPath);
+function parseInlineServiceAccount(
+  raw: string
+): admin.ServiceAccount | null {
+  const value = raw.trim();
+  if (!value) {
+    return null;
   }
 
-  const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim();
-  if (inlineJson && inlineJson.startsWith('{') && inlineJson.endsWith('}')) {
-    return JSON.parse(inlineJson) as admin.ServiceAccount;
+  // Support both raw JSON and base64-encoded JSON (common on Vercel, where
+  // multi-line secrets are easier to store base64-encoded).
+  let jsonText = value;
+  if (!value.startsWith('{')) {
+    try {
+      jsonText = Buffer.from(value, 'base64').toString('utf8').trim();
+    } catch {
+      return null;
+    }
+  }
+
+  if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+    return null;
+  }
+
+  return JSON.parse(jsonText) as admin.ServiceAccount;
+}
+
+function loadServiceAccountFromEnv(): admin.ServiceAccount | null {
+  // 1) Prefer inline JSON from the environment. This is the reliable path on
+  //    serverless hosts like Vercel, where the local service-account file is
+  //    gitignored and therefore not deployed.
+  const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (inlineJson) {
+    const parsed = parseInlineServiceAccount(inlineJson);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  // 2) Fall back to a credentials file, but only when it actually exists. On
+  //    Vercel, GOOGLE_APPLICATION_CREDENTIALS may point to a file that was
+  //    never deployed, so guard against that instead of throwing ENOENT.
+  const explicitPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (explicitPath) {
+    const resolved = path.isAbsolute(explicitPath)
+      ? explicitPath
+      : path.join(process.cwd(), explicitPath);
+    if (fs.existsSync(resolved)) {
+      return loadServiceAccountFromFile(resolved);
+    }
+  }
+
+  if (fs.existsSync(DEFAULT_SERVICE_ACCOUNT_FILE)) {
+    return loadServiceAccountFromFile(DEFAULT_SERVICE_ACCOUNT_FILE);
   }
 
   return null;
@@ -63,7 +102,7 @@ function initFirebaseAdmin(): admin.app.App {
   }
 
   throw new Error(
-    'Firebase Admin is not configured for local PayMongo subscription updates. Save your service account JSON as firebase-service-account.json in the project root (same JSON from Firebase Console → Service accounts). This is not used for username/password login — only for the server to update subscription status in Firestore after payment.'
+    'Firebase Admin is not configured. Set the FIREBASE_SERVICE_ACCOUNT_KEY environment variable to your service account JSON (Firebase Console → Project settings → Service accounts → Generate new private key). On Vercel, add it under Project → Settings → Environment Variables. Locally, you can instead save the JSON as firebase-service-account.json in the project root. This is required for username/password login and server-side Firestore writes.'
   );
 }
 
