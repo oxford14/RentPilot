@@ -29,27 +29,56 @@ function loadServiceAccountFromFile(filePath: string): admin.ServiceAccount {
 function parseInlineServiceAccount(
   raw: string
 ): admin.ServiceAccount | null {
-  const value = raw.trim();
+  let value = raw.trim();
   if (!value) {
     return null;
   }
 
-  // Support both raw JSON and base64-encoded JSON (common on Vercel, where
+  // Some hosts (or a careless copy/paste) wrap the value in surrounding
+  // quotes. Strip a single matching pair so the JSON/base64 detection works.
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  // Support both raw JSON and base64-encoded JSON (recommended on Vercel, where
   // multi-line secrets are easier to store base64-encoded).
   let jsonText = value;
   if (!value.startsWith('{')) {
-    try {
-      jsonText = Buffer.from(value, 'base64').toString('utf8').trim();
-    } catch {
-      return null;
-    }
+    // Strip any whitespace/newlines that a textarea paste may have inserted
+    // into the base64 blob before decoding.
+    const compact = value.replace(/\s+/g, '');
+    jsonText = Buffer.from(compact, 'base64').toString('utf8').trim();
   }
 
   if (!jsonText.startsWith('{') || !jsonText.endsWith('}')) {
+    console.error(
+      '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_KEY is set but is neither valid JSON nor base64-encoded JSON. ' +
+        `Received a value of length ${raw.length} starting with "${raw.trim().slice(0, 12)}". ` +
+        'Set it to the full service-account JSON, or its base64 encoding.'
+    );
     return null;
   }
 
-  return JSON.parse(jsonText) as admin.ServiceAccount;
+  try {
+    const parsed = JSON.parse(jsonText) as admin.ServiceAccount & {
+      private_key?: string;
+    };
+    // Guard against `\n` in the private key not being unescaped (can happen if
+    // the JSON was hand-edited). admin.credential.cert requires real newlines.
+    if (parsed.private_key && parsed.private_key.includes('\\n')) {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    }
+    return parsed;
+  } catch (error) {
+    console.error(
+      '[firebase-admin] FIREBASE_SERVICE_ACCOUNT_KEY looked like JSON but failed to parse:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
 }
 
 function loadServiceAccountFromEnv(): admin.ServiceAccount | null {
