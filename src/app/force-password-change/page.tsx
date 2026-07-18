@@ -12,7 +12,7 @@ export default function ForcePasswordChangePage() {
        <div className="flex justify-center items-center py-4 mb-4">
         <Image
           src={MAIN_APP_LOGO_URL}
-          alt="RentPilot Logo"
+          alt="Rental Pilot Logo"
           width={240}
           height={60}
           priority

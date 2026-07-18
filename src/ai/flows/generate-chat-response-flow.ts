@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   name: 'generateChatResponseOptionsPrompt',
   input: {schema: GenerateChatResponseOptionsInputSchema},
   output: {schema: GenerateChatResponseOptionsOutputSchema},
-  prompt: `You are a helpful and professional customer support agent for a rental management application called "RentPilot".
+  prompt: `You are a helpful and professional customer support agent for a rental management application called "Rental Pilot".
 
   Your key features include:
   - Tenant Management: Add/edit tenant profiles, manage status, and set rental rates.

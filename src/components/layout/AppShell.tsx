@@ -26,7 +26,7 @@ import {
   LayoutDashboard, Cog, ArrowLeft, Eye, UsersRound, UserCog, Clock, ShieldCheck,
   ReceiptText, FileText, TrendingUp, UserCircle, AlertCircle, DatabaseBackup, MapPin,
   MessageSquare, ListPlus, CalendarCheck, Bell, Download, Megaphone, Monitor, PiggyBank,
-  Handshake, Trash2, Ticket, Car, Key, Menu, X, Tags
+  Handshake, Trash2, Ticket, Car, Key, Menu, X, Tags, MoreHorizontal
 } from 'lucide-react'; 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -269,7 +269,7 @@ function AppShellContent({ children }: { children: ReactNode }) {
 
   let currentAppNavItems: AppSidebarNavItem[] = [];
   let currentAdminConfigItems: AdminSidebarConfigItem[] = [];
-  let currentActivePageLabel = 'RentPilot';
+  let currentActivePageLabel = 'Rental Pilot';
 
   const viewingClient = viewingAsClientId ? clients.find(c => c.id === viewingAsClientId) : null;
   const loggedInClient = authUser?.clientId ? clients.find(c => c.id === authUser.clientId) : null;
@@ -493,8 +493,23 @@ function AppShellContent({ children }: { children: ReactNode }) {
   const isIconCollapsed = sidebarState === 'collapsed' && !isMobile;
   const shouldUseClientLogo = !!activeClientForDisplay?.logoUrl && !isTrueAdminView && !clientLogoFailed;
   const headerLogoSrc = shouldUseClientLogo ? activeClientForDisplay!.logoUrl! : MAIN_APP_LOGO_URL;
-  const headerLogoAlt = shouldUseClientLogo ? `${activeClientForDisplay?.name || 'Client'} logo` : 'RentPilot';
+  const headerLogoAlt = shouldUseClientLogo ? `${activeClientForDisplay?.name || 'Client'} logo` : 'Rental Pilot';
   const collapsedBrandSrc = shouldUseClientLogo ? headerLogoSrc : MAIN_APP_LOGO_URL;
+
+  const isNavItemActive = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/');
+
+  const bottomNavSource: { href: string; label: string; icon: React.ElementType }[] = (
+    isTrueAdminView
+      ? currentAdminConfigItems.filter((i): i is AdminTopLevelNavItem => !i.isGroup)
+      : (currentAppNavItems.filter((i) => !i.isGroup) as AppSidebarNavItem[])
+  ).map((i) => ({ href: i.href, label: i.label, icon: i.icon }));
+
+  const bottomNavItems = bottomNavSource.slice(0, 4);
+
+  const isBottomNavDisabled = (href: string) =>
+    subscriptionExpired &&
+    !['/subscription', '/profile', '/settings', '/notifications', '/contracts'].includes(href);
 
   return (
     <>
@@ -733,6 +748,56 @@ function AppShellContent({ children }: { children: ReactNode }) {
               children
             )}
           </main>
+
+          {/* Mobile bottom navigation */}
+          <nav
+            className="z-50 shrink-0 border-t border-border/70 bg-card/95 backdrop-blur-lg supports-[backdrop-filter]:bg-card/80 md:hidden"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            aria-label="Primary"
+          >
+            <div className="flex items-stretch justify-around">
+              {bottomNavItems.map((item) => {
+                const active = isNavItemActive(item.href);
+                const disabled = isBottomNavDisabled(item.href);
+                const href = item.href === '/users' && authUser?.isSuperAdmin ? '/admin/users' : item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={disabled ? '#' : href}
+                    aria-disabled={disabled}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={(e) => {
+                      if (disabled) {
+                        e.preventDefault();
+                        return;
+                      }
+                      handleMobileNavClick();
+                    }}
+                    className={cn(
+                      'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                      disabled && 'pointer-events-none opacity-40'
+                    )}
+                  >
+                    <item.icon className={cn('h-5 w-5 shrink-0', active && 'stroke-[2.25]')} />
+                    <span className="max-w-full truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setOpenMobile(true)}
+                aria-label="More menu"
+                className={cn(
+                  'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+                  openMobile ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <MoreHorizontal className="h-5 w-5 shrink-0" />
+                <span>More</span>
+              </button>
+            </div>
+          </nav>
         </SidebarInset>
       </div>
       <AnnouncementViewerDialog isOpen={!!viewingAnnouncement} onClose={() => setViewingAnnouncement(null)} announcement={viewingAnnouncement} />

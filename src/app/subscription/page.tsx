@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import {
   SUBSCRIPTION_PLANS,
   getSubscriptionActions,
@@ -205,7 +206,7 @@ function SubscriptionPageContent() {
       paymentRef: paymentRef ?? undefined,
     })
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Could not activate subscription.';
+        const message = getFriendlyErrorMessage(err, 'Could not activate subscription.');
         toast({ variant: 'destructive', title: 'Activation failed', description: message });
         router.replace('/subscription');
       })
@@ -314,7 +315,7 @@ function SubscriptionPageContent() {
       );
       window.location.href = data.checkoutUrl;
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not start payment.';
+      const message = getFriendlyErrorMessage(err, 'Could not start payment.');
       toast({ variant: 'destructive', title: 'Payment error', description: message });
       setIsRedirecting(false);
     }
@@ -349,7 +350,7 @@ function SubscriptionPageContent() {
           Subscription & Billing
         </h1>
         <p className="text-muted-foreground mt-1">
-          Manage your RentPilot plan, renewals, and upgrades.
+          Manage your Rental Pilot plan, renewals, and upgrades.
         </p>
       </div>
 

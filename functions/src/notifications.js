@@ -199,7 +199,7 @@ async function createNotification(batch, tenant, client, title, content) {
             scope: client.id,
             audience: 'tenant',
             senderId: 'system',
-            senderName: 'RentPilot System',
+            senderName: 'Rental Pilot System',
             recipientId: tenant.id,
             recipientUsername: tenant.username,
             createdAt: new Date().toISOString(),

@@ -16,7 +16,7 @@ export type SendEmailResult = {
 
 function getFromAddress(): string {
   const email = process.env.RESEND_FROM_EMAIL?.trim() || 'noreply@rent-pilot.net';
-  const name = process.env.RESEND_FROM_NAME?.trim() || 'RentPilot';
+  const name = process.env.RESEND_FROM_NAME?.trim() || 'Rental Pilot';
   return `${name} <${email}>`;
 }
 

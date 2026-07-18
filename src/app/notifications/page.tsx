@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { Bell, Save, Loader2, Info, PlayCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -77,7 +78,7 @@ export default function NotificationSettingsPage() {
         await updateClientNotificationSettings(data);
         toast({ title: 'Settings Saved', description: 'Your notification preferences have been updated.' });
     } catch (error: any) {
-        toast({ variant: "destructive", title: "Error Saving Settings", description: error.message });
+        toast({ variant: "destructive", title: "Couldn’t save settings", description: getFriendlyErrorMessage(error, 'We couldn’t save your notification settings. Please try again.') });
     }
   };
 

@@ -12,6 +12,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import type { Tenant, Payment } from '@/lib/types';
 import { predictDelinquency, type DelinquencyPredictionOutput, type DelinquencyPredictionInput } from '@/ai/flows/delinquency-prediction';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { calculateTenantBalance } from '@/lib/utils';
 import { startOfDay } from 'date-fns';
 
@@ -77,8 +78,8 @@ export function DelinquencyCard() {
 
     } catch (e: any) {
       console.error("Delinquency prediction error:", e);
-      setError(e.message || "Failed to predict delinquency.");
-      toast({ variant: "destructive", title: "Prediction Failed", description: e.message || "An unknown error occurred." });
+      setError(getFriendlyErrorMessage(e, "Failed to predict delinquency."));
+      toast({ variant: "destructive", title: "Prediction failed", description: getFriendlyErrorMessage(e, "We couldn’t assess this tenant right now. Please try again.") });
     } finally {
       setIsLoading(false);
     }

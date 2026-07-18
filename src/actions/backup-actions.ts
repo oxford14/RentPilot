@@ -2,6 +2,7 @@
 'use server';
 
 import { format } from 'date-fns';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 
 export async function pushBackupToGoogleDrive(backupData: any): Promise<{ success: boolean; fileUrl?: string; error?: string }> {
     const url = process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL;
@@ -50,6 +51,6 @@ export async function pushBackupToGoogleDrive(backupData: any): Promise<{ succes
 
     } catch (error: any) {
         console.error("Error pushing backup to Google Drive:", error);
-        return { success: false, error: error.message };
+        return { success: false, error: getFriendlyErrorMessage(error, "We couldn’t push the backup to Google Drive. Please try again.") };
     }
 }

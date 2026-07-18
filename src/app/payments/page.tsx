@@ -38,6 +38,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 
@@ -48,6 +50,8 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { deletePayment, tenants, payments, additionalDues, terminology } = useAppContext(); 
   const { toast } = useToast();
   
@@ -125,7 +129,116 @@ export default function PaymentsPage() {
 
   const handleSelectTenant = (tenant: Tenant) => {
     setSelectedTenantId(tenant.id);
+    setIsDetailsOpen(true);
   };
+
+  const payButton = tenant ? (
+    <Button onClick={() => handleOpenForm(undefined, tenant, balanceBreakdown)} size="sm" className="shadow-sm w-full sm:w-auto">
+      <DollarSign className="mr-2 h-4 w-4" />
+      Pay
+    </Button>
+  ) : null;
+
+  const balanceAccordion = tenant && balanceInfo && balanceBreakdown ? (
+    <Accordion type="single" collapsible className="w-full pt-2">
+      <AccordionItem value="item-1" className="border rounded-md bg-muted/50 overflow-hidden">
+        <AccordionTrigger className="p-3 text-sm hover:no-underline [&[data-state=open]>svg]:text-primary">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-1.5">
+              {balanceInfo.icon}
+              <span className="font-medium">{balanceInfo.text}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={cn("font-semibold", balanceInfo.amountColor)}>
+                ₱{formatCurrency(balanceInfo.amount)}
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+            </div>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="p-3 border-t bg-background">
+          {(balanceBreakdown && balanceBreakdown.total > 0) ? (
+            <div className="space-y-2 text-sm">
+              <h4 className="font-semibold">Balance Breakdown</h4>
+              {balanceBreakdown.rentDueDetails.map((rentDetail, index) => (
+                <div key={`rent-${index}`} className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent ({rentDetail.month})</span>
+                  <span>₱{formatCurrency(rentDetail.rate)}</span>
+                </div>
+              ))}
+              {balanceBreakdown.unpaidDues.map(due => (
+                <div key={due.id} className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
+                  <span>₱{formatCurrency(due.amount)}</span>
+                </div>
+              ))}
+              {(balanceBreakdown.rentDueDetails.length > 0 || balanceBreakdown.unpaidDues.length > 0) && (
+                <Separator className="my-2"/>
+              )}
+              <div className="flex justify-between items-center font-bold">
+                <span>Total Due</span>
+                <span>₱{formatCurrency(balanceBreakdown.total)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>This {terminology.single.toLowerCase()} is fully paid up. No outstanding dues.</span>
+            </div>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  ) : null;
+
+  const depositBox = tenant ? (
+    <div className="p-3 border rounded-md bg-muted/50 text-sm mt-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span className="font-medium">Security Deposit on File:</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-primary">
+            ₱{(tenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+          <Button type="button" variant="secondary" size="sm" className="h-7" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit}>
+            <Send className="mr-1 h-4 w-4"/>
+            Use
+          </Button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const detailsBody = (
+    <>
+      {selectedTenantId && (
+        <div className="flex justify-end">
+          <Select value={filterPeriod} onValueChange={(value) => setFilterPeriod(value as any)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by date..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="this_month">This Month</SelectItem>
+              <SelectItem value="last_month">Last Month</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="flex-grow relative">
+        <PaymentsTable
+          tenantId={selectedTenantId}
+          onEdit={handleOpenForm}
+          onDelete={handleDeletePayment}
+          filterPeriod={filterPeriod}
+        />
+      </div>
+    </>
+  );
 
   return (
     <div className="container mx-auto py-2 space-y-6">
@@ -149,8 +262,8 @@ export default function PaymentsPage() {
         </CardHeader>
       </Card>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 shadow-lg">
+      <div className="grid md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1 shadow-lg">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
@@ -190,124 +303,53 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 shadow-lg flex flex-col">
-          <CardHeader>
-            <div className="flex justify-between items-start flex-col sm:flex-row sm:items-center gap-2">
+        {!isMobile && (
+          <Card className="md:col-span-2 shadow-lg flex flex-col">
+            <CardHeader>
+              <div className="flex justify-between items-start flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
                   <CardTitle className="font-headline text-lg">
                     {tenant ? `Payment History for ${tenant.name}` : "Payment History"}
                   </CardTitle>
                 </div>
-                {tenant && (
-                  <Button onClick={() => handleOpenForm(undefined, tenant, balanceBreakdown)} size="sm" className="shadow-sm w-full sm:w-auto">
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      Pay
-                  </Button>
-                )}
-            </div>
-            <CardDescription className="text-xs pt-2">
-              {tenant ? `Showing payments for ${tenant.name}.` : `Select a ${terminology.single.toLowerCase()} from the list to view their payments.`}
-            </CardDescription>
-            {tenant && balanceInfo && balanceBreakdown && (
-                <Accordion type="single" collapsible className="w-full pt-2">
-                    <AccordionItem value="item-1" className="border rounded-md bg-muted/50 overflow-hidden">
-                        <AccordionTrigger className="p-3 text-sm hover:no-underline [&[data-state=open]>svg]:text-primary">
-                            <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-1.5">
-                                    {balanceInfo.icon}
-                                    <span className="font-medium">{balanceInfo.text}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className={cn("font-semibold", balanceInfo.amountColor)}>
-                                        ₱{formatCurrency(balanceInfo.amount)}
-                                    </span>
-                                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
-                                </div>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="p-3 border-t bg-background">
-                          {(balanceBreakdown && balanceBreakdown.total > 0) ? (
-                            <div className="space-y-2 text-sm">
-                              <h4 className="font-semibold">Balance Breakdown</h4>
-                               {balanceBreakdown.rentDueDetails.map((rentDetail, index) => (
-                                  <div key={`rent-${index}`} className="flex justify-between items-center">
-                                      <span className="text-muted-foreground flex items-center gap-1.5"><Home className="w-4 h-4" /> Rent ({rentDetail.month})</span>
-                                      <span>₱{formatCurrency(rentDetail.rate)}</span>
-                                  </div>
-                              ))}
-                              {balanceBreakdown.unpaidDues.map(due => (
-                                <div key={due.id} className="flex justify-between items-center">
-                                    <span className="text-muted-foreground flex items-center gap-1.5"><ListPlus className="w-4 h-4" /> {due.type}</span>
-                                    <span>₱{formatCurrency(due.amount)}</span>
-                                </div>
-                              ))}
-                              {(balanceBreakdown.rentDueDetails.length > 0 || balanceBreakdown.unpaidDues.length > 0) && (
-                                <Separator className="my-2"/>
-                              )}
-                              <div className="flex justify-between items-center font-bold">
-                                  <span>Total Due</span>
-                                  <span>₱{formatCurrency(balanceBreakdown.total)}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              <span>This {terminology.single.toLowerCase()} is fully paid up. No outstanding dues.</span>
-                            </div>
-                          )}
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            )}
-             {tenant && (
-               <div className="p-3 border rounded-md bg-muted/50 text-sm mt-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="h-4 w-4 text-primary" />
-                      <span className="font-medium">Security Deposit on File:</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-primary">
-                        ₱{(tenant.securityDeposit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <Button type="button" variant="secondary" size="sm" className="h-7" onClick={() => setIsApplyDepositOpen(true)} disabled={!canApplyDeposit}>
-                      <Send className="mr-1 h-4 w-4"/>
-                      Use
-                    </Button>
-                  </div>
-                </div>
-               </div>
-            )}
-          </CardHeader>
-          <CardContent className="flex-grow flex flex-col gap-4 pt-4 min-h-0">
-             {selectedTenantId && (
-              <div className="flex justify-end">
-                <Select value={filterPeriod} onValueChange={(value) => setFilterPeriod(value as any)}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filter by date..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Time</SelectItem>
-                        <SelectItem value="today">Today</SelectItem>
-                        <SelectItem value="this_week">This Week</SelectItem>
-                        <SelectItem value="this_month">This Month</SelectItem>
-                        <SelectItem value="last_month">Last Month</SelectItem>
-                    </SelectContent>
-                </Select>
+                {payButton}
               </div>
-            )}
-            <div className="flex-grow relative">
-                <PaymentsTable 
-                  tenantId={selectedTenantId} 
-                  onEdit={handleOpenForm}
-                  onDelete={handleDeletePayment}
-                  filterPeriod={filterPeriod}
-                />
-            </div>
-          </CardContent>
-        </Card>
+              <CardDescription className="text-xs pt-2">
+                {tenant ? `Showing payments for ${tenant.name}.` : `Select a ${terminology.single.toLowerCase()} from the list to view their payments.`}
+              </CardDescription>
+              {balanceAccordion}
+              {depositBox}
+            </CardHeader>
+            <CardContent className="flex-grow flex flex-col gap-4 pt-4 min-h-0">
+              {detailsBody}
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Mobile: show tenant details in a bottom sheet */}
+      <Sheet open={isMobile && isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <SheetContent side="bottom" className="flex h-[88vh] flex-col p-0">
+          <SheetHeader className="space-y-1 border-b p-4 pr-12 text-left">
+            <SheetTitle className="flex items-center gap-2 font-headline text-lg">
+              <FileText className="h-5 w-5 shrink-0 text-primary" />
+              <span className="truncate">{tenant ? tenant.name : 'Payment History'}</span>
+            </SheetTitle>
+            <SheetDescription>
+              {tenant ? `Payment history and balance details.` : `Select a ${terminology.single.toLowerCase()} to view details.`}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+            {payButton}
+            {balanceAccordion}
+            {depositBox}
+            <div className="flex flex-1 flex-col gap-4 pt-1">
+              {detailsBody}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
       
       {isFormOpen && (
         <PaymentForm

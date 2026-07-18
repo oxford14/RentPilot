@@ -26,16 +26,16 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlanDefinition[] = [
     key: 'basic',
     name: 'Basic',
     paymongoPlanName: 'Basic Plan',
-    rate: 200,
-    description: 'Ideal for growing businesses, up to 50 tenants.',
-    features: ['Up to 50 tenants', 'Advanced reporting', 'AI delinquency prediction', 'Priority support'],
-    tenantLimit: 50,
+    rate: 499,
+    description: 'Ideal for small portfolios, up to 5 tenants.',
+    features: ['Up to 5 tenants', 'Advanced reporting', 'AI delinquency prediction', 'Priority support'],
+    tenantLimit: 5,
   },
   {
     key: 'pro',
     name: 'Pro',
     paymongoPlanName: 'Pro Plan',
-    rate: 500,
+    rate: 999,
     description: 'For large-scale operations with unlimited tenants.',
     features: [
       'Unlimited tenants',
@@ -119,13 +119,13 @@ export function getSubscriptionActions(
     return [
       {
         label: 'Subscribe to Basic',
-        amount: 200,
+        amount: 499,
         paymongoPlanName: 'Basic Plan',
         targetKey: 'basic',
       },
       {
         label: 'Subscribe to Pro',
-        amount: 500,
+        amount: 999,
         paymongoPlanName: 'Pro Plan',
         targetKey: 'pro',
         variant: 'outline',
@@ -137,15 +137,15 @@ export function getSubscriptionActions(
     const actions: PlanAction[] = [];
     if (canRenew) {
       actions.push({
-        label: 'Renew Basic (₱200/mo)',
-        amount: 200,
+        label: 'Renew Basic (₱499/mo)',
+        amount: 499,
         paymongoPlanName: 'Basic Plan',
         targetKey: 'basic',
       });
     }
     actions.push({
-      label: 'Upgrade to Pro (₱500/mo)',
-      amount: 500,
+      label: 'Upgrade to Pro (₱999/mo)',
+      amount: 999,
       paymongoPlanName: 'Pro Plan',
       targetKey: 'pro',
       variant: canRenew ? 'outline' : 'default',
@@ -157,8 +157,8 @@ export function getSubscriptionActions(
     if (canRenew) {
       return [
         {
-          label: 'Renew Pro (₱500/mo)',
-          amount: 500,
+          label: 'Renew Pro (₱999/mo)',
+          amount: 999,
           paymongoPlanName: 'Pro Plan',
           targetKey: 'pro',
         },

@@ -4,6 +4,7 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import type { Client, ManagedUser } from '@/lib/types';
 import bcrypt from 'bcryptjs';
 import { addMonths } from 'date-fns';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 
 const SALT_ROUNDS = 10;
 
@@ -71,7 +72,7 @@ export async function handleSignUp(
     return { success: true, message: 'Account created successfully!' };
   } catch (error: unknown) {
     console.error('Error during sign up:', error);
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    const message = getFriendlyErrorMessage(error, 'We couldn’t create your account. Please try again.');
     return { success: false, message };
   }
 }

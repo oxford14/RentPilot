@@ -126,6 +126,79 @@
     @apply rounded-2xl border border-white/40 bg-white/60 shadow-xl backdrop-blur-xl;
   }
 
+  /* Staggered entrance delays for landing/login sections */
+  .stagger-1 { animation-delay: 0.08s; }
+  .stagger-2 { animation-delay: 0.16s; }
+  .stagger-3 { animation-delay: 0.24s; }
+  .stagger-4 { animation-delay: 0.32s; }
+  .stagger-5 { animation-delay: 0.4s; }
+  .stagger-6 { animation-delay: 0.5s; }
+
+  /* Micro-interaction: lift on hover */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  /* Micro-interaction: image cards on the landing hero */
+  .hero-image-card {
+    @apply relative overflow-hidden rounded-2xl border border-white/50 shadow-xl transition-all duration-500 ease-out;
+  }
+  .hero-image-card img {
+    @apply transition-transform duration-700 ease-out;
+  }
+  .hero-image-card:hover {
+    @apply -translate-y-1.5 shadow-2xl;
+  }
+  .hero-image-card:hover img {
+    transform: scale(1.06);
+  }
+
+  /* Animated gradient text for the headline accent */
+  .gradient-text {
+    background: linear-gradient(
+      110deg,
+      hsl(var(--primary)),
+      hsl(265 83% 64%),
+      hsl(var(--primary))
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradient-shift 6s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Login input focus micro-animation */
+  .login-input {
+    @apply transition-all duration-300;
+  }
+  .login-input:focus-within {
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-fade-in,
+    .animate-scale-in,
+    .animate-float,
+    .animate-float-slow,
+    .animate-ken-burns,
+    .animate-pulse-glow,
+    .gradient-text,
+    .hero-image-card img {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
   [data-sidebar="sidebar"] {
     @apply border border-sidebar-border/60 shadow-sm;
   }

@@ -17,13 +17,13 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const publicRoutes = ['/login', '/terms', '/privacy-policy', '/signup'];
+    const publicRoutes = ['/welcome', '/pricing', '/login', '/terms', '/privacy-policy', '/signup'];
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
     const isForcePasswordChangeRoute = pathname.startsWith('/force-password-change');
 
     if (!isAuthenticated) {
       if (!isPublicRoute && !isForcePasswordChangeRoute) {
-        router.push('/login');
+        router.push('/welcome');
       }
       return;
     }
@@ -107,7 +107,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
      );
   }
 
-  const isAuthRoute = ['/login', '/terms', '/privacy-policy', '/force-password-change', '/signup'].some(route => pathname.startsWith(route));
+  const isAuthRoute = ['/welcome', '/pricing', '/login', '/terms', '/privacy-policy', '/force-password-change', '/signup'].some(route => pathname.startsWith(route));
   if (isAuthRoute) {
     return <>{children}</>;
   }

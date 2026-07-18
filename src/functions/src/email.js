@@ -41,7 +41,7 @@ function getAppLoginUrl() {
 
 function getFromAddress() {
   const email = process.env.RESEND_FROM_EMAIL || 'noreply@rent-pilot.net';
-  const name = process.env.RESEND_FROM_NAME || 'RentPilot';
+  const name = process.env.RESEND_FROM_NAME || 'Rental Pilot';
   return `${name} <${email}>`;
 }
 
@@ -89,7 +89,7 @@ function emailLayout({ title, bodyHtml, fromName, previewText, accent = 'default
         <tr>
           <td style="background:${style.headerBg};padding:28px 32px 24px;">
             ${badgeHtml}
-            <p style="margin:0 0 6px;color:${style.headerSub};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">RentPilot · Tenant Portal</p>
+            <p style="margin:0 0 6px;color:${style.headerSub};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Rental Pilot · Tenant Portal</p>
             <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;line-height:1.35;">${safeTitle}</h1>
             <p style="margin:10px 0 0;color:${style.headerSub};font-size:14px;">From ${safeFrom}</p>
           </td>
@@ -100,7 +100,7 @@ function emailLayout({ title, bodyHtml, fromName, previewText, accent = 'default
         <tr>
           <td style="padding:20px 32px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;">
             <p style="margin:0 0 8px;color:#64748b;font-size:13px;line-height:1.5;">
-              This email was sent by <strong style="color:#475569;">${safeFrom}</strong> through RentPilot.
+              This email was sent by <strong style="color:#475569;">${safeFrom}</strong> through Rental Pilot.
             </p>
             <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.5;">
               Please do not reply to this automated message. Contact your property manager directly if you have questions.

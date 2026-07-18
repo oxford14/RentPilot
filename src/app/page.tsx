@@ -91,7 +91,7 @@ function AdminClientDashboard() {
     <div className="container mx-auto space-y-8 py-2">
       <DashboardPageHeader
         title="Dashboard"
-        subtitle={`Welcome to RentPilot. Here's how your ${terminology.plural.toLowerCase()} and collections are doing.`}
+        subtitle={`Welcome to Rental Pilot. Here's how your ${terminology.plural.toLowerCase()} and collections are doing.`}
         icon={LayoutDashboard}
       />
 

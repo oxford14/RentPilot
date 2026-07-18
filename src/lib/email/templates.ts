@@ -107,7 +107,7 @@ export function emailLayout(options: {
           <tr>
             <td style="background:${style.headerBg};padding:28px 32px 24px;">
               ${badgeHtml}
-              <p style="margin:0 0 6px;color:${style.headerSub};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">RentPilot · Tenant Portal</p>
+              <p style="margin:0 0 6px;color:${style.headerSub};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Rental Pilot · Tenant Portal</p>
               <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.35;">${safeTitle}</h1>
               <p style="margin:10px 0 0;color:${style.headerSub};font-size:14px;opacity:0.95;">From ${safeFrom}</p>
             </td>
@@ -118,7 +118,7 @@ export function emailLayout(options: {
           <tr>
             <td style="padding:20px 32px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;">
               <p style="margin:0 0 8px;color:#64748b;font-size:13px;line-height:1.5;">
-                This email was sent by <strong style="color:#475569;">${safeFrom}</strong> through RentPilot.
+                This email was sent by <strong style="color:#475569;">${safeFrom}</strong> through Rental Pilot.
               </p>
               <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.5;">
                 Please do not reply to this automated message. Contact your property manager directly if you have questions.
@@ -126,7 +126,7 @@ export function emailLayout(options: {
             </td>
           </tr>
         </table>
-        <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;text-align:center;">© RentPilot</p>
+        <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;text-align:center;">© Rental Pilot</p>
       </td>
     </tr>
   </table>
@@ -149,7 +149,7 @@ export function tenantCredentialsEmail(params: {
 
   const intro = params.isReset
     ? `<p style="margin:0 0 16px;">Hello <strong>${escapeHtml(firstName)}</strong>,</p>
-       <p style="margin:0 0 16px;">Your password for the RentPilot tenant portal was reset by <strong>${escapeHtml(params.clientName)}</strong>. Use the credentials below to sign in. You will be asked to choose a new password right away.</p>`
+       <p style="margin:0 0 16px;">Your password for the Rental Pilot tenant portal was reset by <strong>${escapeHtml(params.clientName)}</strong>. Use the credentials below to sign in. You will be asked to choose a new password right away.</p>`
     : `<p style="margin:0 0 16px;">Hello <strong>${escapeHtml(firstName)}</strong>,</p>
        <p style="margin:0 0 16px;">Welcome! <strong>${escapeHtml(params.clientName)}</strong> has set up your tenant portal account so you can view announcements, contracts, and payment information online.</p>
        <p style="margin:0 0 16px;">Sign in with the credentials below. For security, you must change your password on first login.</p>`;

@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { Loader2, CalendarIcon, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -140,7 +141,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
       onClose();
     } catch (error) {
       console.error("Failed to submit demo request", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to send request: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` });
+      toast({ variant: "destructive", title: "Request failed", description: getFriendlyErrorMessage(error, "We couldn’t send your request. Please try again.") });
     } finally {
       setIsSubmitting(false);
     }
@@ -152,7 +153,7 @@ export function DemoBookingDialog({ isOpen, onClose }: { isOpen: boolean, onClos
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Request a Demo</DialogTitle>
           <DialogDescription>
-            Schedule a live demo with our team to see RentPilot in action.
+            Schedule a live demo with our team to see Rental Pilot in action.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

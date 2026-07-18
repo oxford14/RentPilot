@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getPlanDefinition } from '@/lib/subscription-plans';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +48,9 @@ export default function TenantsPage() {
 
   const tenantLimit = useMemo(() => {
     if (!client || !client.subscriptionPlanName) return Infinity; // Default to allow if no plan
-    if (client.subscriptionPlanName.toLowerCase() === 'trial') return 3;
-    if (client.subscriptionPlanName.toLowerCase() === 'basic') return 50;
-    return Infinity;
+    const def = getPlanDefinition(client.subscriptionPlanName);
+    if (!def) return Infinity; // Custom / unknown plans are uncapped
+    return def.tenantLimit ?? Infinity; // null => unlimited (Pro)
   }, [client]);
 
   const isLimitReached = clientTenants.length >= tenantLimit;

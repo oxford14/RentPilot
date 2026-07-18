@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { useAppContext } from '@/contexts/AppContext';
 import { Loader2, Send, Paperclip, X } from 'lucide-react';
 import type { IssueCategory } from '@/lib/types';
@@ -69,7 +70,7 @@ export function RequestSupportForm() {
         fileInputRef.current.value = '';
       }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || "An unknown error occurred." });
+      toast({ variant: 'destructive', title: 'Submission failed', description: getFriendlyErrorMessage(error, "We couldn’t submit your request. Please try again.") });
     } finally {
       setIsLoading(false);
     }

@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import type { Tenant } from '@/lib/types';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { cn } from '@/lib/utils';
 import { ShieldAlert } from 'lucide-react';
 
@@ -49,7 +50,7 @@ export function ApplyDepositDialog({ isOpen, onClose, tenant, currentBalance }: 
       await applySecurityDeposit(tenant.id, data.amountToApply);
       onClose();
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to apply deposit.' });
+        toast({ variant: 'destructive', title: 'Error', description: getFriendlyErrorMessage(error, 'We couldn’t apply the deposit. Please try again.') });
     }
   };
   

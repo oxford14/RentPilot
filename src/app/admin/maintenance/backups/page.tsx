@@ -182,7 +182,7 @@ export default function BackupsPage() {
             setIsRestoreConfirmOpen(true);
         } catch (error) {
             console.error("Error parsing backup file:", error);
-            toast({ variant: 'destructive', title: 'File Error', description: `Could not read or parse the backup file. ${(error as Error).message}` });
+            toast({ variant: 'destructive', title: 'File error', description: "We couldn’t read that file. Please make sure it’s a valid RentPilot backup (.json)." });
         }
     };
     reader.readAsText(file);

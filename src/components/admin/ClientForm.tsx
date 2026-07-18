@@ -27,6 +27,7 @@ import { Separator } from '../ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ADMIN_SUBSCRIPTION_PLAN_OPTIONS, resolvePlanFormValue } from '@/lib/subscription-plans';
 import { cropImageToOptimizedBlob } from '@/lib/logo-image';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 
 const timezones = [
   { value: 'Etc/UTC', label: 'Coordinated Universal Time (UTC)' },
@@ -198,21 +199,13 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       onClose();
     } catch (error: any) {
       console.error("Client form submission error:", error);
-      let description = "An unexpected error occurred. Check the browser console for details.";
-      if (error.message?.includes('timed out')) {
-        description = error.message;
-      } else if (error.code && typeof error.code === 'string') {
-          if (error.code.includes('storage/unauthorized')) {
-              description = "Upload failed: Permission denied. Please check your Firebase Storage rules and ensure they are deployed.";
-          } else if (error.code.includes('storage/object-not-found')) {
-              description = "Upload failed: The file could not be found.";
-          }
-      } else if (error.message) {
-        description = error.message;
-      }
+      const description = getFriendlyErrorMessage(
+        error,
+        "We couldn’t save this client. Please try again."
+      );
       toast({
         variant: "destructive",
-        title: "Save Failed",
+        title: "Save failed",
         description: description,
         duration: 9000,
       });

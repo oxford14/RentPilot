@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -62,11 +63,12 @@ export function PaymongoDialog({ isOpen, onClose, tenant, amount }: PaymongoDial
 
       setCheckoutUrl(responseData.checkoutUrl);
     } catch (err: any) {
-      setError(err.message);
+      const message = getFriendlyErrorMessage(err, 'We couldn’t create the payment link. Please try again.');
+      setError(message);
       toast({
         variant: "destructive",
-        title: "Payment Error",
-        description: err.message,
+        title: "Payment error",
+        description: message,
       });
     } finally {
       setIsLoading(false);

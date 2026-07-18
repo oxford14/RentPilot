@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import { useAppContext } from '@/contexts/AppContext';
 import { Loader2, Send } from 'lucide-react';
 import type { Tenant } from '@/lib/types';
@@ -73,8 +74,8 @@ export function RentAdjustmentRequestDialog({ isOpen, onClose, tenant }: RentAdj
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Submission Failed',
-        description: error.message || "An unknown error occurred.",
+        title: 'Submission failed',
+        description: getFriendlyErrorMessage(error, "We couldn’t submit your request. Please try again."),
       });
     } finally {
       setIsLoading(false);

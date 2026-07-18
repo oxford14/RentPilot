@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     let metadata: Record<string, string> = {};
-    let description = 'Payment for RentPilot';
+    let description = 'Payment for Rental Pilot';
 
     if (paymentType === 'subscription') {
         const { clientId, clientName, planName, billingEndDate } = details;
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
           paymentRef,
           ...(billingEndDate ? { billingEndDate: String(billingEndDate) } : {}),
         };
-        description = `RentPilot Subscription: ${planName}`;
+        description = `Rental Pilot Subscription: ${planName}`;
 
         const origin = getAppOrigin(request);
         const authString = Buffer.from(`${secretKey}:`).toString('base64');

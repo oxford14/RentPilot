@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppContext } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
+import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import type { Vehicle } from '@/lib/types';
 import { VehicleMakeCombobox } from '@/components/vehicles/VehicleMakeCombobox';
 import { isValidVehicleMake, normalizeVehicleMake } from '@/lib/vehicle-makes';
@@ -106,8 +107,8 @@ export function VehicleForm({ isOpen, onClose, vehicle }: VehicleFormProps) {
       }
       onClose();
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Failed to save vehicle.';
-      toast({ variant: "destructive", title: "Error", description: message });
+      const message = getFriendlyErrorMessage(e, 'We couldn’t save this vehicle. Please try again.');
+      toast({ variant: "destructive", title: "Save failed", description: message });
     }
   };
 

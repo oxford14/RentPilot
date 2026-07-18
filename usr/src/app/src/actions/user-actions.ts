@@ -163,7 +163,7 @@ export async function serverGenerateTenantAccount(tenantId: string): Promise<{su
 
     const emailBody = `
         <p>Hello ${tenantData.name},</p>
-        <p>An account has been created for you on the RentPilot portal by ${clientName}.</p>
+        <p>An account has been created for you on the Rental Pilot portal by ${clientName}.</p>
         <p>You can use these credentials to log in. You will be required to change your password on your first login.</p>
         <ul>
             <li><strong>Username:</strong> ${username}</li>
@@ -217,7 +217,7 @@ export async function serverResetTenantPassword(tenantId: string): Promise<{succ
     
     const emailBody = `
         <p>Hello ${tenantData.name},</p>
-        <p>Your password for the RentPilot portal has been reset by ${clientName}.</p>
+        <p>Your password for the Rental Pilot portal has been reset by ${clientName}.</p>
         <p>Please use the following temporary password to log in. You will be required to create a new password after logging in.</p>
         <ul>
             <li><strong>Username:</strong> ${tenantData.username}</li>
