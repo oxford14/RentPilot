@@ -35,6 +35,13 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function brandInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '•';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
 function getAppLoginUrl(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '');
   return base ? `${base}/login` : 'https://rent-pilot.net/login';
@@ -84,10 +91,12 @@ export function emailLayout(options: {
   const { title, bodyHtml, fromName, previewText, accent = 'default' } = options;
   const style = ACCENT_STYLES[accent];
   const safeTitle = escapeHtml(title);
-  const safeFrom = fromName ? escapeHtml(fromName) : 'Your property manager';
+  const brandName = fromName?.trim() || 'Your property manager';
+  const safeFrom = escapeHtml(brandName);
+  const initials = escapeHtml(brandInitials(brandName));
   const preheader = escapeHtml(previewText || title);
   const badgeHtml = style.badgeLabel
-    ? `<span style="display:inline-block;margin-bottom:10px;padding:4px 10px;background:${style.badgeBg};color:${style.badgeText};font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-radius:999px;">${style.badgeLabel}</span>`
+    ? `<span style="display:inline-block;margin-bottom:14px;padding:4px 10px;background:${style.badgeBg};color:${style.badgeText};font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-radius:999px;">${style.badgeLabel}</span>`
     : '';
 
   return `<!DOCTYPE html>
@@ -105,11 +114,24 @@ export function emailLayout(options: {
       <td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
           <tr>
-            <td style="background:${style.headerBg};padding:28px 32px 24px;">
+            <td style="background:${style.headerBg};padding:28px 32px 26px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="48" height="48" align="center" valign="middle" style="width:48px;height:48px;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.35);border-radius:12px;color:#ffffff;font-size:18px;font-weight:700;letter-spacing:0.02em;">${initials}</td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:middle;padding-left:14px;">
+                    <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;line-height:1.3;">${safeFrom}</p>
+                    <p style="margin:2px 0 0;color:${style.headerSub};font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Tenant Notice</p>
+                  </td>
+                </tr>
+              </table>
               ${badgeHtml}
-              <p style="margin:0 0 6px;color:${style.headerSub};font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Rental Pilot · Tenant Portal</p>
               <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.35;">${safeTitle}</h1>
-              <p style="margin:10px 0 0;color:${style.headerSub};font-size:14px;opacity:0.95;">From ${safeFrom}</p>
             </td>
           </tr>
           <tr>
@@ -118,15 +140,15 @@ export function emailLayout(options: {
           <tr>
             <td style="padding:20px 32px 28px;border-top:1px solid #e2e8f0;background:#f8fafc;">
               <p style="margin:0 0 8px;color:#64748b;font-size:13px;line-height:1.5;">
-                This email was sent by <strong style="color:#475569;">${safeFrom}</strong> through Rental Pilot.
+                This message was sent to you by <strong style="color:#475569;">${safeFrom}</strong>.
               </p>
               <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.5;">
-                Please do not reply to this automated message. Contact your property manager directly if you have questions.
+                Please do not reply to this automated message. Contact ${safeFrom} directly if you have questions.
               </p>
             </td>
           </tr>
         </table>
-        <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;text-align:center;">© Rental Pilot</p>
+        <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;text-align:center;">© ${safeFrom}</p>
       </td>
     </tr>
   </table>
@@ -196,7 +218,7 @@ export function announcementEmail(params: {
     ? `[${params.fromName}] ${params.title}`
     : `${params.fromName}: ${params.title}`;
 
-  const messageHtml = escapeHtml(params.content).replace(/\n/g, '<br>');
+  const messageHtml = escapeHtml(params.content);
 
   const body = `
     <p style="margin:0 0 20px;">Hello,</p>
@@ -204,7 +226,7 @@ export function announcementEmail(params: {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
       style="margin:0 0 24px;background:${reminder ? '#fffbeb' : '#f8fafc'};border:1px solid ${reminder ? '#fde68a' : '#e2e8f0'};border-radius:10px;border-left:4px solid ${reminder ? '#f59e0b' : '#1e40af'};">
       <tr>
-        <td style="padding:20px 22px;font-size:16px;line-height:1.65;color:#1e293b;">${messageHtml}</td>
+        <td style="padding:20px 22px;font-size:16px;line-height:1.65;color:#1e293b;white-space:pre-wrap;word-break:break-word;">${messageHtml}</td>
       </tr>
     </table>
     <p style="margin:0;color:#64748b;font-size:14px;">

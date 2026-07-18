@@ -1027,7 +1027,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 if (tenant?.email) emailRecipients.push(tenant.email);
             } else if (newAnnouncement.scope !== 'global' && newAnnouncement.audience === 'tenant') {
                 const tenantsForClient = rawTenantsState.filter(
-                  (t) => t.clientId === newAnnouncement.scope && t.email && t.hasAccount
+                  (t) => t.clientId === newAnnouncement.scope && t.email
                 );
                 emailRecipients = tenantsForClient.map((t) => t.email);
             }
@@ -2269,13 +2269,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      const batch = writeBatch(db);
-      const currentOccupant = rawTenantsState.find(t => t.roomNumber === roomNumber);
-      if (currentOccupant) {
-        batch.update(doc(db, 'tenants', currentOccupant.id), { roomNumber: deleteField() });
+      const tenant = rawTenantsState.find(t => t.id === tenantId);
+      const client = tenant ? rawClientsState.find(c => c.id === tenant.clientId) : null;
+      const capacity = client?.roomCapacities?.[roomNumber] ?? 1;
+      const occupants = rawTenantsState.filter(
+        t => t.roomNumber === roomNumber && t.status === 'active' && t.id !== tenantId
+      ).length;
+      if (occupants >= capacity) {
+        toast({ variant: "destructive", title: "Room is full", description: `Room ${roomNumber} has no free beds.` });
+        return;
       }
-      batch.update(doc(db, 'tenants', tenantId), { roomNumber: roomNumber });
-      await batch.commit();
+      await updateDoc(doc(db, 'tenants', tenantId), { roomNumber: roomNumber });
       toast({ title: "Success" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: getFriendlyErrorMessage(e) });
@@ -2310,6 +2314,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             delete currentIssues[roomNumber];
         }
         await updateDoc(clientRef, { roomIssues: currentIssues });
+        toast({ title: "Success" });
+    } catch (e: any) {
+        toast({ variant: "destructive", title: "Error", description: getFriendlyErrorMessage(e) });
+    }
+  };
+
+  const updateClientRoomCapacity = async (clientId: string, roomNumber: number, capacity: number) => {
+    if (!authIsAuthenticated) {
+        toast({ variant: "destructive", title: "Unauthorized" });
+        return;
+    }
+    const nextCapacity = Math.max(1, Math.floor(capacity));
+    const occupants = rawTenantsState.filter(
+        t => t.roomNumber === roomNumber && t.status === 'active'
+    ).length;
+    if (nextCapacity < occupants) {
+        toast({ variant: "destructive", title: "Cannot reduce beds", description: `Room ${roomNumber} already has ${occupants} occupant(s). Unassign tenants first.` });
+        return;
+    }
+    const clientRef = doc(db, 'clients', clientId);
+    try {
+        await updateDoc(clientRef, { [`roomCapacities.${roomNumber}`]: nextCapacity });
         toast({ title: "Success" });
     } catch (e: any) {
         toast({ variant: "destructive", title: "Error", description: getFriendlyErrorMessage(e) });
@@ -2449,6 +2475,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     assignTenantToRoom,
     unassignTenantFromRoom,
     updateClientRoomIssue,
+    updateClientRoomCapacity,
 
     addVehicle,
     updateVehicle,

@@ -42,3 +42,45 @@ export async function deletePendingCheckout(paymentRef: string): Promise<void> {
     // non-fatal
   }
 }
+
+export type PendingQrRecord = {
+  kind: 'qr';
+  clientId: string;
+  clientName?: string;
+  planName: string;
+  amount: number;
+  billingEndDate?: string;
+  createdAt: string;
+};
+
+/** Stores QR subscription metadata keyed by the PayMongo payment intent id. */
+export async function saveQrPending(
+  intentId: string,
+  record: Omit<PendingQrRecord, 'kind' | 'createdAt'>
+): Promise<void> {
+  const db = getAdminDb();
+  await db
+    .collection(COLLECTION)
+    .doc(intentId)
+    .set({
+      kind: 'qr',
+      ...record,
+      createdAt: new Date().toISOString(),
+    });
+}
+
+export async function resolveQrPending(
+  intentId: string,
+  expectedClientId?: string
+): Promise<PendingQrRecord | null> {
+  const db = getAdminDb();
+  const snap = await db.collection(COLLECTION).doc(intentId).get();
+  if (!snap.exists) return null;
+
+  const data = snap.data() as PendingQrRecord;
+  if (data.kind !== 'qr') return null;
+  if (expectedClientId && data.clientId !== expectedClientId) {
+    throw new Error('This payment does not belong to your organization.');
+  }
+  return data;
+}

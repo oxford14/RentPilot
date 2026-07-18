@@ -37,6 +37,7 @@ import {
   getClientSubscriptionStatus,
   RENEWAL_WINDOW_DAYS,
 } from '@/lib/subscription-status';
+import { SubscriptionQrDialog } from '@/components/payments/SubscriptionQrDialog';
 
 const PENDING_SUBSCRIPTION_KEY = 'paymongo_pending_subscription';
 
@@ -112,8 +113,12 @@ function SubscriptionPageContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const [qrCheckout, setQrCheckout] = useState<{
+    amount: number;
+    planName: string;
+    billingEndDate?: string;
+  } | null>(null);
 
   const client = useMemo(() => {
     if (!user || !user.clientId) return null;
@@ -278,47 +283,13 @@ function SubscriptionPageContent() {
     };
   }, [client]);
 
-  const handleCheckout = async (amount: number, paymongoPlanName: string) => {
-    if (!client || isRedirecting) return;
-    setIsRedirecting(true);
-
-    try {
-      const response = await fetch('/api/paymongo/create-source', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount,
-          paymentType: 'subscription',
-          details: {
-            clientId: client.id,
-            clientName: client.name,
-            planName: paymongoPlanName,
-            billingEndDate: client.subscriptionEndDate ?? '',
-          },
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start checkout.');
-      }
-
-      const sessionId = data.sessionId as string | undefined;
-      const paymentRef = data.paymentRef as string | undefined;
-      if (!data.checkoutUrl || (!sessionId && !paymentRef)) {
-        throw new Error('Invalid checkout response from server.');
-      }
-
-      sessionStorage.setItem(
-        PENDING_SUBSCRIPTION_KEY,
-        JSON.stringify({ sessionId, paymentRef, clientId: client.id })
-      );
-      window.location.href = data.checkoutUrl;
-    } catch (err: unknown) {
-      const message = getFriendlyErrorMessage(err, 'Could not start payment.');
-      toast({ variant: 'destructive', title: 'Payment error', description: message });
-      setIsRedirecting(false);
-    }
+  const handleCheckout = (amount: number, paymongoPlanName: string) => {
+    if (!client) return;
+    setQrCheckout({
+      amount,
+      planName: paymongoPlanName,
+      billingEndDate: client.subscriptionEndDate ?? '',
+    });
   };
 
   if (authIsLoading || !client) {
@@ -416,20 +387,17 @@ function SubscriptionPageContent() {
               <Button
                 key={action.label}
                 variant={action.variant ?? 'default'}
-                disabled={isRedirecting}
                 onClick={() => handleCheckout(action.amount, action.paymongoPlanName)}
                 className="sm:flex-1 min-w-[200px]"
               >
-                {isRedirecting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : action.label.toLowerCase().includes('renew') ? (
+                {action.label.toLowerCase().includes('renew') ? (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 ) : action.label.toLowerCase().includes('upgrade') ? (
                   <ArrowUpRight className="mr-2 h-4 w-4" />
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />
                 )}
-                {isRedirecting ? 'Redirecting to PayMongo…' : action.label}
+                {action.label}
               </Button>
             ))}
           </CardFooter>
@@ -501,12 +469,23 @@ function SubscriptionPageContent() {
                 isCurrentPlan={isCurrent}
                 actionLabel={actionLabel}
                 onAction={onAction}
-                disabled={isRedirecting}
               />
             );
           })}
         </div>
       </div>
+
+      {qrCheckout && client && (
+        <SubscriptionQrDialog
+          isOpen={!!qrCheckout}
+          onClose={() => setQrCheckout(null)}
+          clientId={client.id}
+          clientName={client.name}
+          amount={qrCheckout.amount}
+          planName={qrCheckout.planName}
+          billingEndDate={qrCheckout.billingEndDate}
+        />
+      )}
     </div>
   );
 }

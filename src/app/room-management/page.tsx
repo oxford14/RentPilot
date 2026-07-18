@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useAppContext } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Server, User, Trash2, AlertTriangle, UserCheck, Wifi, Lan, Camera, Headphones } from 'lucide-react';
+import { Home, Server, User, Trash2, AlertTriangle, UserCheck, Wifi, Lan, Camera, Headphones, BedDouble } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,7 +61,7 @@ type IssueFormValues = z.infer<typeof issueFormSchema>;
 
 
 export default function RoomManagementPage() {
-  const { clients, tenants, updateClientRoomCount, assignTenantToRoom, unassignTenantFromRoom, updateClientRoomIssue, viewingAsClientId } = useAppContext();
+  const { clients, tenants, updateClientRoomCount, assignTenantToRoom, unassignTenantFromRoom, updateClientRoomIssue, updateClientRoomCapacity, viewingAsClientId } = useAppContext();
   const { user } = useAuth();
 
   const client = useMemo(() => {
@@ -140,18 +140,20 @@ export default function RoomManagementPage() {
     const count = client?.roomCount || 0;
     return Array.from({ length: count }, (_, i) => {
       const roomNumber = i + 1;
-      const assignedTenant = tenants.find(t => t.roomNumber === roomNumber);
+      const occupants = tenants.filter(t => t.roomNumber === roomNumber);
+      const capacity = client?.roomCapacities?.[roomNumber] ?? 1;
       return {
         number: roomNumber,
-        tenant: assignedTenant,
+        occupants,
+        capacity,
       };
     });
-  }, [client?.roomCount, tenants]);
+  }, [client?.roomCount, client?.roomCapacities, tenants]);
   
-  const { occupiedCount, vacantCount } = useMemo(() => {
-    const occupied = rooms.filter(pc => !!pc.tenant).length;
-    const vacant = rooms.length - occupied;
-    return { occupiedCount: occupied, vacantCount: vacant };
+  const { occupiedBeds, freeBeds } = useMemo(() => {
+    const totalBeds = rooms.reduce((sum, room) => sum + room.capacity, 0);
+    const occupied = rooms.reduce((sum, room) => sum + room.occupants.length, 0);
+    return { occupiedBeds: occupied, freeBeds: Math.max(0, totalBeds - occupied) };
   }, [rooms]);
 
   const availableTenants = useMemo(() => {
@@ -286,8 +288,8 @@ export default function RoomManagementPage() {
                 <div className="flex items-center gap-3">
                     <UserCheck className="h-6 w-6 text-green-500"/>
                     <div>
-                        <p className="text-sm text-muted-foreground">Occupied</p>
-                        <p className="text-2xl font-bold">{occupiedCount}</p>
+                        <p className="text-sm text-muted-foreground">Occupied Beds</p>
+                        <p className="text-2xl font-bold">{occupiedBeds}</p>
                     </div>
                 </div>
             </Card>
@@ -295,8 +297,8 @@ export default function RoomManagementPage() {
                 <div className="flex items-center gap-3">
                     <Server className="h-6 w-6 text-gray-400"/>
                     <div>
-                        <p className="text-sm text-muted-foreground">Vacant</p>
-                        <p className="text-2xl font-bold">{vacantCount}</p>
+                        <p className="text-sm text-muted-foreground">Free Beds</p>
+                        <p className="text-2xl font-bold">{freeBeds}</p>
                     </div>
                 </div>
             </Card>
@@ -331,12 +333,16 @@ export default function RoomManagementPage() {
         {rooms.map(room => {
           const issueObject = client?.roomIssues?.[room.number]
           const hasIssue = !!issueObject && Object.keys(issueObject).length > 0;
+          const isFull = room.occupants.length >= room.capacity;
           return (
             <Card key={room.number} className="shadow-lg flex flex-col">
               <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                 <div className="flex items-center gap-2">
-                    <Home className={cn("h-6 w-6", room.tenant ? "text-green-500" : "text-muted-foreground")} />
-                    <CardTitle className="text-lg font-bold">Room {room.number}</CardTitle>
+                    <Home className={cn("h-6 w-6", room.occupants.length > 0 ? "text-green-500" : "text-muted-foreground")} />
+                    <div>
+                      <CardTitle className="text-lg font-bold">Room {room.number}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{room.occupants.length} / {room.capacity} beds</p>
+                    </div>
                 </div>
                 <Button
                     variant={hasIssue ? "destructive" : "ghost"}
@@ -348,37 +354,76 @@ export default function RoomManagementPage() {
                     <span className="sr-only">Report Issue</span>
                 </Button>
               </CardHeader>
-              <CardContent className="flex-grow">
-                <div className="text-sm font-medium flex items-center gap-2">
-                   <User className="h-4 w-4 text-muted-foreground"/> 
-                   <span>{room.tenant?.name || "Vacant"}</span>
-                </div>
+              <CardContent className="flex-grow space-y-2">
+                {room.occupants.length === 0 ? (
+                  <div className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                     <User className="h-4 w-4"/>
+                     <span>Vacant</span>
+                  </div>
+                ) : (
+                  room.occupants.map(occupant => (
+                    <div key={occupant.id} className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <User className="h-4 w-4 shrink-0 text-muted-foreground"/>
+                        <span className="text-sm font-medium truncate">{occupant.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => unassignTenantFromRoom(occupant.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Unassign {occupant.name}</span>
+                      </Button>
+                    </div>
+                  ))
+                )}
               </CardContent>
               <CardFooter className="flex-col items-stretch space-y-2">
-                <Select
-                  onValueChange={(tenantId) => assignTenantToRoom(tenantId, room.number)}
-                  value={room.tenant?.id || ''}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Assign a tenant..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {room.tenant && <SelectItem value={room.tenant.id}>{room.tenant.name}</SelectItem>}
-                    {availableTenants.map(t => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                    {availableTenants.length === 0 && !room.tenant && (
-                      <div className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm text-muted-foreground">
-                          No available tenants
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
-                {room.tenant && (
-                  <Button variant="outline" size="sm" onClick={() => unassignTenantFromRoom(room.tenant!.id)}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Unassign
-                  </Button>
+                {isFull ? (
+                  <div className="flex items-center justify-center rounded-md border border-dashed py-2 text-sm text-muted-foreground">
+                    Room full
+                  </div>
+                ) : (
+                  <Select
+                    onValueChange={(tenantId) => assignTenantToRoom(tenantId, room.number)}
+                    value=""
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Add a tenant..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTenants.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                      {availableTenants.length === 0 && (
+                        <div className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm text-muted-foreground">
+                            No available tenants
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+                {canConfigureRoomCount && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`beds-${room.number}`} className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                      <BedDouble className="h-4 w-4" /> Beds
+                    </Label>
+                    <Input
+                      id={`beds-${room.number}`}
+                      type="number"
+                      min={Math.max(1, room.occupants.length)}
+                      defaultValue={room.capacity}
+                      className="h-8"
+                      onBlur={(e) => {
+                        const n = parseInt(e.target.value, 10);
+                        if (!isNaN(n) && n !== room.capacity) {
+                          updateClientRoomCapacity(client.id, room.number, n);
+                        }
+                      }}
+                    />
+                  </div>
                 )}
               </CardFooter>
             </Card>

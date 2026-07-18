@@ -154,6 +154,7 @@ export interface Client {
   pcIssues?: Record<number, PcIssue>;
   roomCount?: number;
   roomIssues?: Record<number, PcIssue>;
+  roomCapacities?: Record<number, number>; // beds per room; unset means 1 (private room)
   companyFundsStartingBalance?: number;
   companyFundsStartDate?: string;
   timezone?: string;
@@ -488,6 +489,7 @@ export interface AppContextType {
   assignTenantToRoom: (tenantId: string, roomNumber: number) => Promise<void>;
   unassignTenantFromRoom: (tenantId: string) => Promise<void>;
   updateClientRoomIssue: (clientId: string, roomNumber: number, newIssues: PcIssue) => Promise<void>;
+  updateClientRoomCapacity: (clientId: string, roomNumber: number, capacity: number) => Promise<void>;
 
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'clientId'>) => Promise<void>;
   updateVehicle: (vehicle: Vehicle) => Promise<void>;

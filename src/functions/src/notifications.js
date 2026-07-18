@@ -86,7 +86,7 @@ async function runNotificationChecks() {
         announcementBatch.update(docSnap.ref, { status: 'sent', createdAt: new Date().toISOString() });
         const announcement = docSnap.data();
         if (announcement.audience === 'tenant' && announcement.scope !== 'global') {
-            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email && t.hasAccount);
+            const clientTenants = allTenants.filter(t => t.clientId === announcement.scope && t.email);
             const client = clientsSnapshot.docs.find(c => c.id === announcement.scope)?.data();
             const fromName = client?.name || announcement.senderName;
             const { subject, html } = announcementEmail({
