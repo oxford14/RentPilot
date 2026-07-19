@@ -172,6 +172,123 @@ async function runNotificationChecks() {
             }
         }
     }
+
+    // ---- Subscription auto-renew ----
+    for (const clientDoc of clientsSnapshot.docs) {
+        const client = { id: clientDoc.id, ...clientDoc.data() };
+        if (!client.autoRenew || !client.subscriptionEndDate) continue;
+
+        const endDate = new Date(client.subscriptionEndDate);
+        const daysLeft = Math.round((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+        // Only act within the renewal window around the due date.
+        if (daysLeft > 3 || daysLeft < -3) continue;
+
+        const method = client.autoRenewMethod;
+        if (method === 'card') continue; // PayMongo auto-charges regular card subscriptions.
+
+        const subRef = db.collection('paymongoSubscriptions').doc(client.id);
+        const record = (await subRef.get()).data() || null;
+        const cycleKey = client.subscriptionEndDate;
+        if (record && record.autoRenewTriggeredFor === cycleKey) continue; // once per cycle
+
+        try {
+            if (method === 'paymaya') {
+                if (!record || !record.subscriptionId) continue;
+                await initiateMayaOnDemand(record.subscriptionId);
+            } else if (method === 'gcash') {
+                await sendGcashAssistedRenewal(client);
+            } else {
+                continue;
+            }
+            await subRef.set(
+                { autoRenewTriggeredFor: cycleKey, updatedAt: new Date().toISOString() },
+                { merge: true }
+            );
+        } catch (err) {
+            console.error(`[AutoRenew] ${client.id} (${method}) failed:`, err);
+        }
+    }
+}
+
+const PAYMONGO_API = 'https://api.paymongo.com/v1';
+const paymongoAuth = () =>
+    'Basic ' + Buffer.from(`${process.env.PAYMONGO_SECRET_KEY || ''}:`).toString('base64');
+
+async function initiateMayaOnDemand(subscriptionId) {
+    const res = await fetch(`${PAYMONGO_API}/subscriptions/${subscriptionId}/payments`, {
+        method: 'POST',
+        headers: {
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+            authorization: paymongoAuth(),
+        },
+        body: JSON.stringify({ data: { attributes: {} } }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.errors) {
+        throw new Error((data.errors || []).map((e) => e.detail).filter(Boolean).join(', ') || 'Maya on-demand payment failed.');
+    }
+    return data.data;
+}
+
+async function sendGcashAssistedRenewal(client) {
+    const rate = client.subscriptionRate || 0;
+    if (rate <= 0) throw new Error('No subscription rate configured to bill.');
+    const amountCentavos = Math.round(rate * 100);
+
+    const remarks = JSON.stringify({
+        paymentType: 'subscription',
+        clientId: client.id,
+        clientName: client.name,
+        planName: client.subscriptionPlanName || 'Basic Plan',
+        amount: String(rate),
+        billingEndDate: client.subscriptionEndDate,
+    });
+
+    const res = await fetch(`${PAYMONGO_API}/links`, {
+        method: 'POST',
+        headers: {
+            accept: 'application/json',
+            'Content-Type': 'application/json',
+            authorization: paymongoAuth(),
+        },
+        body: JSON.stringify({
+            data: {
+                attributes: {
+                    amount: amountCentavos,
+                    description: `${client.name} subscription renewal`,
+                    remarks,
+                },
+            },
+        }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.errors) {
+        throw new Error((data.errors || []).map((e) => e.detail).filter(Boolean).join(', ') || 'Could not create renewal link.');
+    }
+    const checkoutUrl = data.data && data.data.attributes && data.data.attributes.checkout_url;
+    if (!checkoutUrl) throw new Error('PayMongo did not return a checkout URL.');
+
+    const adminSnap = await db
+        .collection('managedUsers')
+        .where('clientId', '==', client.id)
+        .where('role', '==', 'admin')
+        .limit(1)
+        .get();
+    const adminEmail = adminSnap.empty ? null : adminSnap.docs[0].data().email;
+    if (!adminEmail) return;
+
+    const dueStr = new Date(client.subscriptionEndDate).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    });
+    const { subject, html } = announcementEmail({
+        fromName: client.name,
+        title: 'Your subscription renews soon — tap to pay',
+        content: `Your ${client.subscriptionPlanName || ''} plan is due on ${dueStr}. Pay securely with GCash in one tap:\n\n${checkoutUrl}\n\nOnce paid, your plan extends automatically.`,
+    });
+    await sendEmail({ to: adminEmail, subject, html });
 }
 
 // Helper to format PH numbers to the required 10-digit format

@@ -150,6 +150,12 @@ export interface Client {
   subscriptionEndDate?: string; // ISO string
   subscriptionPlanName?: string;
   subscriptionRate?: number;
+  // ---- Auto-renew (PayMongo Subscriptions) ----
+  autoRenew?: boolean;
+  autoRenewMethod?: 'card' | 'paymaya' | 'gcash';
+  /** Display-safe label, e.g. "Visa ...1234", "Maya", "GCash" */
+  autoRenewMethodLabel?: string;
+  autoRenewStatus?: 'active' | 'past_due' | 'unpaid' | 'incomplete' | 'none';
   pcCount?: number;
   pcIssues?: Record<number, PcIssue>;
   roomCount?: number;

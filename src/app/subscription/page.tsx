@@ -38,8 +38,13 @@ import {
   RENEWAL_WINDOW_DAYS,
 } from '@/lib/subscription-status';
 import { SubscriptionQrDialog } from '@/components/payments/SubscriptionQrDialog';
+import { AutoRenewDialog } from '@/components/payments/AutoRenewDialog';
+import { Switch } from '@/components/ui/switch';
+import { serverConfirmAutoRenew, serverDisableAutoRenew } from '@/actions/subscription-actions';
+import { RotateCw, CreditCard, ShieldOff } from 'lucide-react';
 
 const PENDING_SUBSCRIPTION_KEY = 'paymongo_pending_subscription';
+const AUTORENEW_PENDING_KEY = 'paymongo_pending_autorenew';
 
 function PlanCard({
   planKey,
@@ -119,6 +124,8 @@ function SubscriptionPageContent() {
     planName: string;
     billingEndDate?: string;
   } | null>(null);
+  const [autoRenewOpen, setAutoRenewOpen] = useState(false);
+  const [autoRenewBusy, setAutoRenewBusy] = useState(false);
 
   const client = useMemo(() => {
     if (!user || !user.clientId) return null;
@@ -217,6 +224,68 @@ function SubscriptionPageContent() {
       })
       .finally(() => setIsActivating(false));
   }, [client, searchParams, router, toast, activateSubscription]);
+
+  // Handle return from a 3DS / Maya redirect during auto-renew setup.
+  useEffect(() => {
+    if (!client) return;
+    const autorenew = searchParams.get('autorenew');
+    if (!autorenew) return;
+
+    let pending: { method?: 'card' | 'paymaya'; label?: string } = {};
+    try {
+      const raw = sessionStorage.getItem(AUTORENEW_PENDING_KEY);
+      if (raw) pending = JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    sessionStorage.removeItem(AUTORENEW_PENDING_KEY);
+    router.replace('/subscription');
+
+    if (autorenew === 'cancelled') {
+      toast({ title: 'Auto-renew cancelled', description: 'No payment method was saved.' });
+      return;
+    }
+    if (autorenew !== 'success' || !pending.method) return;
+
+    setAutoRenewBusy(true);
+    serverConfirmAutoRenew({
+      clientId: client.id,
+      method: pending.method,
+      fallbackLabel: pending.label,
+    })
+      .then((res) => {
+        toast({
+          title: 'Auto-renew enabled',
+          description: `Your plan will renew automatically with ${res.methodLabel}.`,
+        });
+      })
+      .catch((err: unknown) => {
+        toast({
+          variant: 'destructive',
+          title: 'Could not enable auto-renew',
+          description: getFriendlyErrorMessage(err, 'Please try again.'),
+        });
+      })
+      .finally(() => setAutoRenewBusy(false));
+  }, [client, searchParams, router, toast]);
+
+  const handleDisableAutoRenew = useCallback(async () => {
+    if (!client) return;
+    if (!window.confirm('Turn off auto-renew? Your saved payment method will be removed.')) return;
+    setAutoRenewBusy(true);
+    try {
+      await serverDisableAutoRenew({ clientId: client.id });
+      toast({ title: 'Auto-renew turned off' });
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: 'Could not turn off auto-renew',
+        description: getFriendlyErrorMessage(err, 'Please try again.'),
+      });
+    } finally {
+      setAutoRenewBusy(false);
+    }
+  }, [client, toast]);
 
   const subscriptionView = useMemo(() => {
     if (!client) {
@@ -420,6 +489,84 @@ function SubscriptionPageContent() {
         )}
       </Card>
 
+      {(currentPlanKey === 'basic' || currentPlanKey === 'pro') && (
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl font-headline flex items-center gap-2">
+                  <RotateCw className="h-5 w-5 text-primary" /> Auto-renew
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Automatically renew your {displayPlan} each month so you never lose access.
+                </CardDescription>
+              </div>
+              <Switch
+                checked={!!client.autoRenew}
+                disabled={autoRenewBusy}
+                onCheckedChange={(next) => {
+                  if (next) setAutoRenewOpen(true);
+                  else handleDisableAutoRenew();
+                }}
+                aria-label="Toggle auto-renew"
+              />
+            </div>
+          </CardHeader>
+          {client.autoRenew && (
+            <CardContent>
+              <div className="rounded-xl border bg-background/80 p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment method</p>
+                    <p className="font-semibold">{client.autoRenewMethodLabel ?? 'Saved method'}</p>
+                  </div>
+                  {client.autoRenewStatus && client.autoRenewStatus !== 'active' && (
+                    <Badge variant="destructive" className="ml-2 capitalize">
+                      {client.autoRenewStatus.replace('_', ' ')}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={autoRenewBusy}
+                    onClick={() => setAutoRenewOpen(true)}
+                  >
+                    Change
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    disabled={autoRenewBusy}
+                    onClick={handleDisableAutoRenew}
+                  >
+                    <ShieldOff className="mr-1.5 h-4 w-4" /> Remove
+                  </Button>
+                </div>
+              </div>
+              {client.autoRenewMethod === 'gcash' && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  GCash isn&apos;t supported for automatic charges. Near your due date we&apos;ll
+                  auto-generate a renewal QR and email you a one-tap pay link.
+                </p>
+              )}
+            </CardContent>
+          )}
+          {autoRenewBusy && (
+            <CardFooter className="pt-0">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Working…
+              </p>
+            </CardFooter>
+          )}
+        </Card>
+      )}
+
       <div>
         <h2 className="text-xl font-bold font-headline mb-1">Compare plans</h2>
         <p className="text-sm text-muted-foreground mb-5">
@@ -484,6 +631,25 @@ function SubscriptionPageContent() {
           amount={qrCheckout.amount}
           planName={qrCheckout.planName}
           billingEndDate={qrCheckout.billingEndDate}
+        />
+      )}
+
+      {client && (currentPlanKey === 'basic' || currentPlanKey === 'pro') && (
+        <AutoRenewDialog
+          isOpen={autoRenewOpen}
+          onClose={() => setAutoRenewOpen(false)}
+          clientId={client.id}
+          adminEmail={user?.email ?? ''}
+          planLabel={displayPlan}
+          pendingStorageKey={AUTORENEW_PENDING_KEY}
+          onBusyChange={setAutoRenewBusy}
+          onEnabled={(label) => {
+            setAutoRenewOpen(false);
+            toast({
+              title: 'Auto-renew enabled',
+              description: `Your plan will renew automatically with ${label}.`,
+            });
+          }}
         />
       )}
     </div>

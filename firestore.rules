@@ -52,6 +52,10 @@ service cloud.firestore {
         'subscriptionRate',
         'subscriptionBillingCycle',
         'subscriptionStartedAt',
+        'autoRenew',
+        'autoRenewMethod',
+        'autoRenewMethodLabel',
+        'autoRenewStatus',
       ];
     }
 
@@ -63,6 +67,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /paymongoWebhookEvents/{id} {
+      allow read, write: if false;
+    }
+    match /paymongoSubscriptions/{id} {
       allow read, write: if false;
     }
     match /mail/{id} {
