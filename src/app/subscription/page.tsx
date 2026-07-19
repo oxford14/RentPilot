@@ -28,9 +28,12 @@ import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 import {
   SUBSCRIPTION_PLANS,
   getSubscriptionActions,
+  getPlanRate,
+  formatPlanRate,
   normalizePlanKey,
   planDisplayLabel,
   type PlanKey,
+  type BillingCycle,
 } from '@/lib/subscription-plans';
 import {
   canRenewSubscription,
@@ -41,7 +44,9 @@ import { SubscriptionQrDialog } from '@/components/payments/SubscriptionQrDialog
 import { AutoRenewDialog } from '@/components/payments/AutoRenewDialog';
 import { Switch } from '@/components/ui/switch';
 import { serverConfirmAutoRenew, serverDisableAutoRenew } from '@/actions/subscription-actions';
-import { RotateCw, CreditCard, ShieldOff } from 'lucide-react';
+import { RotateCw, CreditCard, ShieldOff, Mail } from 'lucide-react';
+
+const SUPPORT_EMAIL = 'support@rentalpilot.app';
 
 const PENDING_SUBSCRIPTION_KEY = 'paymongo_pending_subscription';
 const AUTORENEW_PENDING_KEY = 'paymongo_pending_autorenew';
@@ -55,6 +60,8 @@ function PlanCard({
   isCurrentPlan = false,
   actionLabel,
   onAction,
+  contactHref,
+  priceSubtext,
   disabled = false,
 }: {
   planKey: PlanKey;
@@ -65,6 +72,8 @@ function PlanCard({
   isCurrentPlan?: boolean;
   actionLabel?: string;
   onAction?: () => void;
+  contactHref?: string;
+  priceSubtext?: string;
   disabled?: boolean;
 }) {
   return (
@@ -84,6 +93,9 @@ function PlanCard({
           )}
         </div>
         <CardDescription className="text-2xl font-bold text-foreground pt-1">{price}</CardDescription>
+        {priceSubtext && (
+          <p className="text-xs text-muted-foreground">{priceSubtext}</p>
+        )}
       </CardHeader>
       <CardContent className="flex-1">
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
@@ -97,7 +109,14 @@ function PlanCard({
         </ul>
       </CardContent>
       <CardFooter className="pt-0">
-        {onAction && actionLabel ? (
+        {contactHref ? (
+          <Button asChild className="w-full" variant="outline">
+            <a href={contactHref}>
+              <Mail className="mr-2 h-4 w-4" />
+              {actionLabel ?? 'Contact Sales'}
+            </a>
+          </Button>
+        ) : onAction && actionLabel ? (
           <Button onClick={onAction} className="w-full" disabled={disabled} variant={isCurrentPlan ? 'secondary' : 'default'}>
             {actionLabel}
           </Button>
@@ -119,9 +138,11 @@ function SubscriptionPageContent() {
   const { toast } = useToast();
 
   const [isActivating, setIsActivating] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [qrCheckout, setQrCheckout] = useState<{
     amount: number;
     planName: string;
+    billingCycle: BillingCycle;
     billingEndDate?: string;
   } | null>(null);
   const [autoRenewOpen, setAutoRenewOpen] = useState(false);
@@ -344,19 +365,22 @@ function SubscriptionPageContent() {
       rate: isTrial
         ? 'Free'
         : client.subscriptionRate !== undefined
-          ? `₱${client.subscriptionRate.toLocaleString()}/month`
+          ? `₱${client.subscriptionRate.toLocaleString()}/${
+              client.subscriptionBillingCycle === 'yearly' ? 'year' : 'month'
+            }`
           : 'N/A',
       currentPlanKey,
       canRenew,
-      actions: getSubscriptionActions(client.subscriptionPlanName, canRenew),
+      actions: getSubscriptionActions(client.subscriptionPlanName, canRenew, billingCycle),
     };
-  }, [client]);
+  }, [client, billingCycle]);
 
-  const handleCheckout = (amount: number, paymongoPlanName: string) => {
+  const handleCheckout = (amount: number, paymongoPlanName: string, cycle: BillingCycle) => {
     if (!client) return;
     setQrCheckout({
       amount,
       planName: paymongoPlanName,
+      billingCycle: cycle,
       billingEndDate: client.subscriptionEndDate ?? '',
     });
   };
@@ -435,7 +459,7 @@ function SubscriptionPageContent() {
                 <DollarSign className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Monthly rate</p>
+                <p className="text-xs text-muted-foreground">Current rate</p>
                 <p className="font-semibold text-lg">{rate}</p>
               </div>
             </div>
@@ -456,7 +480,7 @@ function SubscriptionPageContent() {
               <Button
                 key={action.label}
                 variant={action.variant ?? 'default'}
-                onClick={() => handleCheckout(action.amount, action.paymongoPlanName)}
+                onClick={() => handleCheckout(action.amount, action.paymongoPlanName, action.billingCycle)}
                 className="sm:flex-1 min-w-[200px]"
               >
                 {action.label.toLowerCase().includes('renew') ? (
@@ -568,23 +592,51 @@ function SubscriptionPageContent() {
       )}
 
       <div>
-        <h2 className="text-xl font-bold font-headline mb-1">Compare plans</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+          <h2 className="text-xl font-bold font-headline">Compare plans</h2>
+          <div className="inline-flex items-center rounded-lg border bg-muted/40 p-1 text-sm">
+            <button
+              type="button"
+              onClick={() => setBillingCycle('monthly')}
+              className={cn(
+                'rounded-md px-3 py-1.5 font-medium transition-colors',
+                billingCycle === 'monthly' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+              )}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingCycle('yearly')}
+              className={cn(
+                'rounded-md px-3 py-1.5 font-medium transition-colors flex items-center gap-1.5',
+                billingCycle === 'yearly' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+              )}
+            >
+              Yearly
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">2 months free</Badge>
+            </button>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground mb-5">
           All payments are processed securely through PayMongo.
         </p>
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {SUBSCRIPTION_PLANS.map((plan) => {
             const isCurrent = currentPlanKey === plan.key;
             const isProCurrent = currentPlanKey === 'pro';
+            const planRate = getPlanRate(plan, billingCycle);
             let actionLabel: string | undefined;
             let onAction: (() => void) | undefined;
 
-            if (plan.key === 'trial') {
+            if (plan.contactSales) {
+              // Enterprise — contact sales, no self-serve checkout.
+            } else if (plan.key === 'trial') {
               actionLabel = undefined;
             } else if (isCurrent) {
               if (canRenew) {
                 actionLabel = `Renew ${plan.name}`;
-                onAction = () => handleCheckout(plan.rate, plan.paymongoPlanName);
+                onAction = () => handleCheckout(planRate, plan.paymongoPlanName, billingCycle);
               }
             } else if (plan.key === 'basic') {
               if (!isProCurrent) {
@@ -592,7 +644,7 @@ function SubscriptionPageContent() {
                   currentPlanKey === 'unknown' || currentPlanKey === 'trial' || currentPlanKey === 'custom'
                     ? `Get ${plan.name}`
                     : `Switch to ${plan.name}`;
-                onAction = () => handleCheckout(plan.rate, plan.paymongoPlanName);
+                onAction = () => handleCheckout(planRate, plan.paymongoPlanName, billingCycle);
               }
             } else if (plan.key === 'pro') {
               actionLabel = isCurrent
@@ -601,21 +653,40 @@ function SubscriptionPageContent() {
                   : undefined
                 : 'Upgrade to Pro';
               if (actionLabel) {
-                onAction = () => handleCheckout(plan.rate, plan.paymongoPlanName);
+                onAction = () => handleCheckout(planRate, plan.paymongoPlanName, billingCycle);
               }
             }
+
+            const price =
+              plan.rate === 0
+                ? 'Free'
+                : plan.contactSales
+                  ? `Starts at ${formatPlanRate(plan, billingCycle)}`
+                  : formatPlanRate(plan, billingCycle);
+            const priceSubtext =
+              plan.contactSales || plan.rate === 0
+                ? undefined
+                : billingCycle === 'yearly'
+                  ? `₱${plan.rate.toLocaleString()}/mo billed monthly`
+                  : `or ₱${plan.yearlyRate.toLocaleString()}/yr (2 months free)`;
 
             return (
               <PlanCard
                 key={plan.key}
                 planKey={plan.key}
                 title={`${plan.name} Plan`}
-                price={plan.rate === 0 ? 'Free' : `₱${plan.rate} / month`}
+                price={price}
+                priceSubtext={priceSubtext}
                 description={plan.description}
                 features={plan.features}
                 isCurrentPlan={isCurrent}
-                actionLabel={actionLabel}
+                actionLabel={plan.contactSales ? 'Contact Sales' : actionLabel}
                 onAction={onAction}
+                contactHref={
+                  plan.contactSales
+                    ? `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Enterprise plan inquiry')}`
+                    : undefined
+                }
               />
             );
           })}
@@ -630,6 +701,7 @@ function SubscriptionPageContent() {
           clientName={client.name}
           amount={qrCheckout.amount}
           planName={qrCheckout.planName}
+          billingCycle={qrCheckout.billingCycle}
           billingEndDate={qrCheckout.billingEndDate}
         />
       )}
@@ -641,6 +713,7 @@ function SubscriptionPageContent() {
           clientId={client.id}
           adminEmail={user?.email ?? ''}
           planLabel={displayPlan}
+          billingCycle={billingCycle}
           pendingStorageKey={AUTORENEW_PENDING_KEY}
           onBusyChange={setAutoRenewBusy}
           onEnabled={(label) => {

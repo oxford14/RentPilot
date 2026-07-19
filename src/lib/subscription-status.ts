@@ -1,5 +1,6 @@
 import { isPast, differenceInDays, startOfDay, addMonths } from 'date-fns';
 import type { Client } from '@/lib/types';
+import type { BillingCycle } from '@/lib/subscription-plans';
 
 export type SubscriptionStatus = 'Active' | 'Expired' | 'Expiring Soon' | 'Inactive';
 
@@ -38,12 +39,17 @@ export function canRenewSubscription(client: Pick<Client, 'subscriptionStatus' |
 }
 
 /**
- * Extend subscription by one month from the current due date (not from payment date).
+ * Extend subscription by one billing cycle from the current due date (not from
+ * payment date). Yearly adds 12 months, monthly adds 1.
  */
-export function computeSubscriptionEndDate(currentEndDate?: string | null): string {
+export function computeSubscriptionEndDate(
+  currentEndDate?: string | null,
+  cycle: BillingCycle = 'monthly'
+): string {
+  const monthsToAdd = cycle === 'yearly' ? 12 : 1;
   if (currentEndDate) {
     const dueDate = startOfDay(new Date(currentEndDate));
-    return addMonths(dueDate, 1).toISOString();
+    return addMonths(dueDate, monthsToAdd).toISOString();
   }
-  return addMonths(startOfDay(new Date()), 1).toISOString();
+  return addMonths(startOfDay(new Date()), monthsToAdd).toISOString();
 }

@@ -49,6 +49,7 @@ export type PendingQrRecord = {
   clientName?: string;
   planName: string;
   amount: number;
+  billingCycle?: 'monthly' | 'yearly';
   billingEndDate?: string;
   createdAt: string;
 };

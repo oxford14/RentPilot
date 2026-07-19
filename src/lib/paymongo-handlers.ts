@@ -31,7 +31,8 @@ export async function handleSubscriptionPayment(
   // Due date frozen at checkout — webhook may activate before the browser confirm step runs
   const billingAnchor =
     metadata.billingEndDate?.trim() || clientData.subscriptionEndDate;
-  const newEndDate = computeSubscriptionEndDate(billingAnchor);
+  const billingCycle = metadata.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+  const newEndDate = computeSubscriptionEndDate(billingAnchor, billingCycle);
 
   const alreadyApplied =
     clientData.subscriptionStatus === 'active' &&
@@ -70,6 +71,7 @@ export async function handleSubscriptionPayment(
       subscriptionEndDate: newEndDate,
       subscriptionPlanName: storedPlanName,
       subscriptionRate: rate,
+      subscriptionBillingCycle: billingCycle,
     },
     { merge: true }
   );

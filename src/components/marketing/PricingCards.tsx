@@ -9,17 +9,26 @@ function formatRate(rate: number) {
   return `\u20b1${rate.toLocaleString()}`;
 }
 
-function tenantLabel(limit: number | null) {
-  if (limit === null) return 'Unlimited tenants';
+function tenantLabel(limit: number | null, contactSales?: boolean) {
+  if (limit === null) return contactSales ? 'Custom limits' : 'Unlimited tenants';
   return `Up to ${limit} tenants`;
 }
 
+const SUPPORT_EMAIL = 'support@rentalpilot.app';
+
 export function PricingCards({ className }: { className?: string }) {
   return (
-    <div className={cn('grid gap-6 md:grid-cols-3', className)}>
+    <div className={cn('grid gap-6 md:grid-cols-2 lg:grid-cols-4', className)}>
       {SUBSCRIPTION_PLANS.map((plan) => {
         const featured = plan.key === 'pro';
-        const ctaLabel = plan.key === 'trial' ? 'Start free trial' : `Choose ${plan.name}`;
+        const ctaLabel = plan.contactSales
+          ? 'Contact sales'
+          : plan.key === 'trial'
+            ? 'Start free trial'
+            : `Choose ${plan.name}`;
+        const ctaHref = plan.contactSales
+          ? `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Enterprise plan inquiry')}`
+          : '/signup';
 
         return (
           <div
@@ -39,6 +48,9 @@ export function PricingCards({ className }: { className?: string }) {
 
             <h3 className="font-display text-lg font-bold text-ink">{plan.name}</h3>
             <div className="mt-3 flex items-end gap-1">
+              {plan.contactSales && (
+                <span className="mb-1 text-sm font-medium text-muted-ink">Starts at</span>
+              )}
               <span className="font-display text-4xl font-extrabold tracking-tight text-ink">
                 {formatRate(plan.rate)}
               </span>
@@ -46,10 +58,15 @@ export function PricingCards({ className }: { className?: string }) {
                 {plan.rate === 0 ? '/ 1 month' : '/ month'}
               </span>
             </div>
+            {plan.yearlyRate > 0 && (
+              <p className="mt-1 text-sm text-muted-ink">
+                or {formatRate(plan.yearlyRate)}/year <span className="text-brand">(2 months free)</span>
+              </p>
+            )}
             <p className="mt-3 text-sm leading-relaxed text-muted-ink">{plan.description}</p>
 
             <div className="mt-5 rounded-xl bg-canvas px-3 py-2 text-sm font-medium text-ink">
-              {tenantLabel(plan.tenantLimit)}
+              {tenantLabel(plan.tenantLimit, plan.contactSales)}
             </div>
 
             <ul className="mt-5 flex-1 space-y-3">
@@ -70,7 +87,7 @@ export function PricingCards({ className }: { className?: string }) {
                   : 'bg-ink text-white hover:bg-ink/90'
               )}
             >
-              <Link href="/signup">{ctaLabel}</Link>
+              <Link href={ctaHref}>{ctaLabel}</Link>
             </Button>
           </div>
         );

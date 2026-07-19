@@ -150,6 +150,7 @@ export interface Client {
   subscriptionEndDate?: string; // ISO string
   subscriptionPlanName?: string;
   subscriptionRate?: number;
+  subscriptionBillingCycle?: 'monthly' | 'yearly';
   // ---- Auto-renew (PayMongo Subscriptions) ----
   autoRenew?: boolean;
   autoRenewMethod?: 'card' | 'paymaya' | 'gcash';

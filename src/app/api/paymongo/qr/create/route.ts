@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
-    const { amount, planName, details } = await request.json();
+    const { amount, planName, billingCycle, details } = await request.json();
+    const normalizedCycle: 'monthly' | 'yearly' = billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
     if (!process.env.PAYMONGO_SECRET_KEY) {
       throw new Error('PayMongo is not configured.');
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       clientName: clientName ?? clientData.name,
       planName: canonicalPlanName(planName),
       amount: roundedAmount,
+      billingCycle: normalizedCycle,
       billingEndDate: billingEndDate ? String(billingEndDate) : undefined,
     });
 

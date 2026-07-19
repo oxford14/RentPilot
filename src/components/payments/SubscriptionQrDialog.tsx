@@ -26,6 +26,7 @@ interface SubscriptionQrDialogProps {
   clientName?: string;
   amount: number;
   planName: string;
+  billingCycle?: 'monthly' | 'yearly';
   billingEndDate?: string;
 }
 
@@ -44,6 +45,7 @@ export function SubscriptionQrDialog({
   clientName,
   amount,
   planName,
+  billingCycle = 'monthly',
   billingEndDate,
 }: SubscriptionQrDialogProps) {
   const { toast } = useToast();
@@ -75,6 +77,7 @@ export function SubscriptionQrDialog({
         body: JSON.stringify({
           amount,
           planName,
+          billingCycle,
           details: { clientId, clientName, billingEndDate },
         }),
       });
@@ -92,7 +95,7 @@ export function SubscriptionQrDialog({
       setStep('error');
       toast({ variant: 'destructive', title: 'Payment error', description: message });
     }
-  }, [amount, planName, clientId, clientName, billingEndDate, toast]);
+  }, [amount, planName, billingCycle, clientId, clientName, billingEndDate, toast]);
 
   useEffect(() => {
     if (isOpen && amount > 0 && clientId) {

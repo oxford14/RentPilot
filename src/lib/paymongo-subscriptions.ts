@@ -2,7 +2,7 @@ import 'server-only';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { getPaymongoAuthHeader } from '@/lib/paymongo';
 import { canonicalPlanName } from '@/lib/subscription-plans';
-import type { PlanKey } from '@/lib/subscription-plans';
+import type { PlanKey, BillingCycle } from '@/lib/subscription-plans';
 import { computeSubscriptionEndDate } from '@/lib/subscription-status';
 
 const PAYMONGO_API = 'https://api.paymongo.com/v1';
@@ -15,6 +15,7 @@ export type PaymongoSubscriptionRecord = {
   subscriptionId?: string;
   planId?: string;
   method: AutoRenewMethod;
+  billingCycle?: BillingCycle;
   defaultPaymentMethodId?: string;
   /** Guards against double-extending for the same charge (confirm + webhook). */
   lastPaymentIntentId?: string;
@@ -57,7 +58,8 @@ async function paymongoRequest(
 
 // ---- Plan IDs (seeded via src/scripts/seed-paymongo-plans.ts) ----
 
-type PlanIdMap = { basic?: string; pro?: string };
+type CyclePlanIds = { monthly?: string; yearly?: string };
+type PlanIdMap = { basic?: CyclePlanIds; pro?: CyclePlanIds };
 
 export async function getPaymongoPlanConfig(): Promise<{
   cardPlans: PlanIdMap;
@@ -74,14 +76,15 @@ export async function getPaymongoPlanConfig(): Promise<{
 
 export async function resolvePlanId(
   method: AutoRenewMethod,
-  planKey: PlanKey
+  planKey: PlanKey,
+  cycle: BillingCycle = 'monthly'
 ): Promise<string> {
   if (planKey !== 'basic' && planKey !== 'pro') {
     throw new Error('Auto-renew is only available on the Basic or Pro plan.');
   }
   const config = await getPaymongoPlanConfig();
   const map = method === 'paymaya' ? config.mayaPlans : config.cardPlans;
-  const planId = map[planKey];
+  const planId = map[planKey]?.[cycle];
   if (!planId) {
     throw new Error(
       'PayMongo plans are not configured yet. Run the seed script (src/scripts/seed-paymongo-plans.ts) after enabling Subscriptions on your PayMongo account.'
@@ -322,16 +325,20 @@ export async function applyAutoRenewCharge(params: {
   const clientSnap = await clientRef.get();
   if (!clientSnap.exists) throw new Error(`Client not found: ${params.clientId}`);
   const clientData = clientSnap.data()!;
+  const record = await getSubscriptionRecord(params.clientId);
 
   if (params.paymentIntentId) {
-    const record = await getSubscriptionRecord(params.clientId);
     if (record?.lastPaymentIntentId && record.lastPaymentIntentId === params.paymentIntentId) {
       return { extended: false, endDate: clientData.subscriptionEndDate };
     }
   }
 
+  const cycle: BillingCycle =
+    clientData.subscriptionBillingCycle === 'yearly' || record?.billingCycle === 'yearly'
+      ? 'yearly'
+      : 'monthly';
   const newEndDate =
-    params.nextBillingDate ?? computeSubscriptionEndDate(clientData.subscriptionEndDate);
+    params.nextBillingDate ?? computeSubscriptionEndDate(clientData.subscriptionEndDate, cycle);
 
   const update: Record<string, unknown> = {
     subscriptionStatus: 'active',

@@ -33,6 +33,7 @@ interface AutoRenewDialogProps {
   clientId: string;
   adminEmail: string;
   planLabel: string;
+  billingCycle?: 'monthly' | 'yearly';
   pendingStorageKey: string;
   onBusyChange?: (busy: boolean) => void;
   onEnabled: (methodLabel: string) => void;
@@ -48,6 +49,7 @@ export function AutoRenewDialog({
   clientId,
   adminEmail,
   planLabel,
+  billingCycle = 'monthly',
   pendingStorageKey,
   onBusyChange,
   onEnabled,
@@ -180,6 +182,7 @@ export function AutoRenewDialog({
         clientId,
         method: method as 'card' | 'paymaya',
         adminEmail,
+        billingCycle,
       });
 
       const pm = await createPaymentMethod(start.publicKey);
@@ -226,6 +229,7 @@ export function AutoRenewDialog({
     clientId,
     method,
     adminEmail,
+    billingCycle,
     createPaymentMethod,
     attachPaymentMethod,
     pendingStorageKey,

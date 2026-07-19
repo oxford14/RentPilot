@@ -50,7 +50,7 @@ export default function TenantsPage() {
     if (!client || !client.subscriptionPlanName) return Infinity; // Default to allow if no plan
     const def = getPlanDefinition(client.subscriptionPlanName);
     if (!def) return Infinity; // Custom / unknown plans are uncapped
-    return def.tenantLimit ?? Infinity; // null => unlimited (Pro)
+    return def.tenantLimit ?? Infinity; // null => uncapped (Enterprise)
   }, [client]);
 
   const isLimitReached = clientTenants.length >= tenantLimit;

@@ -14,25 +14,32 @@ import { getPaymongoAuthHeader } from '@/lib/paymongo';
 const PAYMONGO_API = 'https://api.paymongo.com/v1';
 
 type TierKey = 'basic' | 'pro';
+type Cycle = 'monthly' | 'yearly';
+type CyclePlanIds = { monthly?: string; yearly?: string };
 
-const TIERS: Record<TierKey, { name: string; amount: number }> = {
-  basic: { name: 'RentPilot Basic', amount: 49900 },
-  pro: { name: 'RentPilot Pro', amount: 99900 },
+// Amounts in centavos. Yearly = monthly x 10 (~2 months free).
+const TIERS: Record<TierKey, { name: string; monthly: number; yearly: number }> = {
+  basic: { name: 'RentPilot Basic', monthly: 49900, yearly: 499000 },
+  pro: { name: 'RentPilot Pro', monthly: 99900, yearly: 999000 },
 };
 
 async function createPlan(
   secretKey: string,
-  params: { name: string; amount: number; onDemand: boolean }
+  params: { name: string; amount: number; cycle: Cycle; onDemand: boolean }
 ): Promise<string> {
+  const cycleLabel = params.cycle === 'yearly' ? 'Yearly' : 'Monthly';
   const attributes: Record<string, unknown> = {
-    name: params.onDemand ? `${params.name} (Maya)` : params.name,
+    name: params.onDemand
+      ? `${params.name} ${cycleLabel} (Maya)`
+      : `${params.name} ${cycleLabel}`,
     amount: params.amount,
     currency: 'PHP',
   };
   if (params.onDemand) {
+    // On-demand (Maya): no interval; our scheduler triggers each cycle.
     attributes.type = 'on_demand';
   } else {
-    attributes.interval = 'month';
+    attributes.interval = params.cycle === 'yearly' ? 'year' : 'month';
     attributes.interval_count = 1;
   }
 
@@ -64,22 +71,41 @@ async function main() {
   const ref = db.collection('systemSettings').doc('paymongo');
   const existing = (await ref.get()).data() ?? {};
 
-  const cardPlans = { ...(existing.cardPlans ?? {}) } as Record<TierKey, string>;
-  const mayaPlans = { ...(existing.mayaPlans ?? {}) } as Record<TierKey, string>;
+  const cardPlans = { ...(existing.cardPlans ?? {}) } as Record<TierKey, CyclePlanIds>;
+  const mayaPlans = { ...(existing.mayaPlans ?? {}) } as Record<TierKey, CyclePlanIds>;
+  const cycles: Cycle[] = ['monthly', 'yearly'];
 
   for (const key of Object.keys(TIERS) as TierKey[]) {
     const tier = TIERS[key];
-    if (!cardPlans[key]) {
-      cardPlans[key] = await createPlan(secretKey, { ...tier, onDemand: false });
-      console.log(`Created card plan ${key}: ${cardPlans[key]}`);
-    } else {
-      console.log(`Card plan ${key} already set: ${cardPlans[key]}`);
-    }
-    if (!mayaPlans[key]) {
-      mayaPlans[key] = await createPlan(secretKey, { ...tier, onDemand: true });
-      console.log(`Created Maya plan ${key}: ${mayaPlans[key]}`);
-    } else {
-      console.log(`Maya plan ${key} already set: ${mayaPlans[key]}`);
+    cardPlans[key] = { ...(cardPlans[key] ?? {}) };
+    mayaPlans[key] = { ...(mayaPlans[key] ?? {}) };
+
+    for (const cycle of cycles) {
+      const amount = cycle === 'yearly' ? tier.yearly : tier.monthly;
+
+      if (!cardPlans[key][cycle]) {
+        cardPlans[key][cycle] = await createPlan(secretKey, {
+          name: tier.name,
+          amount,
+          cycle,
+          onDemand: false,
+        });
+        console.log(`Created card plan ${key}/${cycle}: ${cardPlans[key][cycle]}`);
+      } else {
+        console.log(`Card plan ${key}/${cycle} already set: ${cardPlans[key][cycle]}`);
+      }
+
+      if (!mayaPlans[key][cycle]) {
+        mayaPlans[key][cycle] = await createPlan(secretKey, {
+          name: tier.name,
+          amount,
+          cycle,
+          onDemand: true,
+        });
+        console.log(`Created Maya plan ${key}/${cycle}: ${mayaPlans[key][cycle]}`);
+      } else {
+        console.log(`Maya plan ${key}/${cycle} already set: ${mayaPlans[key][cycle]}`);
+      }
     }
   }
 

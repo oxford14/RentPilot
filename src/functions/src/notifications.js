@@ -242,6 +242,7 @@ async function sendGcashAssistedRenewal(client) {
         clientName: client.name,
         planName: client.subscriptionPlanName || 'Basic Plan',
         amount: String(rate),
+        billingCycle: client.subscriptionBillingCycle === 'yearly' ? 'yearly' : 'monthly',
         billingEndDate: client.subscriptionEndDate,
     });
 

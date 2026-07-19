@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       clientName: pending.clientName,
       planName: pending.planName,
       amount: String(pending.amount),
+      billingCycle: pending.billingCycle === 'yearly' ? 'yearly' : 'monthly',
       billingEndDate: pending.billingEndDate,
     };
 

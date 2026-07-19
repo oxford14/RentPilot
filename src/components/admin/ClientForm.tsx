@@ -25,7 +25,13 @@ import { cn } from '@/lib/utils';
 import { Switch } from '../ui/switch';
 import { Separator } from '../ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ADMIN_SUBSCRIPTION_PLAN_OPTIONS, resolvePlanFormValue } from '@/lib/subscription-plans';
+import {
+  ADMIN_SUBSCRIPTION_PLAN_OPTIONS,
+  resolvePlanFormValue,
+  getPlanDefinition,
+  getPlanRate,
+  type BillingCycle,
+} from '@/lib/subscription-plans';
 import { cropImageToOptimizedBlob } from '@/lib/logo-image';
 import { getFriendlyErrorMessage } from '@/lib/friendly-errors';
 
@@ -58,6 +64,7 @@ const clientFormSchema = z.object({
   subscriptionStatus: z.enum(['active', 'inactive'], { required_error: "Subscription status is required." }),
   subscriptionEndDate: z.date().optional(),
   subscriptionPlanName: z.string().optional(),
+  subscriptionBillingCycle: z.enum(['monthly', 'yearly']).optional(),
   subscriptionRate: z.coerce.number().optional(),
   companyFundsStartingBalance: z.coerce.number().optional(),
   companyFundsStartDate: z.string().optional(),
@@ -97,6 +104,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       subscriptionStatus: client?.subscriptionStatus || 'active',
       subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
       subscriptionPlanName: resolvePlanFormValue(client?.subscriptionPlanName),
+      subscriptionBillingCycle: client?.subscriptionBillingCycle || 'monthly',
       subscriptionRate: client?.subscriptionRate || 0,
       companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
       companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
@@ -105,6 +113,16 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
   });
 
   const watchedPlanName = form.watch("subscriptionPlanName");
+  const watchedBillingCycle = form.watch("subscriptionBillingCycle");
+
+  // Auto-fill the rate from the selected plan + billing cycle (unless Custom Price).
+  const applyPlanRate = (planValue?: string, cycle?: BillingCycle) => {
+    if (!planValue || planValue === 'Custom Price') return;
+    const def = getPlanDefinition(planValue);
+    if (def) {
+      form.setValue('subscriptionRate', getPlanRate(def, cycle ?? 'monthly'));
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -115,6 +133,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
         subscriptionStatus: client?.subscriptionStatus || 'active',
         subscriptionEndDate: client?.subscriptionEndDate ? new Date(client.subscriptionEndDate) : undefined,
         subscriptionPlanName: resolvePlanFormValue(client?.subscriptionPlanName),
+        subscriptionBillingCycle: client?.subscriptionBillingCycle || 'monthly',
         subscriptionRate: client?.subscriptionRate || 0,
         companyFundsStartingBalance: client?.companyFundsStartingBalance || 0,
         companyFundsStartDate: client?.companyFundsStartDate ? new Date(client.companyFundsStartDate).toISOString().split('T')[0] : '2025-06-01',
@@ -179,6 +198,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
       subscriptionStatus: data.subscriptionStatus,
       subscriptionEndDate: data.subscriptionEndDate?.toISOString(),
       subscriptionPlanName: data.subscriptionPlanName,
+      subscriptionBillingCycle: data.subscriptionBillingCycle,
       subscriptionRate: data.subscriptionRate,
       timezone: data.timezone,
     };
@@ -263,7 +283,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <FormField
                   control={form.control}
                   name="subscriptionPlanName"
@@ -274,14 +294,7 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                         value={field.value || undefined}
                         onValueChange={(value) => {
                           field.onChange(value);
-                          if (value !== 'Custom Price') {
-                            const selectedPlan = subscriptionPlans.find(
-                              (p) => p.name === value
-                            );
-                            if (selectedPlan && selectedPlan.rate !== null) {
-                              form.setValue('subscriptionRate', selectedPlan.rate);
-                            }
-                          }
+                          applyPlanRate(value, watchedBillingCycle);
                         }}
                       >
                         <FormControl>
@@ -295,6 +308,33 @@ export function ClientForm({ isOpen, onClose, client }: ClientFormProps) {
                               {plan.name}
                             </SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="subscriptionBillingCycle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Billing Cycle</FormLabel>
+                      <Select
+                        value={field.value || 'monthly'}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          applyPlanRate(watchedPlanName, value as BillingCycle);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select cycle" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

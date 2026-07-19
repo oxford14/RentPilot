@@ -7,6 +7,8 @@ export type PaymongoPaymentMetadata =
       clientName?: string;
       planName: string;
       amount?: string;
+      /** 'monthly' | 'yearly' — determines whether we extend by 1 or 12 months */
+      billingCycle?: 'monthly' | 'yearly';
       /** Subscription due date at checkout — used to extend from billing date, not payment date */
       billingEndDate?: string;
       /** Return URL lookup when sessionStorage is unavailable after PayMongo redirect */
@@ -124,6 +126,7 @@ export function metadataFromPaymongoRecord(
       clientName: record.clientName,
       planName: record.planName,
       amount: record.amount,
+      billingCycle: record.billingCycle === 'yearly' ? 'yearly' : 'monthly',
       billingEndDate: record.billingEndDate,
       paymentRef: record.paymentRef,
     };

@@ -14,6 +14,7 @@ import {
   type AutoRenewMethod,
 } from '@/lib/paymongo-subscriptions';
 import { getPlanByKey, normalizePlanKey } from '@/lib/subscription-plans';
+import type { BillingCycle } from '@/lib/subscription-plans';
 import type { Client } from '@/lib/types';
 
 async function loadClient(clientId: string): Promise<Client> {
@@ -46,14 +47,16 @@ export async function serverStartAutoRenew(params: {
   clientId: string;
   method: Exclude<AutoRenewMethod, 'gcash'>;
   adminEmail: string;
+  billingCycle?: BillingCycle;
 }): Promise<StartAutoRenewResult> {
   const publicKey = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY;
   if (!publicKey) throw new Error('PayMongo public key is not configured.');
   if (!params.adminEmail) throw new Error('A billing email is required for auto-renew.');
 
+  const cycle: BillingCycle = params.billingCycle === 'yearly' ? 'yearly' : 'monthly';
   const client = await loadClient(params.clientId);
   const planKey = resolvePaidPlanKey(client);
-  const planId = await resolvePlanId(params.method, planKey);
+  const planId = await resolvePlanId(params.method, planKey, cycle);
 
   const customerId = await getOrCreatePaymongoCustomer({
     clientId: client.id,
@@ -68,6 +71,7 @@ export async function serverStartAutoRenew(params: {
     subscriptionId: sub.subscriptionId,
     planId,
     method: params.method,
+    billingCycle: cycle,
     status: sub.status,
   });
 
@@ -124,6 +128,7 @@ export async function serverConfirmAutoRenew(params: {
       autoRenewMethod: params.method,
       autoRenewMethodLabel: label,
       autoRenewStatus: 'active',
+      subscriptionBillingCycle: record.billingCycle ?? 'monthly',
     },
     { merge: true }
   );

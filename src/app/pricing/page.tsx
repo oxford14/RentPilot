@@ -12,21 +12,23 @@ export const metadata = {
     'Straightforward Rental Pilot pricing. Start free, then choose Basic or Pro as your rental portfolio grows.',
 };
 
+// Columns follow SUBSCRIPTION_PLANS order: Trial, Basic, Pro, Enterprise.
 const comparisonRows: { label: string; values: (string | boolean)[] }[] = [
   {
     label: 'Tenant limit',
     values: SUBSCRIPTION_PLANS.map((p) =>
-      p.tenantLimit === null ? 'Unlimited' : `${p.tenantLimit}`
+      p.tenantLimit === null ? (p.contactSales ? 'Custom' : 'Unlimited') : `${p.tenantLimit}`
     ),
   },
-  { label: 'Payment tracking', values: [true, true, true] },
-  { label: 'Basic reporting', values: [true, true, true] },
-  { label: 'Advanced reporting', values: [false, true, true] },
-  { label: 'AI delinquency prediction', values: [false, true, true] },
-  { label: 'Data backup & restore', values: [false, false, true] },
+  { label: 'Payment tracking', values: [true, true, true, true] },
+  { label: 'Basic reporting', values: [true, true, true, true] },
+  { label: 'Advanced reporting', values: [false, true, true, true] },
+  { label: 'AI delinquency prediction', values: [false, true, true, true] },
+  { label: 'Data backup & restore', values: [false, false, true, true] },
+  { label: 'Multiple branches', values: [false, false, false, true] },
   {
     label: 'Support',
-    values: ['Email', 'Priority', 'Phone & chat'],
+    values: ['Email', 'Priority', 'Phone & chat', 'Dedicated'],
   },
 ];
 
